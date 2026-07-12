@@ -239,16 +239,54 @@ function globalSearch(){
   const hits=[];
   members.forEach(m=>{
     const hay=`${m.name} ${memberCode(m)} ${m.phone} ${m.birthdate||''} ${m.area||''}`.toLowerCase();
-    if(hay.includes(q)) hits.push({kind:'عضو', label:`${m.name} · ${memberCode(m)}`, action:()=>{switchTab('members');showDetail(m.id);}});
-    (m.miqats||[]).forEach(()=>{});
+    if(hay.includes(q)) hits.push({kind:'عضو', label:`${m.name} · ${memberCode(m)}`, action:()=>showDetail(m.id)});
   });
   miqats.forEach(mq=>{
-    if(mq.name.toLowerCase().includes(q)) hits.push({kind:'ميقات', label:`${mq.name} · ${fmtMiqatDate(mq)}`, action:()=>{switchTab('miqats');}});
+    if((mq.name||'').toLowerCase().includes(q)) hits.push({kind:'ميقات', label:`${mq.name} · ${fmtMiqatDate(mq)}`, action:()=>showMiqatDetail(mq.id)});
   });
-  news.forEach(n=>{ if((n.title+n.body).toLowerCase().includes(q)) hits.push({kind:'خبر', label:n.title, action:()=>{}}); });
+  news.forEach(n=>{ if((n.title+' '+n.body).toLowerCase().includes(q)) hits.push({kind:'خبر', label:n.title, action:()=>showNewsDetail(n.id)}); });
   if(!hits.length){ el.innerHTML=`<div class="empty"><div class="txt">لا نتائج</div></div>`; return; }
   el.innerHTML=hits.slice(0,20).map((h,i)=>`<div class="search-hit" data-i="${i}"><span>${escapeHtml(h.label)}</span><span class="kind">${h.kind}</span></div>`).join('');
   el.querySelectorAll('.search-hit').forEach(node=>node.addEventListener('click',()=>hits[+node.dataset.i].action()));
+}
+
+/* تفاصيل الميقات الكاملة */
+function showMiqatDetail(id){
+  const mq=miqats.find(x=>x.id===id); if(!mq) return;
+  const st=miqatStatus(mq), paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
+  const pct=req>0?Math.min(100,Math.round(paid/req*100)):(paid>0?100:0);
+  const bookers=(mq.bookings||[]).map(b=>{ const m=members.find(x=>x.id===b.memberId);
+    return `<li><span class="name">${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span></span><span class="date">${fmtMoney(b.amount)}</span></li>`;
+  }).join('');
+  $('#miqatDetailTitle').textContent=mq.name;
+  $('#miqatDetailSub').innerHTML=`${fmtMiqatDate(mq)} · <span class="badge mc-status st-${st}">${STATUS_LABEL[st]}</span>`;
+  $('#miqatDetailContent').innerHTML=`
+    <div class="detail-rows">
+      ${detailRow('التاريخ الهجري', fmtMiqatDate(mq))}
+      ${detailRow('المبلغ المطلوب', fmtMoney(req))}
+      ${detailRow('المبلغ الموصول', fmtMoney(paid))}
+      ${detailRow('المتبقّي', fmtMoney(Math.max(0,req-paid)))}
+      ${detailRow('عدد المشاركين', (mq.bookings||[]).length)}
+    </div>
+    <div class="progress" style="margin:12px 0;"><span style="width:${pct}%"></span></div>
+    <div class="detail-miqats"><div class="title">المشاركون ومساهماتهم</div>
+      <ul>${bookers||'<li><span class="name" style="color:var(--muted)">لا يوجد مشاركون بعد</span></li>'}</ul>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" onclick="closeModal('miqatDetailModal'); openBooking('${mq.id}')">+ حجز عضو</button>
+      <button class="btn btn-ghost" onclick="closeModal('miqatDetailModal'); openMiqatModal('${mq.id}')">تعديل الميقات</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('miqatDetailModal'); switchTab('miqats');">عرض في قائمة المواقيت</button>
+    </div>`;
+  $('#miqatDetailModal').classList.add('open');
+}
+
+/* تفاصيل الخبر */
+function showNewsDetail(id){
+  const n=news.find(x=>x.id===id); if(!n) return;
+  $('#newsDetailTitle').textContent=n.title;
+  $('#newsDetailSub').textContent=fmtDate(n.date);
+  $('#newsDetailContent').innerHTML=`<div style="white-space:pre-wrap; font-size:14px; line-height:1.8; color:var(--ink-2);">${escapeHtml(n.body||'')}</div>`;
+  $('#newsDetailModal').classList.add('open');
 }
 
 /* ═══════════ Members ═══════════ */
@@ -294,26 +332,75 @@ $('#editIsMinor')?.addEventListener('change',e=>{ $('#editBirthWrap').style.disp
 $('#editIsAdmin')?.addEventListener('change',e=>{ $('#editCommWrap').style.display=e.target.checked?'block':'none'; });
 $('#hasMiqatToggle').addEventListener('change',e=>{
   const c=$('#miqatsContainer');
-  if(e.target.checked){ c.classList.add('open'); if(!c.querySelector('.miqat-entry')) addMiqatEntry(); }
+  if(e.target.checked){
+    if(!miqats.length){
+      toast('لا توجد مواقيت مسجّلة — أضفها من قائمة المواقيت أولاً');
+      e.target.checked=false; return;
+    }
+    c.classList.add('open'); if(!c.querySelector('.miqat-entry')) addMiqatEntry();
+  }
   else { c.classList.remove('open'); c.querySelectorAll('.miqat-entry').forEach(el=>el.remove()); }
 });
 function miqatEntryHTML(){
-  const opts=HIJRI_MONTHS.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
+  const opts=miqatsByNearest().map(mq=>{
+    const st=miqatStatus(mq);
+    return `<option value="${mq.id}">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)} (${STATUS_LABEL[st]})</option>`;
+  }).join('');
   return `<div class="miqat-entry">
-    <div class="field field-name"><label>اسم الميقات</label><input class="miqat-name" placeholder="مثلاً: ميقات ليلة القدر" /></div>
-    <div class="field field-day"><label>اليوم</label><input type="number" class="miqat-day" min="1" max="30" placeholder="10" /></div>
-    <div class="field field-month"><label>الشهر الهجري</label><select class="miqat-month">${opts}</select></div>
-    <button type="button" class="remove-btn" onclick="this.closest('.miqat-entry').remove()">×</button>
+    <div class="field"><label>اختر الميقات</label>
+      <select class="miqat-select" onchange="updateMiqatInfo(this)">
+        <option value="">— اختر من قائمة المواقيت —</option>
+        ${opts}
+      </select></div>
+    <div class="miqat-info" style="display:none"></div>
+    <div class="field"><label>مساهمة العضو (د.ب)</label>
+      <input type="number" class="miqat-amount" min="0" step="0.001" placeholder="0" oninput="updateMiqatPreview(this)" /></div>
+    <div class="miqat-preview" style="display:none"></div>
+    <button type="button" class="remove-btn" onclick="this.closest('.miqat-entry').remove()">× إزالة</button>
   </div>`;
+}
+/* عرض بيانات الميقات المختار */
+function updateMiqatInfo(sel){
+  const entry=sel.closest('.miqat-entry');
+  const info=entry.querySelector('.miqat-info');
+  const mq=miqats.find(x=>x.id===sel.value);
+  if(!mq){ info.style.display='none'; updateMiqatPreview(entry.querySelector('.miqat-amount')); return; }
+  const req=Number(mq.requiredAmount)||0, paid=miqatPaid(mq), rem=Math.max(0,req-paid);
+  const st=miqatStatus(mq);
+  info.style.display='block';
+  info.innerHTML=`
+    <div class="mq-info-box">
+      <div class="mq-info-row"><span>التاريخ الهجري</span><b>${fmtMiqatDate(mq)}</b></div>
+      <div class="mq-info-row"><span>المبلغ المطلوب</span><b>${fmtMoney(req)}</b></div>
+      <div class="mq-info-row"><span>الموصول حالياً</span><b>${fmtMoney(paid)}</b></div>
+      <div class="mq-info-row"><span>المتبقّي</span><b>${fmtMoney(rem)}</b></div>
+      <div class="mq-info-row"><span>الحالة الحالية</span><span class="mc-status st-${st}">${STATUS_LABEL[st]}</span></div>
+    </div>`;
+  updateMiqatPreview(entry.querySelector('.miqat-amount'));
+}
+/* معاينة الحالة بعد مساهمة العضو */
+function updateMiqatPreview(input){
+  const entry=input.closest('.miqat-entry');
+  const prev=entry.querySelector('.miqat-preview');
+  const mq=miqats.find(x=>x.id===entry.querySelector('.miqat-select').value);
+  const amt=parseFloat(input.value)||0;
+  if(!mq||amt<=0){ prev.style.display='none'; return; }
+  const req=Number(mq.requiredAmount)||0;
+  const total=miqatPaid(mq)+amt;
+  const newSt = total<=0 ? 'red' : (req>0 && total<req ? 'yellow' : 'green');
+  const msg = newSt==='green'
+    ? `✅ سيكتمل المبلغ — يُحجز الميقات باسم العضو`
+    : `⚠️ المساهمة أقل من المطلوب — ينتقل الميقات إلى «يحتاج تعزيز» (المتبقّي ${fmtMoney(Math.max(0,req-total))})`;
+  prev.style.display='block';
+  prev.innerHTML=`<div class="mq-preview-box st-${newSt}">${msg}</div>`;
 }
 function addMiqatEntry(){ const c=$('#miqatsContainer'); const btn=c.querySelector('.add-miqat-btn');
   const d=document.createElement('div'); d.innerHTML=miqatEntryHTML(); c.insertBefore(d.firstElementChild,btn); }
 function collectFormMiqats(){
   const list=[]; $$('#miqatsContainer .miqat-entry').forEach(el=>{
-    const name=el.querySelector('.miqat-name').value.trim();
-    const day=parseInt(el.querySelector('.miqat-day').value);
-    const month=parseInt(el.querySelector('.miqat-month').value);
-    if(name&&day>=1&&day<=30&&month>=0&&month<=11) list.push({name,day,month});
+    const miqatId=el.querySelector('.miqat-select').value;
+    const amount=parseFloat(el.querySelector('.miqat-amount').value)||0;
+    if(miqatId) list.push({miqatId, amount});
   }); return list;
 }
 function resetForm(){ $('#isAdminToggle').checked=false; $('#adminCommWrap').style.display='none'; $('#adminCommInput').value='';
@@ -351,16 +438,24 @@ $('#addForm').addEventListener('submit',async e=>{
   members.push(newMember);
   settings.counters[type]=num+1;
 
-  // create linked miqats in the master list (booked by this member, amount 0)
+  // تسجيل مساهمة العضو في المواقيت المختارة (الحالة تُحسب تلقائياً)
+  let completed=0, needsBoost=0;
   formMiqats.forEach(fm=>{
-    let mq=miqats.find(x=>x.name===fm.name&&x.day===fm.day&&x.month===fm.month);
-    if(!mq){ mq={id:'q_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), name:fm.name, day:fm.day, month:fm.month, requiredAmount:0, bookings:[]}; miqats.push(mq); }
-    if(!mq.bookings.some(b=>b.memberId===newMember.id)) mq.bookings.push({memberId:newMember.id, amount:0});
+    const mq=miqats.find(x=>x.id===fm.miqatId); if(!mq) return;
+    mq.bookings=mq.bookings||[];
+    const ex=mq.bookings.find(b=>b.memberId===newMember.id);
+    if(ex) ex.amount=(Number(ex.amount)||0)+fm.amount;
+    else mq.bookings.push({memberId:newMember.id, amount:fm.amount});
+    const st=miqatStatus(mq);
+    if(st==='green') completed++; else if(st==='yellow') needsBoost++;
   });
 
   await saveMembers(); await saveMiqats(); await persistSettings();
   e.target.reset(); resetForm();
-  toast(`تم تسجيل العضو ${memberCode(newMember)}`);
+  let msg=`تم تسجيل العضو ${memberCode(newMember)}`;
+  if(completed) msg+=` · ${completed} ميقات محجوز`;
+  if(needsBoost) msg+=` · ${needsBoost} يحتاج تعزيز`;
+  toast(msg);
   openCard(newMember.id);
 });
 

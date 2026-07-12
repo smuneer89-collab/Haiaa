@@ -147,11 +147,21 @@
 
   .miqats-container { margin-top: 14px; display: none; flex-direction: column; gap: 10px; }
   .miqats-container.open { display: flex; }
-  .miqat-entry { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px;
-    display: grid; grid-template-columns: 1fr 80px 120px auto; gap: 8px; align-items: end; }
+  .miqat-entry { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px; }
   .miqat-entry .field { gap: 4px; }
-  .miqat-entry .field label { font-size: 11px; }
-  .miqat-entry .field input, .miqat-entry .field select { padding: 8px 10px; font-size: 13px; }
+  .miqat-entry .field label { font-size: 12px; }
+  .miqat-entry .remove-btn { align-self: flex-start; width: auto; padding: 6px 12px; font-size: 12px; height: auto; }
+  .mq-info-box { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .mq-info-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0;
+    font-size: 12.5px; border-bottom: 1px dotted var(--line); }
+  .mq-info-row:last-child { border: none; }
+  .mq-info-row span:first-child { color: var(--muted); }
+  .mq-info-row b { color: var(--ink); font-weight: 700; }
+  .mq-preview-box { border-radius: 8px; padding: 10px 12px; font-size: 12.5px; font-weight: 600; line-height: 1.6; }
+  .mq-preview-box.st-green { background: var(--ok-soft); color: var(--ok); }
+  .mq-preview-box.st-yellow { background: var(--warn-soft); color: var(--warn); }
+  .mq-preview-box.st-red { background: var(--danger-soft); color: var(--danger); }
   .remove-btn { background: transparent; border: 1px solid var(--line); color: var(--danger);
     width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; padding: 0; }
   .remove-btn:hover { background: var(--danger-soft); border-color: var(--danger); }
@@ -160,9 +170,6 @@
     font-size: 13px; font-weight: 500; cursor: pointer; }
   .add-miqat-btn:hover { background: var(--surface); border-color: var(--ink); border-style: solid; }
   @media (max-width: 540px) {
-    .miqat-entry { grid-template-columns: 1fr 1fr auto; grid-template-areas: "name name remove" "day month ."; }
-    .miqat-entry .field-name { grid-area: name; } .miqat-entry .field-day { grid-area: day; }
-    .miqat-entry .field-month { grid-area: month; } .miqat-entry .remove-btn { grid-area: remove; }
     .stat-card .num { font-size:30px; }
   }
 
@@ -535,11 +542,11 @@
         <div class="toggle-section">
           <div class="toggle-row">
             <div><div class="toggle-label">هل لديه ميقات سنوي؟</div>
-              <div class="toggle-help">يُنشئ الميقات في قائمة المواقيت ويربطه بالعضو</div></div>
+              <div class="toggle-help">اختر من المواقيت المسجّلة وحدّد مساهمته</div></div>
             <label class="switch"><input type="checkbox" id="hasMiqatToggle" /><span class="slider"></span></label>
           </div>
           <div class="miqats-container" id="miqatsContainer">
-            <button type="button" class="add-miqat-btn" onclick="addMiqatEntry()">+ إضافة ميقات</button>
+            <button type="button" class="add-miqat-btn" onclick="addMiqatEntry()">+ إضافة ميقات آخر</button>
           </div>
         </div>
 
@@ -646,6 +653,22 @@
   <h3 id="detailTitle">تفاصيل العضو</h3>
   <div class="subtitle" id="detailSubtitle"></div>
   <div id="detailContent"></div>
+</div></div>
+
+<!-- Miqat Detail Modal (from search) -->
+<div class="modal-backdrop" id="miqatDetailModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('miqatDetailModal')">×</button>
+  <h3 id="miqatDetailTitle">تفاصيل الميقات</h3>
+  <div class="subtitle" id="miqatDetailSub"></div>
+  <div id="miqatDetailContent"></div>
+</div></div>
+
+<!-- News Detail Modal (from search) -->
+<div class="modal-backdrop" id="newsDetailModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('newsDetailModal')">×</button>
+  <h3 id="newsDetailTitle">الخبر</h3>
+  <div class="subtitle" id="newsDetailSub"></div>
+  <div id="newsDetailContent"></div>
 </div></div>
 
 <!-- Edit Member Modal -->
