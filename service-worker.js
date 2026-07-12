@@ -1,5 +1,5 @@
 /* Service Worker — enables offline use for هيئة محبي الحسين */
-const CACHE = 'husain-v1';
+const CACHE = 'husain-v2';
 const ASSETS = [
   './',
   './index.html',

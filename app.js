@@ -80,7 +80,13 @@ function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso); if(isNaN(d)
 function fmtDateShort(iso){ if(!iso) return '—'; const d=new Date(iso); if(isNaN(d)) return '—';
   const p=n=>String(n).padStart(2,'0'); return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`; }
 function addYear(iso){ const d=new Date(iso); d.setFullYear(d.getFullYear()+1); return d.toISOString().split('T')[0]; }
-function isActive(m){ if(!m.paymentDate||!m.expiryDate) return false; return new Date(m.expiryDate)>=new Date(); }
+/* العضوية هجرية: تبدأ محرم {سنة} وتنتهي محرم {سنة+1} */
+function currentHijriYear(){ return parseInt(hijriParts().year) || 1448; }
+function memberStartYear(m){ return m.hijriStartYear || settings.year || 1448; }
+function memberEndYear(m){ return m.hijriEndYear || (memberStartYear(m) + 1); }
+function isActive(m){ if(!m.paymentDate) return false; return currentHijriYear() < memberEndYear(m); }
+function fmtHijriStart(m){ return `محرم ${memberStartYear(m)} هـ`; }
+function fmtHijriEnd(m){ return `محرم ${memberEndYear(m)} هـ`; }
 function fmtMiqatDate(m){ if(!m) return ''; return `${m.day} ${HIJRI_MONTHS[m.month]}`; }
 
 function hijriParts(){
@@ -164,6 +170,14 @@ function renderDashboard(){
   const total=members.length, active=members.filter(isActive).length;
   $('#statTotal').textContent=total; $('#statActive').textContent=active; $('#statInactive').textContent=total-active;
   renderUpcoming(); renderNews(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
+}
+/* الضغط على الإحصائيات يفتح قائمة الأعضاء مفلترة */
+function openMembersFiltered(status){
+  switchTab('members');
+  const sel=$('#filterStatus'); if(sel){ sel.value=status||''; }
+  const q=$('#searchInput'); if(q) q.value='';
+  const t=$('#filterType'); if(t) t.value='';
+  renderMembers();
 }
 
 /* Upcoming occasions within ~2 hijri months */
@@ -270,6 +284,14 @@ $('#filterType')?.addEventListener('change',renderMembers);
 
 /* ═══════════ Add member form ═══════════ */
 $('#isAdminToggle').addEventListener('change',e=>{ $('#adminCommWrap').style.display=e.target.checked?'block':'none'; });
+/* سؤال العمر: البالغ لا يحتاج بيانات، والصغير نأخذ تاريخ ميلاده فقط */
+$('#isAdultToggle')?.addEventListener('change',e=>{
+  const adult=e.target.checked;
+  $('#minorBirthWrap').style.display=adult?'none':'block';
+  if(adult) $('#minorBirthdate').value='';
+});
+$('#editIsMinor')?.addEventListener('change',e=>{ $('#editBirthWrap').style.display=e.target.checked?'block':'none'; });
+$('#editIsAdmin')?.addEventListener('change',e=>{ $('#editCommWrap').style.display=e.target.checked?'block':'none'; });
 $('#hasMiqatToggle').addEventListener('change',e=>{
   const c=$('#miqatsContainer');
   if(e.target.checked){ c.classList.add('open'); if(!c.querySelector('.miqat-entry')) addMiqatEntry(); }
@@ -297,7 +319,8 @@ function collectFormMiqats(){
 function resetForm(){ $('#isAdminToggle').checked=false; $('#adminCommWrap').style.display='none'; $('#adminCommInput').value='';
   $('#hasMiqatToggle').checked=false; const c=$('#miqatsContainer'); c.classList.remove('open');
   c.querySelectorAll('.miqat-entry').forEach(el=>el.remove()); currentPhoto=null; $('#photoPreview').innerHTML='👤';
-  const pi=$('#photoInput'); if(pi) pi.value=''; }
+  const pi=$('#photoInput'); if(pi) pi.value='';
+  const ad=$('#isAdultToggle'); if(ad){ ad.checked=true; $('#minorBirthWrap').style.display='none'; $('#minorBirthdate').value=''; } }
 
 $('#addForm').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -305,13 +328,21 @@ $('#addForm').addEventListener('submit',async e=>{
   const isAdmin=$('#isAdminToggle').checked;
   const hasMiqat=$('#hasMiqatToggle').checked; const formMiqats=hasMiqat?collectFormMiqats():[];
   if(hasMiqat&&formMiqats.length===0){ toast('أضف بيانات ميقات واحد على الأقل أو أطفئ الخيار'); return; }
-  const age=parseInt(fd.get('age'));
-  if(age<18){ toast('العمر يجب أن يكون 18 فأكثر'); return; }
+
+  // العمر: سؤال بنعم/لا. البالغ (18+) لا يحتاج عمراً ولا تاريخ ميلاد.
+  const isAdult=$('#isAdultToggle').checked;
+  const isMinor=!isAdult;
+  let birthdate=null, age=null;
+  if(isMinor){
+    birthdate=$('#minorBirthdate').value;
+    if(!birthdate){ toast('أدخل تاريخ ميلاد العضو'); return; }
+    age=ageFromBirthdate(birthdate);
+  }
 
   const newMember={
     id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
     number:num, type,
-    name:fd.get('name').trim(), age, birthdate:fd.get('birthdate'),
+    name:fd.get('name').trim(), isMinor, age, birthdate,
     phone:fd.get('phone').trim(), area:(fd.get('area')||'').trim(),
     email:(fd.get('email')||'').trim(), address:(fd.get('address')||'').trim(),
     photo:currentPhoto||null, isAdmin, committee:isAdmin?($('#adminCommInput').value.trim()):'',
@@ -346,22 +377,23 @@ function showDetail(id){
     </ul></div>`:'';
   $('#detailContent').innerHTML=`
     <div class="detail-rows">
-      ${detailRow('العمر', m.age??'—')}
-      ${detailRow('تاريخ الميلاد', fmtDate(m.birthdate))}
+      ${m.isMinor&&m.birthdate?detailRow('تاريخ الميلاد', fmtDate(m.birthdate)):''}
+      ${m.isMinor&&m.age!=null?detailRow('العمر', m.age):''}
       ${detailRow('الهاتف', m.phone)}
       ${m.area?detailRow('المنطقة',m.area):''}
       ${m.email?detailRow('الإيميل',m.email):''}
       ${m.address?detailRow('العنوان',m.address):''}
       ${m.isAdmin?detailRow('اللجنة', m.committee||'—'):''}
       ${detailRow('تاريخ التسجيل', fmtDate(m.joinDate))}
-      ${m.paymentDate?detailRow('تاريخ الدفع',fmtDate(m.paymentDate)):''}
-      ${m.expiryDate?detailRow('انتهاء العضوية',fmtDate(m.expiryDate)):''}
+      ${m.paymentDate?detailRow('بداية العضوية', fmtHijriStart(m)):''}
+      ${m.paymentDate?detailRow('انتهاء العضوية', fmtHijriEnd(m)):''}
       ${m.paidAmount!=null?detailRow('المبلغ المدفوع',fmtMoney(m.paidAmount)):''}
     </div>
     ${miqatsHTML}
     <div class="actions-row">
       ${!active?`<button class="btn btn-primary" onclick="recordPayment('${m.id}')">تسجيل الاشتراك (${settings.fee} د.ب)</button>`:''}
       ${active?`<button class="btn btn-accent" onclick="openCard('${m.id}')">بطاقة العضوية</button>`:''}
+      <button class="btn btn-ghost" onclick="openEditMember('${m.id}')">✏️ تعديل الملف</button>
       <a href="${whatsappLink(m.phone)}" target="_blank" class="btn wa-btn large">${WA_ICON} واتساب</a>
       ${active?`<button class="btn btn-ghost" onclick="renewPayment('${m.id}')">تجديد سنة</button>`:''}
       <button class="btn btn-ghost btn-sm" onclick="toggleAdmin('${m.id}')">${m.isAdmin?'إزالة من الإدارة':'تعيين كإداري'}</button>
@@ -369,15 +401,70 @@ function showDetail(id){
     </div>`;
   $('#detailModal').classList.add('open');
 }
+
+/* ═══════════ تعديل ملف العضو ═══════════ */
+let editingMemberId=null;
+function openEditMember(id){
+  const m=members.find(x=>x.id===id); if(!m) return;
+  editingMemberId=id;
+  $('#editName').value=m.name||'';
+  $('#editPhone').value=m.phone||'';
+  $('#editType').value=m.type||'عادي';
+  $('#editArea').value=m.area||'';
+  $('#editEmail').value=m.email||'';
+  $('#editAddress').value=m.address||'';
+  $('#editIsMinor').checked=!!m.isMinor;
+  $('#editBirthWrap').style.display=m.isMinor?'block':'none';
+  $('#editBirthdate').value=m.birthdate||'';
+  $('#editIsAdmin').checked=!!m.isAdmin;
+  $('#editCommWrap').style.display=m.isAdmin?'block':'none';
+  $('#editComm').value=m.committee||'';
+  editPhoto=m.photo||null;
+  $('#editPhotoPreview').innerHTML=editPhoto?`<img src="${editPhoto}" alt="" />`:'👤';
+  closeModal('detailModal');
+  $('#editModal').classList.add('open');
+}
+let editPhoto=null;
+async function handleEditPhoto(e){
+  const file=e.target.files[0]; if(!file) return;
+  try{ editPhoto=await processPhoto(file); $('#editPhotoPreview').innerHTML=`<img src="${editPhoto}" alt="" />`; }
+  catch(err){ toast('تعذّرت معالجة الصورة'); }
+}
+async function saveEditMember(){
+  const m=members.find(x=>x.id===editingMemberId); if(!m) return;
+  const name=$('#editName').value.trim(); const phone=$('#editPhone').value.trim();
+  if(!name||!phone){ toast('الاسم والهاتف مطلوبان'); return; }
+  m.name=name; m.phone=phone; m.type=$('#editType').value;
+  m.area=$('#editArea').value.trim(); m.email=$('#editEmail').value.trim(); m.address=$('#editAddress').value.trim();
+  m.isMinor=$('#editIsMinor').checked;
+  if(m.isMinor){ m.birthdate=$('#editBirthdate').value||null; m.age=m.birthdate?ageFromBirthdate(m.birthdate):null; }
+  else { m.birthdate=null; m.age=null; }
+  m.isAdmin=$('#editIsAdmin').checked; m.committee=m.isAdmin?$('#editComm').value.trim():'';
+  m.photo=editPhoto||null;
+  await saveMembers();
+  closeModal('editModal'); toast('تم حفظ التعديلات');
+  renderMembers(); renderAdmins(); renderDashboard();
+  showDetail(m.id);
+}
+function ageFromBirthdate(iso){
+  const b=new Date(iso); if(isNaN(b)) return null;
+  const t=new Date(); let a=t.getFullYear()-b.getFullYear();
+  const md=t.getMonth()-b.getMonth();
+  if(md<0||(md===0&&t.getDate()<b.getDate())) a--;
+  return a;
+}
 function detailRow(k,v){ return `<div class="detail-row"><span class="k">${k}</span><span class="v">${v}</span></div>`; }
 function closeModal(id){ $('#'+id).classList.remove('open'); }
 
 async function recordPayment(id){ const m=members.find(x=>x.id===id); if(!m) return;
   m.paymentDate=today(); m.expiryDate=addYear(m.paymentDate); m.paidAmount=settings.fee;
+  m.hijriStartYear=settings.year||1448; m.hijriEndYear=(settings.year||1448)+1;
   await saveMembers(); toast('تم تسجيل الاشتراك — العضوية مفعّلة'); closeModal('detailModal'); openCard(id); renderDashboard(); }
 async function renewPayment(id){ const m=members.find(x=>x.id===id); if(!m) return;
-  if(!confirm('تجديد العضوية لسنة كاملة من اليوم؟')) return;
+  const start=memberEndYear(m);
+  if(!confirm(`تجديد العضوية: محرم ${start} هـ حتى محرم ${start+1} هـ؟`)) return;
   m.paymentDate=today(); m.expiryDate=addYear(m.paymentDate); m.paidAmount=settings.fee;
+  m.hijriStartYear=start; m.hijriEndYear=start+1;
   await saveMembers(); toast('تم التجديد'); showDetail(id); renderMembers(); }
 async function toggleAdmin(id){ const m=members.find(x=>x.id===id); if(!m) return;
   m.isAdmin=!m.isAdmin; if(m.isAdmin&&!m.committee){ const c=prompt('اسم اللجنة (اختياري):',''); m.committee=c?c.trim():''; }
@@ -409,9 +496,9 @@ function cardHTML(m){
       </div>
       <div class="id-card-rows">
         <div class="id-card-row"><span class="k">الاسم</span><span class="v">${escapeHtml(m.name)}</span></div>
-        <div class="id-card-row"><span class="k">تاريخ الميلاد</span><span class="v">${fmtDate(m.birthdate)}</span></div>
-        <div class="id-card-row"><span class="k">تاريخ الاشتراك</span><span class="v">${fmtDate(m.paymentDate)}</span></div>
-        <div class="id-card-row"><span class="k">صالحة حتى</span><span class="v">${fmtDate(m.expiryDate)}</span></div>
+        ${m.isMinor&&m.birthdate?`<div class="id-card-row"><span class="k">تاريخ الميلاد</span><span class="v">${fmtDate(m.birthdate)}</span></div>`:''}
+        <div class="id-card-row"><span class="k">بداية العضوية</span><span class="v">${fmtHijriStart(m)}</span></div>
+        <div class="id-card-row"><span class="k">صالحة حتى</span><span class="v">${fmtHijriEnd(m)}</span></div>
       </div>
       ${miqatsBlock}
       <div class="id-card-message">
@@ -419,7 +506,7 @@ function cardHTML(m){
         جعله الله في ميزان حسناتك،<br/>ورزقك شفاعة أبي عبدالله ﷺ.
       </div>
     </div>
-    <div class="id-card-footer"><span>صالحة لسنة كاملة</span><span>${fmtDateShort(m.paymentDate)}</span></div>
+    <div class="id-card-footer"><span>عضوية سنوية</span><span>محرم ${memberStartYear(m)} — محرم ${memberEndYear(m)} هـ</span></div>
   </div>`;
 }
 function printCard(){
@@ -428,13 +515,27 @@ function printCard(){
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>بطاقة عضوية</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-    <style>${styles} body{margin:0;padding:40px 20px;background:#eae5dc;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;} .id-card{max-width:420px;}</style>
-    </head><body>${cardEl.outerHTML}</body></html>`);
-  w.document.close(); setTimeout(()=>{ w.focus(); w.print(); },500);
+    <style>${styles}
+      body{margin:0;padding:0 20px 40px;background:#eae5dc;min-height:100vh;}
+      .wrap{display:flex;justify-content:center;align-items:flex-start;}
+      .id-card{max-width:420px;}
+      .bar{display:flex;gap:8px;justify-content:center;padding:12px;background:#3a1010;margin:0 -20px 28px;}
+      .bar button{font-family:inherit;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px;border:1px solid #b8934a;background:transparent;color:#f2e6cf;cursor:pointer;}
+      .bar button:first-child{background:#b8934a;color:#3a1010;}
+      @media print{ .no-print{display:none !important;} body *{visibility:visible;} }
+    </style>
+    </head><body>
+      <div class="no-print bar">
+        <button onclick="window.print()">🖨️ حفظ / طباعة PDF</button>
+        <button onclick="window.close()">← الرئيسية</button>
+      </div>
+      <div class="wrap">${cardEl.outerHTML}</div>
+    </body></html>`);
+  w.document.close(); w.focus();
 }
 function shareCardWhatsApp(){
   const m=members.find(x=>x.id===cardMemberId); if(!m) return;
-  const msg=`السلام عليكم ${m.name}،\nهذه بطاقة عضويتك في هيئة محبي الحسين.\nرقم العضوية: ${memberCode(m)}\nصالحة حتى: ${fmtDate(m.expiryDate)}\nبارك الله فيك.`;
+  const msg=`السلام عليكم ${m.name}،\nهذه بطاقة عضويتك في هيئة محبي الحسين.\nرقم العضوية: ${memberCode(m)}\nصالحة حتى: ${fmtHijriEnd(m)}\nبارك الله فيك.`;
   window.open(whatsappLink(m.phone,msg),'_blank');
   toast('احفظ البطاقة PDF ثم أرفقها في المحادثة');
 }
@@ -458,9 +559,23 @@ async function saveMiqat(){
   await saveMiqats(); closeModal('miqatModal'); renderMiqats(); toast('تم حفظ الميقات');
 }
 function miqatSortKey(mq){ return mq.month*31+mq.day; }
+/* ترتيب حسب قرب التاريخ الهجري من اليوم */
+function miqatDistance(mq){
+  const h=hijriParts();
+  let diff=(mq.month-h.month+12)%12;
+  if(diff===0 && mq.day < h.day) diff=12; // مرّ هذا الشهر → السنة القادمة
+  return diff*31 + mq.day;
+}
+function miqatsByNearest(){ return [...miqats].sort((a,b)=>miqatDistance(a)-miqatDistance(b)); }
+
+const openMiqatRows = new Set();
+function toggleMiqatRow(id){
+  if(openMiqatRows.has(id)) openMiqatRows.delete(id); else openMiqatRows.add(id);
+  renderMiqats();
+}
 function renderMiqats(){
   const filter=$('#miqatFilter')?.value||'';
-  let list=[...miqats].sort((a,b)=>miqatSortKey(a)-miqatSortKey(b));
+  let list=miqatsByNearest();
   if(filter) list=list.filter(mq=>miqatStatus(mq)===filter);
   const counts={green:0,yellow:0,red:0}; miqats.forEach(mq=>counts[miqatStatus(mq)]++);
   $('#miqatsPanelSub').textContent=`${miqats.length} ميقات · ${counts.green} محجوز · ${counts.yellow} تعزيز · ${counts.red} غير محجوز`;
@@ -468,27 +583,36 @@ function renderMiqats(){
   if(!list.length){ el.innerHTML=`<div class="empty"><div class="icon">🕯️</div><div class="txt">لا توجد مواقيت. اضغط «إضافة ميقات».</div></div>`; return; }
   el.innerHTML=list.map(mq=>{
     const st=miqatStatus(mq), paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
+    const open=openMiqatRows.has(mq.id);
     const pct=req>0?Math.min(100,Math.round(paid/req*100)):(paid>0?100:0);
     const bookers=(mq.bookings||[]).map(b=>{ const m=members.find(x=>x.id===b.memberId);
       return `<div class="booker-line"><span>${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span></span>
         <span><span class="bl-amt">${fmtMoney(b.amount)}</span> <button class="bl-del" onclick="removeBooking('${mq.id}','${b.memberId}')">×</button></span></div>`; }).join('');
+    const details = open ? `
+      <div class="mc-details">
+        <div class="mc-date">${fmtMiqatDate(mq)}</div>
+        <div class="mc-money">
+          <span class="mm">المطلوب: <b>${fmtMoney(req)}</b></span>
+          <span class="mm">المدفوع: <b>${fmtMoney(paid)}</b></span>
+          <span class="mm">المتبقّي: <b>${fmtMoney(Math.max(0,req-paid))}</b></span>
+        </div>
+        <div class="progress"><span style="width:${pct}%"></span></div>
+        ${bookers?`<div class="mc-bookers">${bookers}</div>`:''}
+        <div class="mc-actions">
+          <button class="btn btn-primary btn-sm" onclick="openBooking('${mq.id}')">+ حجز عضو</button>
+          <button class="btn btn-ghost btn-sm" onclick="openMiqatModal('${mq.id}')">تعديل</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMiqat('${mq.id}')">حذف</button>
+        </div>
+      </div>` : '';
     return `<div class="miqat-card st-${st}">
-      <div class="mc-head">
-        <div><div class="mc-name">${escapeHtml(mq.name)}</div><div class="mc-date">${fmtMiqatDate(mq)}</div></div>
-        <span class="mc-status st-${st}">${STATUS_LABEL[st]}</span>
+      <div class="mc-row" onclick="toggleMiqatRow('${mq.id}')">
+        <span class="mc-name">${escapeHtml(mq.name)}</span>
+        <span class="mc-right">
+          <span class="mc-status st-${st}">${STATUS_LABEL[st]}</span>
+          <span class="mc-chev ${open?'open':''}">▾</span>
+        </span>
       </div>
-      <div class="mc-money">
-        <span class="mm">المطلوب: <b>${fmtMoney(req)}</b></span>
-        <span class="mm">المدفوع: <b>${fmtMoney(paid)}</b></span>
-        <span class="mm">المتبقّي: <b>${fmtMoney(Math.max(0,req-paid))}</b></span>
-      </div>
-      <div class="progress"><span style="width:${pct}%"></span></div>
-      ${bookers?`<div class="mc-bookers">${bookers}</div>`:''}
-      <div class="mc-actions">
-        <button class="btn btn-primary btn-sm" onclick="openBooking('${mq.id}')">+ حجز عضو</button>
-        <button class="btn btn-ghost btn-sm" onclick="openMiqatModal('${mq.id}')">تعديل</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteMiqat('${mq.id}')">حذف</button>
-      </div>
+      ${details}
     </div>`;
   }).join('');
 }
@@ -510,28 +634,42 @@ async function saveBooking(){
 async function removeBooking(miqatId,memberId){ const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   if(!confirm('إزالة حجز هذا العضو؟')) return; mq.bookings=mq.bookings.filter(b=>b.memberId!==memberId); await saveMiqats(); renderMiqats(); }
 
-function printMiqats(status, showNames){
-  const list=miqats.filter(mq=>miqatStatus(mq)===status).sort((a,b)=>miqatSortKey(a)-miqatSortKey(b));
+/* شريط أزرار داخل نافذة الطباعة (لا يظهر في الـ PDF) */
+const PRINT_BAR = `
+  <div class="no-print bar">
+    <button onclick="window.print()">🖨️ حفظ / طباعة PDF</button>
+    <button onclick="window.close()">← الرئيسية</button>
+  </div>`;
+const PRINT_BAR_CSS = `
+  .bar{position:sticky;top:0;display:flex;gap:8px;justify-content:center;padding:12px;background:#3a1010;margin:-30px -30px 24px;}
+  .bar button{font-family:inherit;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px;border:1px solid #b8934a;background:transparent;color:#f2e6cf;cursor:pointer;}
+  .bar button:first-child{background:#b8934a;color:#3a1010;}
+  @media print{ .no-print{display:none !important;} body{padding-top:0 !important;} }`;
+
+function printMiqats(status){
+  const list=miqatsByNearest().filter(mq=>miqatStatus(mq)===status);
   const titleMap={red:'المواقيت غير المحجوزة', yellow:'المواقيت التي تحتاج تعزيز', green:'المواقيت المحجوزة'};
-  const rows=list.map(mq=>{
-    const paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
-    let bookersCol='';
-    if(status==='green'&&showNames){ bookersCol=`<td>${(mq.bookings||[]).map(b=>{const m=members.find(x=>x.id===b.memberId);return m?escapeHtml(m.name)+' ('+fmtMoney(b.amount)+')':'';}).join('، ')}</td>`; }
-    else if(status==='green'){ bookersCol='<td>—</td>'; }
-    else { bookersCol=''; }
-    return `<tr><td>${escapeHtml(mq.name)}</td><td>${fmtMiqatDate(mq)}</td><td>${fmtMoney(req)}</td><td>${fmtMoney(paid)}</td><td>${fmtMoney(Math.max(0,req-paid))}</td>${bookersCol}</tr>`;
-  }).join('');
-  const nameHead = (status==='green') ? '<th>المشاركون</th>' : '';
+  // المحجوزة وغير المحجوزة: اسم المناسبة فقط. تحتاج تعزيز: الاسم + المبلغ الموصول.
+  const isYellow = status==='yellow';
+  const head = isYellow
+    ? '<tr><th>المناسبة</th><th>المبلغ الموصول</th></tr>'
+    : '<tr><th>المناسبة</th></tr>';
+  const rows = list.map(mq=> isYellow
+    ? `<tr><td>${escapeHtml(mq.name)}</td><td>${fmtMoney(miqatPaid(mq))}</td></tr>`
+    : `<tr><td>${escapeHtml(mq.name)}</td></tr>`
+  ).join('');
+  const cols = isYellow?2:1;
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${titleMap[status]}</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
     <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px;color:#1a0a0a;} h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;border-bottom:2px solid #b8934a;padding-bottom:12px;}
-    .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;} table{width:100%;border-collapse:collapse;font-size:13px;} th,td{border:1px solid #e0dccf;padding:8px 10px;text-align:right;} th{background:#3a1010;color:#fff;} tr:nth-child(even){background:#faf7f2;}</style>
-    </head><body><h1>هيئة محبي الحسين</h1><div class="sub">${titleMap[status]} — ${hijriToday()}</div>
-    <table><thead><tr><th>الميقات</th><th>التاريخ</th><th>المطلوب</th><th>المدفوع</th><th>المتبقّي</th>${nameHead}</tr></thead>
-    <tbody>${rows||'<tr><td colspan="6" style="text-align:center;color:#94908a">لا توجد مواقيت</td></tr>'}</tbody></table>
+    .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;} table{width:100%;border-collapse:collapse;font-size:14px;} th,td{border:1px solid #e0dccf;padding:10px 12px;text-align:right;} th{background:#3a1010;color:#fff;} tr:nth-child(even){background:#faf7f2;}
+    ${PRINT_BAR_CSS}</style>
+    </head><body>${PRINT_BAR}<h1>هيئة محبي الحسين</h1><div class="sub">${titleMap[status]} — ${hijriToday()}</div>
+    <table><thead>${head}</thead>
+    <tbody>${rows||`<tr><td colspan="${cols}" style="text-align:center;color:#94908a">لا توجد مواقيت</td></tr>`}</tbody></table>
     </body></html>`);
-  w.document.close(); setTimeout(()=>{ w.focus(); w.print(); },500);
+  w.document.close(); w.focus();
 }
 
 /* ═══════════ Admins ═══════════ */

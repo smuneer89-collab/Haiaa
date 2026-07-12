@@ -338,6 +338,22 @@
   .booker-line .bl-del { background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:14px; padding:0 4px; }
   .mc-actions { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
 
+  /* Compact miqat rows */
+  .miqat-card .mc-row { display:flex; align-items:center; justify-content:space-between; gap:10px;
+    cursor:pointer; user-select:none; }
+  .miqat-card .mc-row .mc-name { font-weight:700; font-size:15px; }
+  .mc-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .mc-chev { color: var(--muted); font-size:14px; transition: transform .18s ease; display:inline-block; }
+  .mc-chev.open { transform: rotate(180deg); color: var(--ink); }
+  .mc-details { margin-top:12px; padding-top:12px; border-top:1px dotted var(--line);
+    animation: fadeIn .18s ease; }
+  @keyframes fadeIn { from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;} }
+
+  /* Clickable stat cards */
+  .stat-card.clickable { cursor:pointer; transition: border-color .15s, transform .1s; }
+  .stat-card.clickable:hover { border-color: var(--line-2); }
+  .stat-card.clickable:active { transform: scale(.98); }
+
   /* Admin list */
   .admin-row { background: var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
     display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
@@ -400,9 +416,9 @@
   <!-- Dashboard -->
   <section id="tab-dashboard" class="tab-content">
     <div class="stat-grid">
-      <div class="stat-card total"><div class="num" id="statTotal">0</div><div class="lbl">إجمالي الأعضاء</div></div>
-      <div class="stat-card active"><div class="num" id="statActive">0</div><div class="lbl">عضوية مفعّلة</div></div>
-      <div class="stat-card inactive"><div class="num" id="statInactive">0</div><div class="lbl">غير مفعّلة</div></div>
+      <div class="stat-card total clickable" onclick="openMembersFiltered('')"><div class="num" id="statTotal">0</div><div class="lbl">إجمالي الأعضاء</div></div>
+      <div class="stat-card active clickable" onclick="openMembersFiltered('active')"><div class="num" id="statActive">0</div><div class="lbl">عضوية مفعّلة</div></div>
+      <div class="stat-card inactive clickable" onclick="openMembersFiltered('inactive')"><div class="num" id="statInactive">0</div><div class="lbl">غير مفعّلة</div></div>
     </div>
 
     <div class="panel">
@@ -469,10 +485,6 @@
             <input name="name" required autocomplete="off" /></div>
           <div class="field"><label>رقم الهاتف <span class="req">مطلوب</span></label>
             <input name="phone" required inputmode="tel" placeholder="3xxxxxxx" /></div>
-          <div class="field"><label>العمر <span class="req">18 فأكثر</span></label>
-            <input type="number" name="age" required min="18" max="120" placeholder="18" /></div>
-          <div class="field"><label>تاريخ الميلاد <span class="req">مطلوب</span></label>
-            <input type="date" name="birthdate" required /></div>
           <div class="field"><label>نوع العضوية <span class="req">مطلوب</span></label>
             <select name="type" required>
               <option value="عادي">عادي فعّال — A</option>
@@ -494,6 +506,18 @@
               </div>
               <input type="file" id="photoInput" class="photo-input" accept="image/*" onchange="handlePhotoSelect(event)" />
             </div></div>
+        </div>
+
+        <div class="toggle-section">
+          <div class="toggle-row">
+            <div><div class="toggle-label">هل العضو أكبر من ١٨ سنة؟</div>
+              <div class="toggle-help">إذا نعم، لا حاجة للعمر أو تاريخ الميلاد</div></div>
+            <label class="switch"><input type="checkbox" id="isAdultToggle" checked /><span class="slider"></span></label>
+          </div>
+          <div id="minorBirthWrap" style="display:none; margin-top:12px;">
+            <div class="field"><label>تاريخ الميلاد <span class="req">مطلوب للأعضاء الصغار</span></label>
+              <input type="date" id="minorBirthdate" /></div>
+          </div>
         </div>
 
         <div class="toggle-section">
@@ -546,7 +570,7 @@
       <div class="actions-row" style="margin-top:0; margin-bottom:14px;">
         <button class="btn btn-ghost btn-sm" onclick="printMiqats('red')">🖨️ غير المحجوزة PDF</button>
         <button class="btn btn-ghost btn-sm" onclick="printMiqats('yellow')">🖨️ تحتاج تعزيز PDF</button>
-        <button class="btn btn-ghost btn-sm" onclick="printMiqats('green', true)">🖨️ المحجوزة PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="printMiqats('green')">🖨️ المحجوزة PDF</button>
       </div>
       <div id="miqatsList"></div>
     </div>
@@ -624,6 +648,61 @@
   <div id="detailContent"></div>
 </div></div>
 
+<!-- Edit Member Modal -->
+<div class="modal-backdrop" id="editModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('editModal')">×</button>
+  <h3>تعديل ملف العضو</h3>
+  <div class="subtitle">عدّل البيانات ثم احفظ</div>
+  <div class="form-grid">
+    <div class="field"><label>الاسم الكامل <span class="req">مطلوب</span></label><input id="editName" /></div>
+    <div class="field"><label>رقم الهاتف <span class="req">مطلوب</span></label><input id="editPhone" inputmode="tel" /></div>
+    <div class="field"><label>نوع العضوية</label>
+      <select id="editType">
+        <option value="عادي">عادي فعّال — A</option>
+        <option value="شرفي">شرفي — H</option>
+        <option value="كادر">كادر فعّال — E</option>
+      </select></div>
+    <div class="field"><label>المنطقة <span class="opt">اختياري</span></label><input id="editArea" /></div>
+    <div class="field"><label>البريد الإلكتروني <span class="opt">اختياري</span></label><input type="email" id="editEmail" /></div>
+    <div class="field full"><label>العنوان <span class="opt">اختياري</span></label><input id="editAddress" /></div>
+    <div class="field full"><label>الصورة الشخصية <span class="opt">اختياري</span></label>
+      <div class="photo-upload">
+        <div class="photo-preview" id="editPhotoPreview">👤</div>
+        <div>
+          <button type="button" class="photo-btn" onclick="document.getElementById('editPhotoInput').click()">تغيير الصورة</button>
+        </div>
+        <input type="file" id="editPhotoInput" class="photo-input" accept="image/*" onchange="handleEditPhoto(event)" />
+      </div></div>
+  </div>
+
+  <div class="toggle-section">
+    <div class="toggle-row">
+      <div><div class="toggle-label">العضو أصغر من ١٨ سنة</div>
+        <div class="toggle-help">فعّلها لإدخال تاريخ الميلاد</div></div>
+      <label class="switch"><input type="checkbox" id="editIsMinor" /><span class="slider"></span></label>
+    </div>
+    <div id="editBirthWrap" style="display:none; margin-top:12px;">
+      <div class="field"><label>تاريخ الميلاد</label><input type="date" id="editBirthdate" /></div>
+    </div>
+  </div>
+
+  <div class="toggle-section">
+    <div class="toggle-row">
+      <div><div class="toggle-label">من إدارة الهيئة</div>
+        <div class="toggle-help">يظهر في قائمة أعضاء الإدارة</div></div>
+      <label class="switch"><input type="checkbox" id="editIsAdmin" /><span class="slider"></span></label>
+    </div>
+    <div id="editCommWrap" style="display:none; margin-top:12px;">
+      <div class="field"><label>اسم اللجنة</label><input id="editComm" placeholder="مثلاً: لجنة المواقيت" /></div>
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <button class="btn btn-primary" onclick="saveEditMember()">حفظ التعديلات</button>
+    <button class="btn btn-ghost" onclick="closeModal('editModal')">إلغاء</button>
+  </div>
+</div></div>
+
 <!-- Card Modal -->
 <div class="modal-backdrop" id="cardModal"><div class="modal" style="max-width:480px;">
   <button class="modal-close" onclick="closeModal('cardModal')">×</button>
@@ -633,6 +712,7 @@
   <div class="actions-row" style="justify-content:center; gap:8px;">
     <button class="btn btn-accent" onclick="printCard()">حفظ / طباعة PDF</button>
     <button class="btn wa-btn large" id="cardWaBtn" onclick="shareCardWhatsApp()">مشاركة عبر واتساب</button>
+    <button class="btn btn-ghost" onclick="closeModal('cardModal'); switchTab('dashboard');">← الرئيسية</button>
   </div>
   <div class="note" style="margin-top:12px;">
     لإرسال البطاقة PDF في واتساب: اضغط «حفظ PDF» واحفظها، ثم «مشاركة عبر واتساب» وأرفق الملف المحفوظ في المحادثة.
