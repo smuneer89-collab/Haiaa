@@ -20,7 +20,64 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
+ /* ===== حركات هادئة ===== */
+
+/* 1. ظهور الشعار بنعومة */
+.logo-banner {
+  animation: bannerIn 1.4s ease-out both;
+}
+@keyframes bannerIn {
+  from { opacity: 0; background-size: 105% auto; }
+  to   { opacity: 1; }
+}
+
+/* 2. لمعة ذهبية تمر ببطء */
+.logo-banner::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 45%;
+  background: linear-gradient(100deg,
+    transparent 0%,
+    rgba(255, 235, 190, 0.14) 50%,
+    transparent 100%);
+  transform: skewX(-18deg);
+  animation: sheen 9s ease-in-out 2s infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes sheen {
+  0%       { right: -50%; opacity: 0; }
+  8%       { opacity: 1; }
+  28%      { right: 105%; opacity: 0; }
+  100%     { right: 105%; opacity: 0; }
+}
+
+/* 3. تأثير الضغط */
+.btn, .tab, .member-row, .miqat-card, .template-chip, .stat-card {
+  transition: transform .18s cubic-bezier(.2,.8,.3,1), box-shadow .2s ease;
+}
+.btn:active, .tab:active, .template-chip:active { transform: scale(.96); }
+.member-row:active, .miqat-card:active, .stat-card:active { transform: scale(.985); }
+.member-row:hover, .miqat-card:hover {
+  box-shadow: 0 4px 14px -6px rgba(20,8,8,.14);
+}
+
+/* 4. انتقال ناعم بين التبويبات */
+.tab-content {
+  animation: tabIn .38s cubic-bezier(.2,.7,.3,1) both;
+}
+@keyframes tabIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* احترام تفضيل تقليل الحركة */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+  <style>
   :root {
     --bg: #fafaf7; --surface: #ffffff; --ink: #1a0a0a; --ink-2: #3a2a28;
     --muted: #94908a; --muted-2: #b8b3ab; --line: #eeeae2; --line-2: #e0dccf;
