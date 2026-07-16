@@ -267,6 +267,9 @@
     height: calc(100% - 24px); background: var(--muted-2); border-radius: 3px 0 0 3px; }
   .member-row.active::before { background: var(--ok); }
   .member-row.inactive::before { background: var(--danger); }
+  .member-row.compact { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; }
+  .member-row.compact .name { font-size:15px; font-weight:600; color:var(--ink); }
+  .member-row.compact .mr-caret { font-size:22px; color:var(--muted-2); line-height:1; }
   .member-row:hover { border-color: var(--line-2); }
   .member-info { padding-right: 12px; }
   .member-info .name { font-weight: 600; font-size: 15px; color: var(--ink); margin-bottom: 4px;
@@ -648,7 +651,6 @@
   <div class="tabs">
     <button class="tab active" data-tab="dashboard">الرئيسية</button>
     <button class="tab" data-tab="members">الأعضاء</button>
-    <button class="tab" data-tab="add">إضافة عضو</button>
     <button class="tab" data-tab="miqats">المواقيت</button>
     <button class="tab" data-tab="meetings">الإدارة</button>
     <button class="tab" data-tab="settings">الإعدادات</button>
@@ -693,7 +695,10 @@
     <div class="panel">
       <div class="panel-header">
         <div><h2 class="panel-title">سجل الأعضاء</h2><div class="panel-sub" id="membersCount">0 عضو</div></div>
-        <button class="btn btn-primary" onclick="openBulkMessage()">رسالة جماعية</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="openAddMember()">➕ إضافة عضو</button>
+          <button class="btn btn-ghost" onclick="openBulkMessage()">رسالة جماعية</button>
+        </div>
       </div>
       <div class="toolbar">
         <input id="searchInput" placeholder="ابحث بالاسم أو رقم العضوية..." />
@@ -715,6 +720,7 @@
 
   <!-- Add Member -->
   <section id="tab-add" class="tab-content" style="display:none">
+    <button class="btn btn-ghost btn-sm idara-back" onclick="backToMembers()">← رجوع للأعضاء</button>
     <div class="panel">
       <div class="panel-header">
         <div><h2 class="panel-title">➕ تسجيل عضو جديد</h2>
@@ -837,6 +843,11 @@
             <div class="ic-name">اللجنة المالية</div>
             <div class="ic-sub">قريباً</div>
           </div>
+          <div class="idara-card" onclick="openIdara('media')">
+            <div class="ic-ico">🎥</div>
+            <div class="ic-name">اللجنة الإعلامية</div>
+            <div class="ic-sub">قريباً</div>
+          </div>
           <div class="idara-card" onclick="openIdara('admins')">
             <div class="ic-ico">👥</div>
             <div class="ic-name">أعضاء الإدارة</div>
@@ -925,6 +936,12 @@
     <div id="idara-finance" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
       <div class="panel"><div class="empty"><div class="icon">💰</div><div class="txt">اللجنة المالية — قريباً</div></div></div>
+    </div>
+
+    <!-- MEDIA -->
+    <div id="idara-media" style="display:none">
+      <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+      <div class="panel"><div class="empty"><div class="icon">🎥</div><div class="txt">اللجنة الإعلامية — قريباً</div></div></div>
     </div>
 
     <!-- ADMINS -->

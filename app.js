@@ -300,15 +300,22 @@ function showNewsDetail(id){
 /* ═══════════ Members ═══════════ */
 function memberRowHTML(m){
   const status=isActive(m)?'active':'inactive';
-  const statusLabel=isActive(m)?'عضوية مفعّلة':'عضوية غير مفعّلة';
-  const adminBadge=m.isAdmin?'<span class="badge admin">إداري</span>':'';
-  return `<div class="member-row ${status}" onclick="showDetail('${m.id}')">
-    <div class="member-info">
-      <div class="name">${escapeHtml(m.name)} ${adminBadge}</div>
-      <div class="meta"><span class="badge status-${status}">${statusLabel}</span></div>
-    </div>
-    <div class="member-num">${memberCode(m)}</div>
+  return `<div class="member-row compact ${status}" onclick="showDetail('${m.id}')">
+    <div class="name">${escapeHtml(m.name)}</div>
+    <span class="mr-caret">‹</span>
   </div>`;
+}
+function openAddMember(){
+  const f=document.getElementById('addForm'); if(f){ f.reset(); if(typeof resetForm==='function') resetForm(); }
+  $$('.tab-content').forEach(c=>c.style.display='none');
+  $('#tab-add').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function backToMembers(){
+  $$('.tab-content').forEach(c=>c.style.display='none');
+  $('#tab-members').style.display='block';
+  renderMembers();
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 function renderMembers(){
   const q=($('#searchInput')?.value||'').trim().toLowerCase();
@@ -464,6 +471,7 @@ $('#addForm').addEventListener('submit',async e=>{
   if(completed) msg+=` · ${completed} ميقات محجوز`;
   if(needsBoost) msg+=` · ${needsBoost} يحتاج تعزيز`;
   toast(msg);
+  backToMembers();
   openCard(newMember.id);
 });
 
@@ -989,7 +997,7 @@ function renderMeetings(){ renderMeetingStats(); populateMeetingFilters(); rende
 
 /* ─── التنقل داخل قسم الإدارة ─── */
 function idaraShow(view){
-  ['hub','sec','finance','admins'].forEach(v=>{
+  ['hub','sec','finance','media','admins'].forEach(v=>{
     const el=document.getElementById('idara-'+v); if(el) el.style.display = (v===view)?'block':'none';
   });
 }
@@ -1002,6 +1010,7 @@ function openIdara(which){
   if(which==='sec'){ idaraShow('sec'); renderMeetings(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ idaraShow('finance'); }
+  else if(which==='media'){ idaraShow('media'); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function openSecretariatFromHome(){ switchTab('meetings'); openIdara('sec'); }
