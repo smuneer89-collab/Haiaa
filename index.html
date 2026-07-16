@@ -467,12 +467,27 @@
   .mtg-stat.dec .num { color:var(--warn); }
   .mtg-stat.late .num { color:var(--danger); }
   .mtg-stat.tot .num { color:var(--ink); }
+  .mtg-stat.clickable { cursor:pointer; }
+  .mtg-stat.clickable:hover { border-color:var(--line-2); }
+  .mtg-stat.clickable:active { transform:scale(.97); }
   .mtg-absent-card { margin-top:12px; background:var(--danger-soft); border:1px solid var(--danger);
     border-radius:12px; padding:12px 14px; font-size:13px; color:var(--accent-deep); display:flex;
     align-items:center; justify-content:space-between; gap:10px; }
   .mtg-absent-card.none { background:var(--ok-soft); border-color:var(--ok); color:var(--ok); }
   .mtg-absent-card b { font-size:15px; }
   .mtg-subtabs { margin-bottom:14px; }
+
+  /* بطاقة ملخّص الاجتماعات في الأخبار */
+  .mtg-summary-card { cursor:pointer; border-right:3px solid var(--gold); background:linear-gradient(180deg,var(--accent-soft),var(--surface)); }
+  .mtg-summary-card:hover { box-shadow:0 4px 14px -6px rgba(20,8,8,.18); }
+  .mtg-summary-card:active { transform:scale(.99); }
+  .msc-head { font-weight:700; font-size:14px; color:var(--accent); margin-bottom:8px; }
+  .msc-stats { display:flex; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--muted); }
+  .msc-stats b { color:var(--ink); font-size:14px; }
+  .msc-follow { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .msc-item { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-2); }
+  .msc-item-text { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .msc-cta { margin-top:10px; font-size:12px; font-weight:600; color:var(--accent); }
 
   /* meeting cards */
   .meetings-list { display:flex; flex-direction:column; gap:10px; }

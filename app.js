@@ -216,14 +216,17 @@ function renderUpcoming(){
 /* News */
 function renderNews(){
   const el=$('#newsList');
-  if(!news.length){ el.innerHTML=`<div class="empty"><div class="icon">📰</div><div class="txt">لا توجد أخبار بعد. أضف خبراً ليظهر هنا وللأعضاء.</div></div>`; return; }
-  el.innerHTML=[...news].reverse().map(n=>`
+  const summary=meetingsSummaryCardHTML();
+  const items = news.length
+    ? [...news].reverse().map(n=>`
     <div class="news-item">
       <button class="n-del" onclick="deleteNews('${n.id}')">🗑</button>
       <div class="n-date">${fmtDate(n.date)}</div>
       <div class="n-title">${escapeHtml(n.title)}</div>
       <div class="n-body">${escapeHtml(n.body)}</div>
-    </div>`).join('');
+    </div>`).join('')
+    : (summary ? '' : `<div class="empty"><div class="icon">📰</div><div class="txt">لا توجد أخبار بعد. أضف خبراً ليظهر هنا وللأعضاء.</div></div>`);
+  el.innerHTML = summary + items;
 }
 function openNewsModal(){ $('#newsTitle').value=''; $('#newsBody').value=''; $('#newsModal').classList.add('open'); }
 async function saveNews_(){}
@@ -914,15 +917,51 @@ function meetingStats(){
 function renderMeetingStats(){
   const s=meetingStats();
   document.getElementById('mtgStats').innerHTML=`
-    <div class="mtg-stat tot"><div class="num">${s.count}</div><div class="lbl">عدد الاجتماعات</div></div>
+    <div class="mtg-stat tot clickable" onclick="openMeetingsFromStat('count')"><div class="num">${s.count}</div><div class="lbl">عدد الاجتماعات</div></div>
     <div class="mtg-stat att"><div class="num">${s.attPct}%</div><div class="lbl">نسبة الحضور</div></div>
-    <div class="mtg-stat dec"><div class="num">${s.openDec}</div><div class="lbl">قرارات قيد التنفيذ</div></div>
-    <div class="mtg-stat late"><div class="num">${s.lateTasks}</div><div class="lbl">مهام متأخرة</div></div>`;
+    <div class="mtg-stat dec clickable" onclick="openMeetingsFromStat('openDec')"><div class="num">${s.openDec}</div><div class="lbl">قرارات قيد التنفيذ</div></div>
+    <div class="mtg-stat late clickable" onclick="openMeetingsFromStat('lateTasks')"><div class="num">${s.lateTasks}</div><div class="lbl">مهام متأخرة</div></div>`;
   const ab=document.getElementById('mtgMostAbsent');
   if(s.topMember){ ab.className='mtg-absent-card';
     ab.innerHTML=`<span>👤 الأكثر غياباً: <b>${escapeHtml(s.topMember.name)}</b></span><span>${s.topAbsN} غياب · نسبة الغياب ${s.absPct}%</span>`;
   } else { ab.className='mtg-absent-card none';
     ab.innerHTML=`<span>✅ لا توجد غيابات مسجّلة بعد</span><span>نسبة الحضور ${s.attPct}%</span>`; }
+}
+function openMeetingsFromStat(which){
+  if(which==='count'){ switchMeetingSubtab('list'); }
+  else if(which==='openDec'){ switchMeetingSubtab('followup'); $('#followType').value='decision'; $('#followStatus').value='open'; renderFollowup(); }
+  else if(which==='lateTasks'){ switchMeetingSubtab('followup'); $('#followType').value='task'; $('#followStatus').value='overdue'; renderFollowup(); }
+  const target=document.getElementById(which==='count'?'mtab-list':'mtab-followup');
+  if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
+}
+/* بطاقة ملخّص الاجتماعات داخل الأخبار (الصفحة الرئيسية) */
+function meetingsSummaryCardHTML(){
+  if(!meetings.length) return '';
+  const s=meetingStats(); const ts=today();
+  const rows=[];
+  meetings.forEach(m=>{
+    (m.decisions||[]).forEach(d=>rows.push({kind:'decision', text:d.text, owner:d.owner, due:d.due, done:d.done}));
+    (m.tasks||[]).forEach(t=>rows.push({kind:'task', text:t.text, owner:t.owner, due:t.due, done:t.done}));
+  });
+  const open=rows.filter(r=>!r.done);
+  open.sort((a,b)=>{ const rank=x=>(x.due&&x.due<ts)?0:1; return rank(a)-rank(b); });
+  const top=open.slice(0,3).map(r=>{
+    const overdue=r.due&&r.due<ts;
+    return `<div class="msc-item"><span class="fu-kind ${r.kind}">${r.kind==='decision'?'قرار':'مهمة'}</span>
+      <span class="msc-item-text">${escapeHtml(r.text||'—')}</span>
+      ${overdue?'<span class="md-chip late">متأخر</span>':''}</div>`;
+  }).join('');
+  return `<div class="news-item mtg-summary-card" onclick="switchTab('meetings')">
+    <div class="msc-head">📋 لوحة اجتماعات الإدارة</div>
+    <div class="msc-stats">
+      <span><b>${s.count}</b> اجتماع</span>
+      <span>الحضور <b>${s.attPct}%</b></span>
+      <span><b>${s.openDec}</b> قرار قيد التنفيذ</span>
+      <span><b>${s.lateTasks}</b> مهمة متأخرة</span>
+    </div>
+    ${top?`<div class="msc-follow">${top}</div>`:''}
+    <div class="msc-cta">اضغط لعرض اللوحة ولوحة المتابعة ←</div>
+  </div>`;
 }
 
 /* ─── الفلاتر ─── */
@@ -1218,10 +1257,11 @@ function renderDetailPanes(m){
     <textarea id="mdMinutesEdit" rows="7" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;background:var(--bg);color:var(--ink);resize:vertical">${escapeHtml(m.minutes||'')}</textarea>
     <div class="actions-row" style="margin-top:10px">
       <button class="btn btn-ghost btn-sm" onclick="saveMinutesEdit()">💾 حفظ التعديل</button>
+      <button class="btn btn-accent btn-sm" onclick="summarizeMinutes('${m.id}')">✨ اختصار المحضر</button>
       <button class="btn btn-primary btn-sm" onclick="printMeetingMinutes('${m.id}')">🖨️ طباعة المحضر PDF</button>
       <button class="btn wa-btn btn-sm" onclick="shareMeetingMinutesWA('${m.id}')">${WA_ICON}<span style="margin-right:4px">واتساب</span></button>
     </div>
-    <div class="note" style="margin-top:10px">لإرسال المحضر PDF في واتساب: اطبع واحفظه كـ PDF ثم أرفقه في المحادثة. زر «واتساب» يرسل نص المحضر مباشرة.</div>`;
+    <div class="note" style="margin-top:10px">«اختصار المحضر» ينسخ النص ويفتح موقع ذكاء اصطناعي — الصقه (Ctrl+V) واطلب الاختصار. لإرسال المحضر PDF في واتساب: اطبعه واحفظه كـ PDF ثم أرفقه في المحادثة.</div>`;
 }
 async function toggleItemDone(kind,itemId){
   const m=meetings.find(x=>x.id===mdCurrentId); if(!m) return;
@@ -1231,6 +1271,17 @@ async function toggleItemDone(kind,itemId){
 async function saveMinutesEdit(){
   const m=meetings.find(x=>x.id===mdCurrentId); if(!m) return;
   m.minutes=$('#mdMinutesEdit').value.trim(); await saveMeetings(); toast('تم حفظ المحضر');
+}
+async function summarizeMinutes(id){
+  const m=meetings.find(x=>x.id===id); if(!m) return;
+  const box=document.getElementById('mdMinutesEdit');
+  const text=(box?box.value:(m.minutes||'')).trim();
+  if(!text){ toast('لا يوجد محضر لاختصاره — اكتب المحضر أولاً'); return; }
+  const prompt='لخّص محضر اجتماع مجلس الإدارة التالي في نقاط موجزة وواضحة باللغة العربية، مع إبراز أهم القرارات والمهام والمسؤولين عنها:\n\n'+text;
+  await copyToClipboard(prompt);
+  const url = prompt.length<1500 ? 'https://chatgpt.com/?q='+encodeURIComponent(prompt) : 'https://chatgpt.com/';
+  window.open(url,'_blank');
+  toast('تم نسخ المحضر — الصقه في الموقع واطلب الاختصار');
 }
 function editCurrentMeeting(){ const id=mdCurrentId; closeModal('meetingDetailModal'); openMeetingModal(id); }
 async function deleteCurrentMeeting(){
@@ -1377,20 +1428,27 @@ function printBlankMemberForm(){
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;}
     .f{display:flex;flex-direction:column;} .f.full{grid-column:1/-1;} label{font-size:13px;font-weight:600;color:#3a2a28;}
     .checks{display:flex;gap:24px;margin-top:8px;font-size:14px;flex-wrap:wrap;} .box{display:inline-block;width:16px;height:16px;border:1.5px solid #7a1e1e;border-radius:3px;vertical-align:middle;margin-left:6px;}
+    .qblock{display:flex;flex-direction:column;gap:14px;margin-top:16px;}
+    .qrow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:14px;}
+    .qrow .q{font-weight:600;min-width:165px;} .yn{display:flex;gap:12px;align-items:center;}
+    .blank{display:flex;align-items:center;gap:6px;flex:1;min-width:190px;font-weight:600;} .ln{flex:1;border-bottom:1px dashed #999;height:18px;min-width:110px;}
     .note{margin-top:24px;font-size:12px;color:#94908a;border-top:1px solid #eee;padding-top:12px;}
     ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
     <h1>هيئة محبي الحسين</h1><div class="sub">استمارة تسجيل عضو جديد — تُعبّأ بخط اليد</div>
     <div class="grid">
       ${field('الاسم الكامل')}${field('رقم الهاتف')}${field('المنطقة')}${field('البريد الإلكتروني')}
       <div class="f full">${field('العنوان')}</div>
-      ${field('تاريخ الميلاد (للأعضاء دون ١٨)')}${field('اسم اللجنة (إن وُجد)')}
+      ${field('تاريخ الميلاد (للأعضاء دون ١٨)')}
     </div>
     <div class="f full" style="margin-top:16px"><label>نوع العضوية</label>
       <div class="checks"><span><span class="box"></span>عادي فعّال</span><span><span class="box"></span>شرفي</span><span><span class="box"></span>كادر فعّال</span></div></div>
-    <div class="f full" style="margin-top:16px"><label>خيارات</label>
-      <div class="checks"><span><span class="box"></span>أكبر من ١٨ سنة</span><span><span class="box"></span>من إدارة الهيئة</span><span><span class="box"></span>لديه ميقات سنوي</span></div></div>
+    <div class="qblock">
+      <div class="qrow"><span class="q">هل هو أكبر من ١٨ سنة؟</span><span class="yn"><span class="box"></span>نعم <span class="box"></span>لا</span></div>
+      <div class="qrow"><span class="q">هل هو من إدارة الهيئة؟</span><span class="yn"><span class="box"></span>نعم <span class="box"></span>لا</span><span class="blank">اسم اللجنة: <span class="ln"></span></span></div>
+      <div class="qrow"><span class="q">هل لديه ميقات سنوي؟</span><span class="yn"><span class="box"></span>نعم <span class="box"></span>لا</span><span class="blank">اسم الميقات: <span class="ln"></span></span></div>
+    </div>
     <div class="f full" style="margin-top:20px"><label>ملاحظات</label>${line}${line}</div>
-    <div class="note">يُنشأ رقم العضوية تلقائياً في النظام حسب نوع العضوية عند الإدخال. التاريخ: ${hijriToday()}</div>
+    <div class="note">يُنشأ رقم العضوية بعد إدخال البيانات إلكترونياً، وسيتم إرسال بطاقة العضوية على رقم الهاتف المسجّل. التاريخ: ${hijriToday()}</div>
     </body></html>`);
   w.document.close(); w.focus();
 }
