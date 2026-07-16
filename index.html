@@ -456,7 +456,27 @@
   }
 
   /* ═══════════ Board Meetings ═══════════ */
-  .mtg-dash-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .idara-cards { display:grid; grid-template-columns:1fr; gap:12px; }
+  .idara-card { display:flex; flex-direction:column; gap:2px; background:var(--bg); border:1px solid var(--line);
+    border-radius:14px; padding:18px; cursor:pointer; transition:transform .15s, box-shadow .2s, border-color .15s; position:relative; }
+  .idara-card:hover { border-color:var(--gold); box-shadow:0 4px 16px -8px rgba(20,8,8,.2); }
+  .idara-card:active { transform:scale(.99); }
+  .idara-card .ic-ico { font-size:30px; }
+  .idara-card .ic-name { font-size:17px; font-weight:700; color:var(--ink); }
+  .idara-card .ic-sub { font-size:12px; color:var(--muted); }
+  .idara-card::after { content:'‹'; position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:24px; color:var(--muted-2); }
+  .idara-back { margin-bottom:12px; }
+  .idara-actions { display:flex; gap:8px; margin:16px 0; }
+  .idara-actions .btn { flex:1; padding:14px; font-weight:600; border-radius:12px; }
+  .mtg-dash-toggle { cursor:pointer; user-select:none; }
+  .dash-caret { font-size:16px; color:var(--muted); transition:transform .2s; }
+  .dash-caret.open { transform:rotate(180deg); }
+  .invite-admins { display:flex; flex-direction:column; gap:6px; margin-top:8px; max-height:220px; overflow:auto; }
+  .invite-admin-row { display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:8px 12px; }
+  .invite-admin-row .ia-name { font-size:13px; font-weight:500; color:var(--ink); }
+  .invite-admin-row .ia-name small { display:block; color:var(--muted); font-weight:400; font-size:11px; }
+  .mtg-dash-actions { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
   .mtg-new-btn { width:100%; padding:15px; font-size:16px; font-weight:600; border-radius:12px; }
   .mtg-stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:6px; }
   @media (max-width:640px){ .mtg-stat-grid { grid-template-columns:repeat(2,1fr); } }
@@ -630,8 +650,7 @@
     <button class="tab" data-tab="members">الأعضاء</button>
     <button class="tab" data-tab="add">إضافة عضو</button>
     <button class="tab" data-tab="miqats">المواقيت</button>
-    <button class="tab" data-tab="admins">أعضاء الإدارة</button>
-    <button class="tab" data-tab="meetings">اجتماعات الإدارة</button>
+    <button class="tab" data-tab="meetings">الإدارة</button>
     <button class="tab" data-tab="settings">الإعدادات</button>
   </div>
 
@@ -799,84 +818,128 @@
   </section>
 
   <!-- Admins -->
-  <section id="tab-admins" class="tab-content" style="display:none">
-    <div class="panel">
-      <div class="panel-header">
-        <div><h2 class="panel-title">👥 أعضاء الإدارة</h2>
-          <div class="panel-sub" id="adminsCount">0 إداري</div></div>
-        <button class="btn btn-primary" onclick="openAdminBulk()">رسالة للإدارة</button>
-      </div>
-      <div id="adminsList"></div>
-      <div class="note" style="margin-top:12px;">
-        لإضافة إداري: فعّل خيار «هل هو من إدارة الهيئة؟» عند تسجيل العضو، أو من ملف العضو.
-      </div>
-    </div>
-  </section>
-
-  <!-- Board Meetings -->
+  <!-- Idara (الإدارة) -->
   <section id="tab-meetings" class="tab-content" style="display:none">
 
-    <!-- Dashboard -->
-    <div class="panel mtg-dash-panel">
-      <div class="panel-header">
-        <div><h2 class="panel-title">📋 لوحة اجتماعات الإدارة</h2>
-          <div class="panel-sub">إحصائيات مجلس الإدارة</div></div>
-        <div class="mtg-dash-actions">
-          <button class="btn btn-ghost btn-sm" onclick="toggleDarkMode()" id="darkModeBtn">🌙 داكن</button>
-          <button class="btn btn-ghost btn-sm" onclick="printMeetingStats()">🖨️ طباعة الإحصائية PDF</button>
-        </div>
-      </div>
-      <div class="mtg-stat-grid" id="mtgStats"></div>
-      <div class="mtg-absent-card" id="mtgMostAbsent"></div>
-    </div>
-
-    <div class="actions-row" style="margin:16px 0;">
-      <button class="btn btn-primary mtg-new-btn" onclick="openMeetingModal()">➕ اجتماع جديد</button>
-    </div>
-
-    <!-- sub-tabs -->
-    <div class="tabs mtg-subtabs">
-      <button class="tab active" data-mtab="list" onclick="switchMeetingSubtab('list')">قائمة الاجتماعات</button>
-      <button class="tab" data-mtab="followup" onclick="switchMeetingSubtab('followup')">📌 لوحة المتابعة</button>
-    </div>
-
-    <!-- LIST -->
-    <div id="mtab-list">
+    <!-- HUB: committee cards -->
+    <div id="idara-hub">
       <div class="panel">
-        <div class="search-box">
-          <input id="mtgSearch" placeholder="ابحث برقم الاجتماع / اللجنة / المحضر..." oninput="renderMeetingsList()" />
-          <span class="ico">⌕</span>
+        <div class="panel-header"><div><h2 class="panel-title">🏛️ الإدارة</h2>
+          <div class="panel-sub">لجان مجلس الإدارة</div></div></div>
+        <div class="idara-cards">
+          <div class="idara-card" onclick="openIdara('sec')">
+            <div class="ic-ico">🖋️</div>
+            <div class="ic-name">أمانة السر</div>
+            <div class="ic-sub">الاجتماعات والمحاضر ولوحة المتابعة</div>
+          </div>
+          <div class="idara-card" onclick="openIdara('finance')">
+            <div class="ic-ico">💰</div>
+            <div class="ic-name">اللجنة المالية</div>
+            <div class="ic-sub">قريباً</div>
+          </div>
+          <div class="idara-card" onclick="openIdara('admins')">
+            <div class="ic-ico">👥</div>
+            <div class="ic-name">أعضاء الإدارة</div>
+            <div class="ic-sub" id="idaraAdminsCount">0 إداري</div>
+          </div>
         </div>
-        <div class="toolbar">
-          <select id="mtgFilterYear" onchange="renderMeetingsList()"><option value="">كل السنوات</option></select>
-          <select id="mtgFilterMonth" onchange="renderMeetingsList()"><option value="">كل الشهور</option></select>
-          <select id="mtgFilterCommittee" onchange="renderMeetingsList()"><option value="">كل اللجان</option></select>
-        </div>
-        <div id="meetingsList" class="meetings-list"></div>
       </div>
     </div>
 
-    <!-- FOLLOWUP -->
-    <div id="mtab-followup" style="display:none">
+    <!-- SECRETARIAT -->
+    <div id="idara-sec" style="display:none">
+      <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+
+      <!-- Collapsible dashboard -->
+      <div class="panel mtg-dash-panel">
+        <div class="panel-header mtg-dash-toggle" onclick="toggleDash()">
+          <div><h2 class="panel-title">📋 لوحة أمانة السر</h2>
+            <div class="panel-sub" id="mtgDashSummary">اضغط لعرض الإحصائيات</div></div>
+          <div class="mtg-dash-actions">
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();toggleDarkMode()" id="darkModeBtn">🌙 داكن</button>
+            <span class="dash-caret" id="dashCaret">▾</span>
+          </div>
+        </div>
+        <div id="mtgDashBody" style="display:none">
+          <div class="mtg-stat-grid" id="mtgStats"></div>
+          <div class="mtg-absent-card" id="mtgMostAbsent"></div>
+          <div class="actions-row" style="margin-top:12px;">
+            <button class="btn btn-ghost btn-sm" onclick="printMeetingStats()">🖨️ طباعة الإحصائية PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="idara-actions">
+        <button class="btn btn-primary" onclick="openMeetingModal()">➕ اجتماع جديد</button>
+        <button class="btn btn-accent" onclick="openInviteModal()">📨 دعوة اجتماع</button>
+      </div>
+
+      <!-- sub-tabs -->
+      <div class="tabs mtg-subtabs">
+        <button class="tab active" data-mtab="list" onclick="switchMeetingSubtab('list')">قائمة الاجتماعات</button>
+        <button class="tab" data-mtab="followup" onclick="switchMeetingSubtab('followup')">📌 لوحة المتابعة</button>
+      </div>
+
+      <!-- LIST -->
+      <div id="mtab-list">
+        <div class="panel">
+          <div class="search-box">
+            <input id="mtgSearch" placeholder="ابحث برقم الاجتماع / اللجنة / المحضر..." oninput="renderMeetingsList()" />
+            <span class="ico">⌕</span>
+          </div>
+          <div class="toolbar">
+            <select id="mtgFilterYear" onchange="renderMeetingsList()"><option value="">كل السنوات</option></select>
+            <select id="mtgFilterMonth" onchange="renderMeetingsList()"><option value="">كل الشهور</option></select>
+            <select id="mtgFilterCommittee" onchange="renderMeetingsList()"><option value="">كل اللجان</option></select>
+          </div>
+          <div id="meetingsList" class="meetings-list"></div>
+        </div>
+      </div>
+
+      <!-- FOLLOWUP -->
+      <div id="mtab-followup" style="display:none">
+        <div class="panel">
+          <div class="panel-header">
+            <div><h2 class="panel-title">📌 لوحة المتابعة</h2>
+              <div class="panel-sub">قرارات ومهام كل الاجتماعات في مكان واحد — مع المسؤول والموعد النهائي</div></div>
+          </div>
+          <div class="toolbar">
+            <select id="followType" onchange="renderFollowup()">
+              <option value="">القرارات والمهام</option>
+              <option value="decision">القرارات فقط</option>
+              <option value="task">المهام فقط</option>
+            </select>
+            <select id="followStatus" onchange="renderFollowup()">
+              <option value="">كل الحالات</option>
+              <option value="open">غير منجز</option>
+              <option value="done">منجز</option>
+              <option value="overdue">متأخر</option>
+            </select>
+          </div>
+          <div id="followupList" class="followup-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINANCE -->
+    <div id="idara-finance" style="display:none">
+      <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+      <div class="panel"><div class="empty"><div class="icon">💰</div><div class="txt">اللجنة المالية — قريباً</div></div></div>
+    </div>
+
+    <!-- ADMINS -->
+    <div id="idara-admins" style="display:none">
+      <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
       <div class="panel">
         <div class="panel-header">
-          <div><h2 class="panel-title">📌 لوحة المتابعة</h2>
-            <div class="panel-sub">قرارات ومهام كل الاجتماعات في مكان واحد — مع المسؤول والموعد النهائي</div></div>
+          <div><h2 class="panel-title">👥 أعضاء الإدارة</h2>
+            <div class="panel-sub" id="adminsCount">0 إداري</div></div>
+          <button class="btn btn-primary" onclick="openAdminBulk()">رسالة للإدارة</button>
         </div>
-        <div class="toolbar">
-          <select id="followType" onchange="renderFollowup()">
-            <option value="">القرارات والمهام</option>
-            <option value="decision">القرارات فقط</option>
-            <option value="task">المهام فقط</option>
-          </select>
-          <select id="followStatus" onchange="renderFollowup()">
-            <option value="">كل الحالات</option>
-            <option value="open">غير منجز</option>
-            <option value="done">منجز</option>
-            <option value="overdue">متأخر</option>
-          </select>
+        <div id="adminsList"></div>
+        <div class="note" style="margin-top:12px;">
+          لإضافة إداري: فعّل خيار «هل هو من إدارة الهيئة؟» عند تسجيل العضو، أو من ملف العضو.
         </div>
-        <div id="followupList" class="followup-list"></div>
       </div>
     </div>
 
@@ -1241,6 +1304,30 @@
     <button class="btn btn-primary" onclick="editCurrentMeeting()">✏️ تعديل</button>
     <button class="btn btn-danger" onclick="deleteCurrentMeeting()">حذف</button>
   </div>
+</div></div>
+
+<!-- Meeting Invitation Modal -->
+<div class="modal-backdrop" id="inviteModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('inviteModal')">×</button>
+  <h3>📨 دعوة اجتماع إداري</h3>
+  <div class="subtitle">عبّئ الحقول ثم عدّل النص وانسخه أو أرسله لكل عضو في الخاص</div>
+  <div class="form-grid">
+    <div class="field"><label>رقم الاجتماع</label><input id="invNumber" inputmode="numeric" /></div>
+    <div class="field"><label>المكان</label><input id="invPlace" placeholder="مقر الهيئة" /></div>
+    <div class="field"><label>التاريخ</label><input id="invDate" type="date" /></div>
+    <div class="field"><label>الوقت</label><input id="invTime" type="time" /></div>
+    <div class="field full"><label>جدول الأعمال (اختياري)</label><textarea id="invAgenda" rows="2" placeholder="بند 1&#10;بند 2"></textarea></div>
+  </div>
+  <div class="actions-row" style="margin-top:8px">
+    <button class="btn btn-ghost btn-sm" onclick="buildInviteText()">🔄 توليد النص من الحقول</button>
+  </div>
+  <div class="field full" style="margin-top:10px"><label>نص الدعوة</label>
+    <textarea id="invText" rows="9"></textarea></div>
+  <div class="actions-row">
+    <button class="btn btn-primary" onclick="copyInvite()">📋 نسخ النص</button>
+  </div>
+  <div class="section-label" style="margin-top:14px">إرسال في الخاص عبر واتساب</div>
+  <div id="inviteAdmins" class="invite-admins"></div>
 </div></div>
 
 <div class="toast" id="toast"></div>

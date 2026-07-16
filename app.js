@@ -163,8 +163,7 @@ $$('.tab[data-tab]').forEach(t=>{
     if(t.dataset.tab==='dashboard') renderDashboard();
     if(t.dataset.tab==='members') renderMembers();
     if(t.dataset.tab==='miqats') renderMiqats();
-    if(t.dataset.tab==='admins') renderAdmins();
-    if(t.dataset.tab==='meetings') renderMeetings();
+    if(t.dataset.tab==='meetings') idaraHome();
     if(t.dataset.tab==='settings') fillSettings();
     window.scrollTo({top:0,behavior:'smooth'});
   });
@@ -926,6 +925,10 @@ function renderMeetingStats(){
     ab.innerHTML=`<span>👤 الأكثر غياباً: <b>${escapeHtml(s.topMember.name)}</b></span><span>${s.topAbsN} غياب · نسبة الغياب ${s.absPct}%</span>`;
   } else { ab.className='mtg-absent-card none';
     ab.innerHTML=`<span>✅ لا توجد غيابات مسجّلة بعد</span><span>نسبة الحضور ${s.attPct}%</span>`; }
+  const sum=document.getElementById('mtgDashSummary');
+  if(sum) sum.textContent = s.count
+    ? `${s.count} اجتماع · حضور ${s.attPct}% · ${s.openDec} قرار · ${s.lateTasks} متأخرة — اضغط للتفاصيل`
+    : 'لا اجتماعات بعد — اضغط لعرض الإحصائيات';
 }
 function openMeetingsFromStat(which){
   if(which==='count'){ switchMeetingSubtab('list'); }
@@ -951,7 +954,7 @@ function meetingsSummaryCardHTML(){
       <span class="msc-item-text">${escapeHtml(r.text||'—')}</span>
       ${overdue?'<span class="md-chip late">متأخر</span>':''}</div>`;
   }).join('');
-  return `<div class="news-item mtg-summary-card" onclick="switchTab('meetings')">
+  return `<div class="news-item mtg-summary-card" onclick="openSecretariatFromHome()">
     <div class="msc-head">📋 لوحة اجتماعات الإدارة</div>
     <div class="msc-stats">
       <span><b>${s.count}</b> اجتماع</span>
@@ -983,6 +986,33 @@ function populateCommitteeDatalist(){
 
 /* ─── العرض الرئيسي ─── */
 function renderMeetings(){ renderMeetingStats(); populateMeetingFilters(); renderMeetingsList(); renderFollowup(); }
+
+/* ─── التنقل داخل قسم الإدارة ─── */
+function idaraShow(view){
+  ['hub','sec','finance','admins'].forEach(v=>{
+    const el=document.getElementById('idara-'+v); if(el) el.style.display = (v===view)?'block':'none';
+  });
+}
+function idaraHome(){ idaraShow('hub'); renderIdaraHub(); window.scrollTo({top:0,behavior:'smooth'}); }
+function renderIdaraHub(){
+  const n=members.filter(m=>m.isAdmin).length;
+  const el=document.getElementById('idaraAdminsCount'); if(el) el.textContent=`${n} إداري`;
+}
+function openIdara(which){
+  if(which==='sec'){ idaraShow('sec'); renderMeetings(); }
+  else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
+  else if(which==='finance'){ idaraShow('finance'); }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function openSecretariatFromHome(){ switchTab('meetings'); openIdara('sec'); }
+
+/* لوحة الإحصائيات القابلة للطي */
+function toggleDash(){
+  const body=document.getElementById('mtgDashBody'), caret=document.getElementById('dashCaret');
+  const open = body.style.display==='none';
+  body.style.display = open?'block':'none';
+  if(caret) caret.classList.toggle('open', open);
+}
 function switchMeetingSubtab(which){
   $$('.mtg-subtabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.mtab===which));
   $('#mtab-list').style.display = which==='list'?'block':'none';
@@ -1282,6 +1312,48 @@ async function summarizeMinutes(id){
   const url = prompt.length<1500 ? 'https://chatgpt.com/?q='+encodeURIComponent(prompt) : 'https://chatgpt.com/';
   window.open(url,'_blank');
   toast('تم نسخ المحضر — الصقه في الموقع واطلب الاختصار');
+}
+
+/* ─── دعوة اجتماع ─── */
+function openInviteModal(){
+  const nextNo=meetings.reduce((mx,x)=>{ const n=parseInt(x.number); return isNaN(n)?mx:Math.max(mx,n); },0)+1;
+  $('#invNumber').value=String(nextNo);
+  $('#invPlace').value='مقر الهيئة';
+  $('#invDate').value=''; $('#invTime').value=''; $('#invAgenda').value='';
+  buildInviteText(); renderInviteAdmins();
+  $('#inviteModal').classList.add('open');
+}
+function fmtInvDate(v){ if(!v) return '—'; const d=new Date(v+'T00:00'); if(isNaN(d)) return v;
+  return `${String(d.getDate()).padStart(2,'0')} ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
+function fmtInvTime(v){ if(!v) return '—'; let [h,mi]=v.split(':').map(Number); const ap=h>=12?'مساءً':'صباحاً'; h=h%12||12; return `${h}:${String(mi).padStart(2,'0')} ${ap}`; }
+function buildInviteText(){
+  const no=$('#invNumber').value.trim()||'—';
+  const date=fmtInvDate($('#invDate').value), time=fmtInvTime($('#invTime').value);
+  const place=$('#invPlace').value.trim()||'مقر الهيئة';
+  const agenda=$('#invAgenda').value.trim();
+  let t='بسم الله الرحمن الرحيم\n\n';
+  t+='*دعوة لحضور اجتماع مجلس إدارة هيئة محبي الحسين*\n\n';
+  t+='الأخ الكريم عضو مجلس الإدارة،\n';
+  t+=`يسرّ أمانة السر دعوتكم لحضور الاجتماع رقم (${no})\n\n`;
+  t+=`🗓️ التاريخ: ${date}\n🕐 الوقت: ${time}\n📍 المكان: ${place}\n`;
+  if(agenda) t+=`\n*جدول الأعمال:*\n${agenda}\n`;
+  t+='\nنأمل حضوركم في الموعد المحدد، ولكم جزيل الشكر.\nأمانة السر';
+  $('#invText').value=t;
+}
+function copyInvite(){ const t=$('#invText').value.trim(); if(!t){ toast('النص فارغ'); return; } copyToClipboard(t); toast('تم نسخ نص الدعوة'); }
+function renderInviteAdmins(){
+  const admins=members.filter(m=>m.isAdmin); const el=$('#inviteAdmins');
+  if(!admins.length){ el.innerHTML='<div class="mtg-block-help" style="margin:0">لا يوجد أعضاء إدارة مسجّلون.</div>'; return; }
+  el.innerHTML=admins.map(m=>`<div class="invite-admin-row">
+    <div class="ia-name">${escapeHtml(m.name)}<small>${escapeHtml(m.committee||'إدارة الهيئة')}${m.phone?' · '+escapeHtml(m.phone):''}</small></div>
+    <button class="btn wa-btn small" onclick="sendInvite('${m.id}')">${WA_ICON}</button>
+  </div>`).join('');
+}
+function sendInvite(memberId){
+  const m=members.find(x=>x.id===memberId); if(!m) return;
+  const t=$('#invText').value.trim(); if(!t){ toast('النص فارغ'); return; }
+  if(!m.phone){ toast('لا يوجد رقم هاتف لهذا العضو'); return; }
+  window.open(whatsappLink(m.phone,t),'_blank');
 }
 function editCurrentMeeting(){ const id=mdCurrentId; closeModal('meetingDetailModal'); openMeetingModal(id); }
 async function deleteCurrentMeeting(){
