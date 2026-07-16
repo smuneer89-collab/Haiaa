@@ -53,6 +53,8 @@ const HIJRI_LEN = [30,29,30,29,30,29,30,29,30,29,30,29]; // approx month lengths
 let members = [];
 let miqats = [];   // {id, name, day, month, requiredAmount, bookings:[{memberId, amount}]}
 let news = [];     // {id, title, body, date}
+let meetings = []; // {id, number, datetime, committee, plannedMinutes, attendance:[{memberId,present}], speech, agenda, proceedings, minutes, decisions:[{id,text,owner,due,done}], tasks:[...], attachments:[{id,name,type,data}], startedAt, endedAt}
+let uiDark = false;
 let settings = {
   fee: 30, year: 1448,
   counters: { 'عادي': 1, 'شرفي': 1, 'كادر': 1 },
@@ -115,11 +117,14 @@ async function loadData(){
   try { const s=await storage.get('settings'); if(s) settings={...settings,...JSON.parse(s),
     counters:{...settings.counters,...(JSON.parse(s).counters||{})},
     templates:{...settings.templates,...(JSON.parse(s).templates||{})}}; } catch(e){}
+  try { const mt=await storage.get('meetings'); if(mt) meetings=JSON.parse(mt); } catch(e){ meetings=[]; }
+  try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
 }
 async function saveMembers(){ try{ await storage.set('members',JSON.stringify(members)); }catch(e){ toast('تعذر الحفظ'); } }
 async function saveMiqats(){ try{ await storage.set('miqats',JSON.stringify(miqats)); }catch(e){ toast('تعذر الحفظ'); } }
 async function saveNews(){ try{ await storage.set('news',JSON.stringify(news)); }catch(e){} }
 async function persistSettings(){ try{ await storage.set('settings',JSON.stringify(settings)); }catch(e){} }
+async function saveMeetings(){ try{ await storage.set('meetings',JSON.stringify(meetings)); }catch(e){ toast('تعذر حفظ الاجتماع'); } }
 
 /* ─── WhatsApp ─── */
 function normalizePhone(phone){ let c=String(phone||'').replace(/\D/g,''); if(c.startsWith('00'))c=c.slice(2); if(c.startsWith('973'))return c; return '973'+c; }
@@ -150,15 +155,16 @@ async function handlePhotoSelect(e){
 function fillHeaderDates(){ $('#dateGregorian').textContent=fmtDate(today()); $('#dateHijri').textContent=hijriToday(); }
 
 /* ─── Tabs ─── */
-$$('.tab').forEach(t=>{
+$$('.tab[data-tab]').forEach(t=>{
   t.addEventListener('click',()=>{
-    $$('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+    $$('.tab[data-tab]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
     $$('.tab-content').forEach(c=>c.style.display='none');
     $('#tab-'+t.dataset.tab).style.display='block';
     if(t.dataset.tab==='dashboard') renderDashboard();
     if(t.dataset.tab==='members') renderMembers();
     if(t.dataset.tab==='miqats') renderMiqats();
     if(t.dataset.tab==='admins') renderAdmins();
+    if(t.dataset.tab==='meetings') renderMeetings();
     if(t.dataset.tab==='settings') fillSettings();
     window.scrollTo({top:0,behavior:'smooth'});
   });
@@ -806,9 +812,9 @@ function exportCSV(){
 async function clearAllData(){
   if(!confirm('سيتم حذف كل البيانات نهائياً. متأكد؟')) return;
   if(!confirm('تأكيد أخير: لا يمكن التراجع.')) return;
-  members=[]; miqats=[]; news=[];
+  members=[]; miqats=[]; news=[]; meetings=[];
   settings={...settings, counters:{'عادي':1,'شرفي':1,'كادر':1}};
-  await saveMembers(); await saveMiqats(); await storage.set('news','[]'); await persistSettings();
+  await saveMembers(); await saveMiqats(); await storage.set('news','[]'); await saveMeetings(); await persistSettings();
   toast('تم مسح كل البيانات'); renderDashboard(); renderMembers();
 }
 
@@ -818,7 +824,7 @@ function downloadBlob(content,type,filename){
   const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 async function backupExport(){
-  const backup={ app:'هيئة محبي الحسين', version:5, exportedAt:new Date().toISOString(), members, miqats, news, settings };
+  const backup={ app:'هيئة محبي الحسين', version:6, exportedAt:new Date().toISOString(), members, miqats, news, settings, meetings };
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
   toast(`تم حفظ نسخة احتياطية (${members.length} عضو)`);
 }
@@ -828,9 +834,9 @@ async function backupImport(e){
     const backup=JSON.parse(await file.text());
     if(!backup.members||!Array.isArray(backup.members)){ toast('الملف غير صالح'); e.target.value=''; return; }
     if(!confirm(`استيراد ${backup.members.length} عضو؟ سيتم استبدال البيانات الحالية بالكامل.`)){ e.target.value=''; return; }
-    members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[];
+    members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[];
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
-    await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await persistSettings();
+    await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await persistSettings();
     e.target.value=''; toast(`تمت الاستعادة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ toast('تعذّرت قراءة الملف'); e.target.value=''; }
 }
@@ -869,9 +875,531 @@ function openWhatsAppBroadcast(){
   else { window.open('https://web.whatsapp.com/','_blank'); toast('انسخ الأرقام والرسالة ثم أنشئ قائمة بث'); }
 }
 
+/* ═══════════════════════════ اجتماعات الإدارة ═══════════════════════════ */
+function uid(p){ return p+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
+function adminList(){ return members.filter(m=>m.isAdmin); }
+
+/* ─── الوضع الداكن ─── */
+function applyDarkMode(){
+  document.body.classList.toggle('dark', uiDark);
+  const b=document.getElementById('darkModeBtn'); if(b) b.textContent=uiDark?'☀️ فاتح':'🌙 داكن';
+}
+async function toggleDarkMode(){ uiDark=!uiDark; applyDarkMode(); try{ await storage.set('ui_dark', uiDark?'1':'0'); }catch(e){} }
+
+/* ─── مساعدات التاريخ ─── */
+function localDatetimeValue(d){ const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+function fmtMeetingDT(iso){ if(!iso) return '—'; const d=new Date(iso); if(isNaN(d)) return '—';
+  const p=n=>String(n).padStart(2,'0'); let hh=d.getHours(); const ap=hh>=12?'م':'ص'; hh=hh%12||12;
+  return `${p(d.getDate())} ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()} · ${hh}:${p(d.getMinutes())} ${ap}`; }
+function formatDuration(ms){ if(ms<0)ms=0; const s=Math.floor(ms/1000);
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), ss=s%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
+function meetingDuration(m){ if(m.startedAt&&m.endedAt) return formatDuration(new Date(m.endedAt)-new Date(m.startedAt)); return null; }
+
+/* ─── الإحصائيات ─── */
+function meetingStats(){
+  let present=0,total=0; const absentBy={};
+  meetings.forEach(m=>(m.attendance||[]).forEach(a=>{ total++;
+    if(a.present) present++; else absentBy[a.memberId]=(absentBy[a.memberId]||0)+1; }));
+  const attPct=total?Math.round(present/total*100):0;
+  let openDec=0; meetings.forEach(m=>(m.decisions||[]).forEach(d=>{ if(!d.done) openDec++; }));
+  const ts=today(); let lateTasks=0;
+  meetings.forEach(m=>(m.tasks||[]).forEach(t=>{ if(!t.done && t.due && t.due<ts) lateTasks++; }));
+  let topId=null,topN=0; Object.entries(absentBy).forEach(([id,n])=>{ if(n>topN){topN=n;topId=id;} });
+  const topMember=topId?members.find(x=>x.id===topId):null;
+  return { count:meetings.length, attPct, absPct:100-attPct, openDec, lateTasks, topMember, topAbsN:topN,
+    present, absent:total-present, total };
+}
+function renderMeetingStats(){
+  const s=meetingStats();
+  document.getElementById('mtgStats').innerHTML=`
+    <div class="mtg-stat tot"><div class="num">${s.count}</div><div class="lbl">عدد الاجتماعات</div></div>
+    <div class="mtg-stat att"><div class="num">${s.attPct}%</div><div class="lbl">نسبة الحضور</div></div>
+    <div class="mtg-stat dec"><div class="num">${s.openDec}</div><div class="lbl">قرارات قيد التنفيذ</div></div>
+    <div class="mtg-stat late"><div class="num">${s.lateTasks}</div><div class="lbl">مهام متأخرة</div></div>`;
+  const ab=document.getElementById('mtgMostAbsent');
+  if(s.topMember){ ab.className='mtg-absent-card';
+    ab.innerHTML=`<span>👤 الأكثر غياباً: <b>${escapeHtml(s.topMember.name)}</b></span><span>${s.topAbsN} غياب · نسبة الغياب ${s.absPct}%</span>`;
+  } else { ab.className='mtg-absent-card none';
+    ab.innerHTML=`<span>✅ لا توجد غيابات مسجّلة بعد</span><span>نسبة الحضور ${s.attPct}%</span>`; }
+}
+
+/* ─── الفلاتر ─── */
+function populateMeetingFilters(){
+  const years=[...new Set(meetings.filter(m=>m.datetime).map(m=>new Date(m.datetime).getFullYear()))].sort((a,b)=>b-a);
+  const months=[...new Set(meetings.filter(m=>m.datetime).map(m=>new Date(m.datetime).getMonth()))].sort((a,b)=>a-b);
+  const comms=[...new Set(meetings.map(m=>m.committee).filter(Boolean))];
+  const yEl=$('#mtgFilterYear'), mEl=$('#mtgFilterMonth'), cEl=$('#mtgFilterCommittee');
+  const ky=yEl.value, km=mEl.value, kc=cEl.value;
+  yEl.innerHTML='<option value="">كل السنوات</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  mEl.innerHTML='<option value="">كل الشهور</option>'+months.map(mo=>`<option value="${mo}">${AR_MONTHS[mo]}</option>`).join('');
+  cEl.innerHTML='<option value="">كل اللجان</option>'+comms.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  yEl.value=ky; mEl.value=km; cEl.value=kc;
+}
+function populateCommitteeDatalist(){
+  const comms=[...new Set([...meetings.map(m=>m.committee), ...members.map(m=>m.committee)].filter(Boolean))];
+  $('#committeeList').innerHTML=comms.map(c=>`<option value="${escapeHtml(c)}"></option>`).join('');
+}
+
+/* ─── العرض الرئيسي ─── */
+function renderMeetings(){ renderMeetingStats(); populateMeetingFilters(); renderMeetingsList(); renderFollowup(); }
+function switchMeetingSubtab(which){
+  $$('.mtg-subtabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.mtab===which));
+  $('#mtab-list').style.display = which==='list'?'block':'none';
+  $('#mtab-followup').style.display = which==='followup'?'block':'none';
+  if(which==='followup') renderFollowup();
+}
+function meetingCardHTML(m){
+  const ended=!!m.endedAt;
+  const present=(m.attendance||[]).filter(a=>a.present).length;
+  const absent=(m.attendance||[]).length-present;
+  const dur=meetingDuration(m);
+  return `<div class="mtg-card" onclick="showMeetingDetail('${m.id}')">
+    <div class="mtg-card-top">
+      <span class="mtg-card-no">اجتماع رقم ${escapeHtml(m.number)}</span>
+      <span class="mtg-badge ${ended?'ended':'open'}">${ended?'منتهٍ':'لم ينتهِ'}</span>
+    </div>
+    <div class="mtg-card-meta">
+      <span class="mi">🗓️ ${fmtMeetingDT(m.datetime)}</span>
+      ${m.committee?`<span class="mi">🏷️ ${escapeHtml(m.committee)}</span>`:''}
+      ${dur?`<span class="mi">⏱️ ${dur}</span>`:''}
+    </div>
+    <div class="mtg-card-stats">
+      <span>الحضور <b>${present}</b></span>
+      <span>الغياب <b>${absent}</b></span>
+      <span>القرارات <b>${(m.decisions||[]).length}</b></span>
+      <span>المهام <b>${(m.tasks||[]).length}</b></span>
+    </div>
+  </div>`;
+}
+function renderMeetingsList(){
+  const q=($('#mtgSearch').value||'').trim().toLowerCase();
+  const fy=$('#mtgFilterYear').value, fm=$('#mtgFilterMonth').value, fc=$('#mtgFilterCommittee').value;
+  let list=[...meetings].sort((a,b)=>new Date(b.datetime||0)-new Date(a.datetime||0)).filter(m=>{
+    if(fy){ const y=m.datetime?new Date(m.datetime).getFullYear():''; if(String(y)!==fy) return false; }
+    if(fm){ const mo=m.datetime?new Date(m.datetime).getMonth():''; if(String(mo)!==fm) return false; }
+    if(fc && (m.committee||'')!==fc) return false;
+    if(q){ const hay=`${m.number} ${m.committee||''} ${m.minutes||''} ${m.agenda||''} ${m.proceedings||''}`.toLowerCase(); if(!hay.includes(q)) return false; }
+    return true;
+  });
+  const el=$('#meetingsList');
+  if(!meetings.length){ el.innerHTML=`<div class="empty"><div class="icon">📋</div><div class="txt">لا توجد اجتماعات بعد. اضغط «➕ اجتماع جديد» للبدء.</div></div>`; return; }
+  if(!list.length){ el.innerHTML=`<div class="empty"><div class="icon">🔍</div><div class="txt">لا نتائج مطابقة.</div></div>`; return; }
+  el.innerHTML=list.map(meetingCardHTML).join('');
+}
+
+/* ─── نموذج الاجتماع (جديد/تعديل) ─── */
+let mtgEditId=null, mtgDraft=null, mtgTimerInterval=null, mtgAlertShown=false;
+
+function openMeetingModal(id){
+  clearInterval(mtgTimerInterval); mtgAlertShown=false;
+  $('#mtgTimeAlert').style.display='none';
+  populateCommitteeDatalist();
+  const m=id?meetings.find(x=>x.id===id):null;
+  mtgEditId=m?m.id:null;
+  $('#meetingModalTitle').textContent=m?'تعديل الاجتماع':'اجتماع جديد';
+  if(m){
+    mtgDraft={ startedAt:m.startedAt||null, endedAt:m.endedAt||null, attachments:(m.attachments||[]).slice(), createdAt:m.createdAt };
+    $('#mtgNumber').value=m.number||''; $('#mtgDatetime').value=m.datetime||'';
+    $('#mtgCommittee').value=m.committee||''; $('#mtgPlanned').value=String(m.plannedMinutes!=null?m.plannedMinutes:60);
+    $('#mtgSpeech').value=m.speech||''; $('#mtgAgenda').value=m.agenda||'';
+    $('#mtgProceedings').value=m.proceedings||''; $('#mtgMinutes').value=m.minutes||'';
+    renderAttendancePicker(m.attendance);
+    $('#mtgDecisions').innerHTML=''; (m.decisions||[]).forEach(d=>addDecisionEntry(d));
+    $('#mtgTasks').innerHTML=''; (m.tasks||[]).forEach(t=>addTaskEntry(t));
+  } else {
+    mtgDraft={ startedAt:null, endedAt:null, attachments:[], createdAt:new Date().toISOString() };
+    const nextNo=meetings.reduce((mx,x)=>{ const n=parseInt(x.number); return isNaN(n)?mx:Math.max(mx,n); },0)+1;
+    $('#mtgNumber').value=String(nextNo); $('#mtgDatetime').value=localDatetimeValue(new Date());
+    $('#mtgCommittee').value=''; $('#mtgPlanned').value='60';
+    $('#mtgSpeech').value=''; $('#mtgAgenda').value=''; $('#mtgProceedings').value=''; $('#mtgMinutes').value='';
+    renderAttendancePicker([]); $('#mtgDecisions').innerHTML=''; $('#mtgTasks').innerHTML='';
+  }
+  renderMeetingAttachments(); updateItemCounts(); updateTimerUI();
+  if(mtgDraft.startedAt && !mtgDraft.endedAt) mtgTimerInterval=setInterval(tickTimer,1000);
+  $('#meetingModal').classList.add('open');
+}
+function closeMeetingModal(){ clearInterval(mtgTimerInterval); $('#meetingModal').classList.remove('open'); }
+
+/* الحضور والغياب */
+function renderAttendancePicker(attendance){
+  const admins=adminList(); const cont=$('#mtgAttendance');
+  if(!admins.length){ cont.innerHTML='<div class="mtg-block-help" style="margin:0">لا يوجد أعضاء إدارة مسجّلون بعد. فعّل «من إدارة الهيئة» عند تسجيل العضو أولاً.</div>'; updateAttSummary(); return; }
+  const map={}; (attendance||[]).forEach(a=>map[a.memberId]=a.present);
+  cont.innerHTML=admins.map(m=>{
+    const present=map[m.id]!==false;
+    return `<div class="mtg-att-row" data-mid="${m.id}">
+      <div class="mtg-att-name">${escapeHtml(m.name)}<small>${escapeHtml(m.committee||'إدارة الهيئة')} · ${memberCode(m)}</small></div>
+      <div class="mtg-att-toggle">
+        <button type="button" class="${present?'on-present':''}" onclick="setAtt(this,true)">حاضر</button>
+        <button type="button" class="${!present?'on-absent':''}" onclick="setAtt(this,false)">غائب</button>
+      </div></div>`;
+  }).join('');
+  updateAttSummary();
+}
+function setAtt(btn,present){
+  const row=btn.closest('.mtg-att-row'); const btns=row.querySelectorAll('.mtg-att-toggle button');
+  btns[0].classList.toggle('on-present',present); btns[1].classList.toggle('on-absent',!present);
+  updateAttSummary();
+}
+function collectAttendance(){
+  return [...$$('#mtgAttendance .mtg-att-row')].map(row=>({
+    memberId:row.dataset.mid,
+    present:row.querySelectorAll('.mtg-att-toggle button')[0].classList.contains('on-present')
+  }));
+}
+function updateAttSummary(){
+  const rows=[...$$('#mtgAttendance .mtg-att-row')];
+  const present=rows.filter(r=>r.querySelectorAll('.mtg-att-toggle button')[0].classList.contains('on-present')).length;
+  $('#mtgAttSummary').textContent=`${present} حاضر · ${rows.length-present} غائب`;
+}
+
+/* القرارات والمهام */
+function itemEntryHTML(kind,data){
+  data=data||{}; const admins=adminList(); let names=admins.map(m=>m.name);
+  if(data.owner && !names.includes(data.owner)) names=[data.owner,...names];
+  const opts=`<option value="">— المسؤول —</option>`+names.map(n=>`<option value="${escapeHtml(n)}" ${data.owner===n?'selected':''}>${escapeHtml(n)}</option>`).join('');
+  return `<div class="mtg-item" data-kind="${kind}" data-id="${data.id||''}">
+    <textarea rows="2" class="it-text" oninput="updateItemCounts()" placeholder="${kind==='decision'?'نص القرار...':'وصف المهمة...'}">${escapeHtml(data.text||'')}</textarea>
+    <div class="mtg-item-row">
+      <select class="it-owner">${opts}</select>
+      <input type="date" class="it-due" value="${data.due||''}" />
+      <label class="mtg-item-done"><input type="checkbox" class="it-done" ${data.done?'checked':''}/> منجز</label>
+      <button type="button" class="remove-btn" onclick="this.closest('.mtg-item').remove(); updateItemCounts();">× حذف</button>
+    </div></div>`;
+}
+function addDecisionEntry(data){ const c=$('#mtgDecisions'); const d=document.createElement('div'); d.innerHTML=itemEntryHTML('decision',data); c.appendChild(d.firstElementChild); updateItemCounts(); }
+function addTaskEntry(data){ const c=$('#mtgTasks'); const d=document.createElement('div'); d.innerHTML=itemEntryHTML('task',data); c.appendChild(d.firstElementChild); updateItemCounts(); }
+function collectItems(sel){
+  return [...$$(sel+' .mtg-item')].map(el=>{
+    const text=el.querySelector('.it-text').value.trim(); if(!text) return null;
+    return { id:el.dataset.id||uid('it'), text,
+      owner:el.querySelector('.it-owner').value,
+      due:el.querySelector('.it-due').value,
+      done:el.querySelector('.it-done').checked };
+  }).filter(Boolean);
+}
+function updateItemCounts(){
+  const dc=[...$$('#mtgDecisions .mtg-item')].filter(el=>el.querySelector('.it-text').value.trim()).length;
+  const tc=[...$$('#mtgTasks .mtg-item')].filter(el=>el.querySelector('.it-text').value.trim()).length;
+  $('#mtgDecCount').textContent=dc; $('#mtgTaskCount').textContent=tc;
+}
+
+/* المرفقات */
+function fileToDataURL(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
+async function handleMeetingAttach(e){
+  const files=[...e.target.files]; if(!files.length) return;
+  for(const f of files){
+    if(f.size>4*1024*1024){ toast(`«${f.name}» أكبر من 4 ميجا`); continue; }
+    try{ const data=await fileToDataURL(f); mtgDraft.attachments.push({id:uid('at'), name:f.name, type:f.type, data}); }
+    catch(_){ toast('تعذّر إرفاق '+f.name); }
+  }
+  e.target.value=''; renderMeetingAttachments();
+}
+function renderMeetingAttachments(){
+  const el=$('#mtgAttachments'); const list=(mtgDraft&&mtgDraft.attachments)||[];
+  if(!list.length){ el.innerHTML='<div class="mtg-block-help" style="margin:0">لا مرفقات</div>'; return; }
+  el.innerHTML=list.map(a=>`<div class="mtg-attach-row"><a href="${a.data}" download="${escapeHtml(a.name)}" target="_blank">📎 ${escapeHtml(a.name)}</a><button type="button" class="remove-btn" onclick="removeMeetingAttach('${a.id}')">×</button></div>`).join('');
+}
+function removeMeetingAttach(id){ mtgDraft.attachments=mtgDraft.attachments.filter(a=>a.id!==id); renderMeetingAttachments(); }
+
+/* المؤقّت والتنبيه */
+function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(); const g=ctx.createGain();
+  o.connect(g); g.connect(ctx.destination); o.type='sine'; o.frequency.value=880; g.gain.value=0.1;
+  o.start(); setTimeout(()=>{ o.stop(); ctx.close(); },400); }catch(e){} }
+function updateTimerUI(){
+  const started=mtgDraft.startedAt, ended=mtgDraft.endedAt;
+  const clock=$('#mtgTimerClock'), label=$('#mtgTimerLabel'), sBtn=$('#mtgStartBtn'), eBtn=$('#mtgEndBtn');
+  if(ended){ clock.textContent=formatDuration(new Date(ended)-new Date(started));
+    label.textContent='انتهى الاجتماع — المدة الإجمالية'; sBtn.style.display='none'; eBtn.style.display='none';
+  } else if(started){ label.textContent='الاجتماع جارٍ...'; sBtn.style.display='none'; eBtn.style.display='inline-flex'; tickTimer();
+  } else { clock.textContent='00:00:00'; label.textContent='لم يبدأ الاجتماع بعد'; sBtn.style.display='inline-flex'; eBtn.style.display='none'; }
+}
+function tickTimer(){
+  if(!mtgDraft || !mtgDraft.startedAt || mtgDraft.endedAt) return;
+  const elapsed=Date.now()-new Date(mtgDraft.startedAt).getTime();
+  $('#mtgTimerClock').textContent=formatDuration(elapsed);
+  const planned=parseInt($('#mtgPlanned').value)||0;
+  if(planned>0 && elapsed>=planned*60000 && !mtgAlertShown){
+    mtgAlertShown=true; $('#mtgTimeAlert').style.display='block'; toast('⏰ انتهى الوقت المحدد للاجتماع'); beep();
+  }
+}
+function startMeetingTimer(){
+  if(!persistMeetingDraft(false)) return;
+  mtgDraft.startedAt=new Date().toISOString(); mtgDraft.endedAt=null; mtgAlertShown=false;
+  $('#mtgTimeAlert').style.display='none'; persistMeetingDraft(true); updateTimerUI();
+  clearInterval(mtgTimerInterval); mtgTimerInterval=setInterval(tickTimer,1000); toast('بدأ توقيت الاجتماع');
+}
+function endMeetingTimer(){
+  if(!mtgDraft.startedAt){ toast('لم يبدأ الاجتماع بعد'); return; }
+  mtgDraft.endedAt=new Date().toISOString(); clearInterval(mtgTimerInterval); persistMeetingDraft(true); updateTimerUI();
+  toast('انتهى الاجتماع — المدة '+formatDuration(new Date(mtgDraft.endedAt)-new Date(mtgDraft.startedAt)));
+}
+
+/* الحفظ */
+function persistMeetingDraft(silent){
+  const number=$('#mtgNumber').value.trim(); const datetime=$('#mtgDatetime').value;
+  if(!number){ if(!silent) toast('أدخل رقم الاجتماع'); return false; }
+  if(!datetime){ if(!silent) toast('أدخل تاريخ ووقت الاجتماع'); return false; }
+  const obj={ id:mtgEditId||uid('mtg'), number, datetime,
+    committee:$('#mtgCommittee').value.trim(), plannedMinutes:parseInt($('#mtgPlanned').value)||0,
+    attendance:collectAttendance(), speech:$('#mtgSpeech').value.trim(), agenda:$('#mtgAgenda').value.trim(),
+    proceedings:$('#mtgProceedings').value.trim(), minutes:$('#mtgMinutes').value.trim(),
+    decisions:collectItems('#mtgDecisions'), tasks:collectItems('#mtgTasks'),
+    attachments:mtgDraft.attachments||[], startedAt:mtgDraft.startedAt||null, endedAt:mtgDraft.endedAt||null,
+    createdAt:mtgDraft.createdAt||new Date().toISOString() };
+  const idx=meetings.findIndex(x=>x.id===obj.id);
+  if(idx>=0) meetings[idx]=obj; else meetings.push(obj);
+  mtgEditId=obj.id; saveMeetings(); return true;
+}
+async function saveMeeting(){ if(!persistMeetingDraft(false)) return; closeMeetingModal(); toast('تم حفظ الاجتماع'); renderMeetings(); }
+
+/* ─── صفحة التفاصيل ─── */
+let mdCurrentId=null;
+function showMeetingDetail(id){
+  const m=meetings.find(x=>x.id===id); if(!m) return; mdCurrentId=id;
+  $('#mdTitle').textContent=`اجتماع رقم ${m.number}`;
+  $('#mdSubtitle').textContent=`${fmtMeetingDT(m.datetime)}${m.committee?' · '+m.committee:''}`;
+  renderDetailPanes(m); switchDetailTab('info'); $('#meetingDetailModal').classList.add('open');
+}
+function switchDetailTab(which){
+  $$('#mdTabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.mdtab===which));
+  ['info','attendance','agenda','proceedings','decisions','tasks','attachments','minutes'].forEach(p=>{
+    $('#md-'+p).style.display = p===which?'block':'none';
+  });
+}
+function detailItemList(m,kind){
+  const items=kind==='decision'?(m.decisions||[]):(m.tasks||[]);
+  if(!items.length) return `<div class="empty"><div class="txt">لا يوجد.</div></div>`;
+  const ts=today();
+  return items.map(it=>{
+    const overdue=!it.done && it.due && it.due<ts;
+    const chip=it.done?'<span class="md-chip done">منجز</span>':(overdue?'<span class="md-chip late">متأخر</span>':'<span class="md-chip open">قيد التنفيذ</span>');
+    return `<div class="md-item ${it.done?'done':''}">
+      <div class="md-item-text">${escapeHtml(it.text)}</div>
+      <div class="md-item-meta">
+        <span>👤 ${it.owner?escapeHtml(it.owner):'—'}</span>
+        <span>📅 ${it.due||'بدون موعد'}</span> ${chip}
+        <button class="btn btn-ghost btn-sm" onclick="toggleItemDone('${kind}','${it.id}')">${it.done?'إلغاء الإنجاز':'وضع كمنجز'}</button>
+      </div></div>`;
+  }).join('');
+}
+function renderDetailPanes(m){
+  const dur=meetingDuration(m);
+  $('#md-info').innerHTML=
+    detailRow('رقم الاجتماع', escapeHtml(m.number))+
+    detailRow('التاريخ والوقت', fmtMeetingDT(m.datetime))+
+    detailRow('اللجنة', m.committee?escapeHtml(m.committee):'—')+
+    detailRow('المدة المحددة', m.plannedMinutes?`${m.plannedMinutes} دقيقة`:'بدون تحديد')+
+    detailRow('المدة الفعلية', dur||'—')+
+    detailRow('بدأ في', m.startedAt?fmtMeetingDT(m.startedAt):'—')+
+    detailRow('انتهى في', m.endedAt?fmtMeetingDT(m.endedAt):'—')+
+    detailRow('عدد القرارات', (m.decisions||[]).length)+
+    detailRow('عدد المهام', (m.tasks||[]).length);
+  const present=(m.attendance||[]).filter(a=>a.present), absent=(m.attendance||[]).filter(a=>!a.present);
+  const nm=id=>{ const x=members.find(y=>y.id===id); return x?escapeHtml(x.name):'—'; };
+  const total=(m.attendance||[]).length, pct=total?Math.round(present.length/total*100):0;
+  $('#md-attendance').innerHTML=`
+    <div class="mtg-att-summary" style="margin-bottom:12px">نسبة الحضور ${pct}% — حاضر ${present.length} · غائب ${absent.length}</div>
+    <div class="md-att-cols">
+      <div class="md-att-col present"><h4>الحاضرون (${present.length})</h4><ul>${present.map(a=>`<li>${nm(a.memberId)}</li>`).join('')||'<li>—</li>'}</ul></div>
+      <div class="md-att-col absent"><h4>الغائبون (${absent.length})</h4><ul>${absent.map(a=>`<li>${nm(a.memberId)}</li>`).join('')||'<li>—</li>'}</ul></div>
+    </div>`;
+  $('#md-agenda').innerHTML=m.agenda?`<div class="md-text">${escapeHtml(m.agenda)}</div>`:`<div class="empty"><div class="txt">لا يوجد جدول أعمال.</div></div>`;
+  $('#md-proceedings').innerHTML=m.proceedings?`<div class="md-text">${escapeHtml(m.proceedings)}</div>`:`<div class="empty"><div class="txt">لا توجد مجريات مسجّلة.</div></div>`;
+  $('#md-decisions').innerHTML=detailItemList(m,'decision');
+  $('#md-tasks').innerHTML=detailItemList(m,'task');
+  const at=(m.attachments||[]);
+  $('#md-attachments').innerHTML=at.length?at.map(a=>`<div class="mtg-attach-row"><a href="${a.data}" download="${escapeHtml(a.name)}" target="_blank">📎 ${escapeHtml(a.name)}</a></div>`).join(''):`<div class="empty"><div class="txt">لا مرفقات.</div></div>`;
+  $('#md-minutes').innerHTML=`
+    ${m.speech?`<div class="md-section-title">كلمة الاجتماع</div><div class="md-text" style="margin-bottom:12px">${escapeHtml(m.speech)}</div>`:''}
+    <div class="md-section-title">محضر الاجتماع (راجعه وعدّله)</div>
+    <textarea id="mdMinutesEdit" rows="7" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;background:var(--bg);color:var(--ink);resize:vertical">${escapeHtml(m.minutes||'')}</textarea>
+    <div class="actions-row" style="margin-top:10px">
+      <button class="btn btn-ghost btn-sm" onclick="saveMinutesEdit()">💾 حفظ التعديل</button>
+      <button class="btn btn-primary btn-sm" onclick="printMeetingMinutes('${m.id}')">🖨️ طباعة المحضر PDF</button>
+      <button class="btn wa-btn btn-sm" onclick="shareMeetingMinutesWA('${m.id}')">${WA_ICON}<span style="margin-right:4px">واتساب</span></button>
+    </div>
+    <div class="note" style="margin-top:10px">لإرسال المحضر PDF في واتساب: اطبع واحفظه كـ PDF ثم أرفقه في المحادثة. زر «واتساب» يرسل نص المحضر مباشرة.</div>`;
+}
+async function toggleItemDone(kind,itemId){
+  const m=meetings.find(x=>x.id===mdCurrentId); if(!m) return;
+  const arr=kind==='decision'?m.decisions:m.tasks; const it=(arr||[]).find(x=>x.id===itemId); if(!it) return;
+  it.done=!it.done; await saveMeetings(); renderDetailPanes(m); switchDetailTab(kind==='decision'?'decisions':'tasks'); renderMeetingStats();
+}
+async function saveMinutesEdit(){
+  const m=meetings.find(x=>x.id===mdCurrentId); if(!m) return;
+  m.minutes=$('#mdMinutesEdit').value.trim(); await saveMeetings(); toast('تم حفظ المحضر');
+}
+function editCurrentMeeting(){ const id=mdCurrentId; closeModal('meetingDetailModal'); openMeetingModal(id); }
+async function deleteCurrentMeeting(){
+  const m=meetings.find(x=>x.id===mdCurrentId); if(!m) return;
+  if(!confirm(`حذف اجتماع رقم ${m.number}؟ لا يمكن التراجع.`)) return;
+  meetings=meetings.filter(x=>x.id!==mdCurrentId); await saveMeetings();
+  closeModal('meetingDetailModal'); toast('تم حذف الاجتماع'); renderMeetings();
+}
+
+/* ─── لوحة المتابعة ─── */
+function renderFollowup(){
+  const typeF=$('#followType').value, statF=$('#followStatus').value; const ts=today(); const rows=[];
+  meetings.forEach(m=>{
+    (m.decisions||[]).forEach(d=>rows.push({kind:'decision', mId:m.id, mNo:m.number, ...d}));
+    (m.tasks||[]).forEach(t=>rows.push({kind:'task', mId:m.id, mNo:m.number, ...t}));
+  });
+  let filtered=rows.filter(r=>{
+    if(typeF && r.kind!==typeF) return false;
+    const overdue=!r.done && r.due && r.due<ts;
+    if(statF==='open' && r.done) return false;
+    if(statF==='done' && !r.done) return false;
+    if(statF==='overdue' && !overdue) return false;
+    return true;
+  });
+  filtered.sort((a,b)=>{ const rank=x=>x.done?2:((x.due&&x.due<ts)?0:1); return rank(a)-rank(b); });
+  const el=$('#followupList');
+  if(!filtered.length){ el.innerHTML=`<div class="empty"><div class="icon">📌</div><div class="txt">لا توجد قرارات أو مهام مطابقة.</div></div>`; return; }
+  el.innerHTML=filtered.map(r=>{
+    const overdue=!r.done && r.due && r.due<ts;
+    const chip=overdue?'<span class="md-chip late">متأخر</span>':(r.done?'<span class="md-chip done">منجز</span>':'<span class="md-chip open">قيد التنفيذ</span>');
+    return `<div class="fu-row ${r.done?'done':''}">
+      <div class="fu-top">
+        <input type="checkbox" class="fu-check" ${r.done?'checked':''} onchange="toggleFollowupDone('${r.mId}','${r.kind}','${r.id}')"/>
+        <div class="fu-text">${escapeHtml(r.text||'—')}</div>
+        <span class="fu-kind ${r.kind}">${r.kind==='decision'?'قرار':'مهمة'}</span>
+      </div>
+      <div class="fu-meta">
+        <span>👤 ${r.owner?escapeHtml(r.owner):'—'}</span>
+        <span>📅 ${r.due||'بدون موعد'}</span>
+        <span>📋 اجتماع ${escapeHtml(r.mNo)}</span> ${chip}
+      </div></div>`;
+  }).join('');
+}
+async function toggleFollowupDone(mId,kind,itemId){
+  const m=meetings.find(x=>x.id===mId); if(!m) return;
+  const arr=kind==='decision'?m.decisions:m.tasks; const it=(arr||[]).find(x=>x.id===itemId); if(!it) return;
+  it.done=!it.done; await saveMeetings(); renderFollowup(); renderMeetingStats();
+}
+
+/* ─── الطباعة PDF ─── */
+function printMeetingMinutes(id){
+  const m=meetings.find(x=>x.id===id); if(!m) return;
+  const nm=mid=>{ const x=members.find(y=>y.id===mid); return x?escapeHtml(x.name):'—'; };
+  const present=(m.attendance||[]).filter(a=>a.present).map(a=>nm(a.memberId));
+  const absent=(m.attendance||[]).filter(a=>!a.present).map(a=>nm(a.memberId));
+  const dur=meetingDuration(m);
+  const listHTML=arr=>arr.length?'<ol>'+arr.map(it=>`<li>${escapeHtml(it.text)}${it.owner?` — <b>${escapeHtml(it.owner)}</b>`:''}${it.due?` (${it.due})`:''}${it.done?' ✔':''}</li>`).join('')+'</ol>':'<p class="muted">لا يوجد</p>';
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>محضر اجتماع رقم ${escapeHtml(m.number)}</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px;color:#1a0a0a;line-height:1.7;}
+    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;border-bottom:2px solid #b8934a;padding-bottom:12px;margin-bottom:6px;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;}
+    h2{font-size:15px;color:#7a1e1e;border-right:3px solid #b8934a;padding-right:8px;margin:22px 0 8px;}
+    .info{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:14px;margin-bottom:8px;} .info span{color:#94908a;}
+    .txt{white-space:pre-wrap;font-size:14px;background:#faf7f2;border:1px solid #e0dccf;border-radius:8px;padding:10px 12px;}
+    ol{margin:0;padding-right:20px;} li{margin-bottom:4px;font-size:14px;} .muted{color:#94908a;font-size:13px;}
+    .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;} .cols ul{list-style:none;margin:0;padding:0;} .cols li{padding:3px 0;border-bottom:1px solid #eee;}
+    ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+    <h1>هيئة محبي الحسين</h1><div class="sub">محضر اجتماع مجلس الإدارة — رقم ${escapeHtml(m.number)}</div>
+    <div class="info">
+      <div><span>التاريخ والوقت:</span> ${fmtMeetingDT(m.datetime)}</div>
+      <div><span>اللجنة:</span> ${m.committee?escapeHtml(m.committee):'—'}</div>
+      <div><span>المدة الفعلية:</span> ${dur||'—'}</div>
+      <div><span>الحضور / الغياب:</span> ${present.length} / ${absent.length}</div>
+    </div>
+    ${m.speech?`<h2>كلمة الاجتماع</h2><div class="txt">${escapeHtml(m.speech)}</div>`:''}
+    <h2>الحضور والغياب</h2>
+    <div class="cols">
+      <div><b>الحاضرون (${present.length})</b><ul>${present.map(n=>`<li>${n}</li>`).join('')||'<li>—</li>'}</ul></div>
+      <div><b>الغائبون (${absent.length})</b><ul>${absent.map(n=>`<li>${n}</li>`).join('')||'<li>—</li>'}</ul></div>
+    </div>
+    ${m.agenda?`<h2>جدول الأعمال</h2><div class="txt">${escapeHtml(m.agenda)}</div>`:''}
+    ${m.proceedings?`<h2>مجريات الاجتماع</h2><div class="txt">${escapeHtml(m.proceedings)}</div>`:''}
+    <h2>القرارات (${(m.decisions||[]).length})</h2>${listHTML(m.decisions||[])}
+    <h2>المهام (${(m.tasks||[]).length})</h2>${listHTML(m.tasks||[])}
+    ${m.minutes?`<h2>نص المحضر</h2><div class="txt">${escapeHtml(m.minutes)}</div>`:''}
+    </body></html>`);
+  w.document.close(); w.focus();
+}
+function shareMeetingMinutesWA(id){
+  const m=meetings.find(x=>x.id===id); if(!m) return;
+  const present=(m.attendance||[]).filter(a=>a.present).length, absent=(m.attendance||[]).length-present;
+  let txt=`*محضر اجتماع مجلس الإدارة رقم ${m.number}*\n`;
+  txt+=`التاريخ: ${fmtMeetingDT(m.datetime)}\n`;
+  if(m.committee) txt+=`اللجنة: ${m.committee}\n`;
+  txt+=`الحضور: ${present} — الغياب: ${absent}\n`;
+  if(m.agenda) txt+=`\n*جدول الأعمال:*\n${m.agenda}\n`;
+  const dec=(m.decisions||[]); if(dec.length) txt+=`\n*القرارات (${dec.length}):*\n`+dec.map((d,i)=>`${i+1}. ${d.text}${d.owner?' — '+d.owner:''}${d.due?' ('+d.due+')':''}`).join('\n')+'\n';
+  const tk=(m.tasks||[]); if(tk.length) txt+=`\n*المهام (${tk.length}):*\n`+tk.map((t,i)=>`${i+1}. ${t.text}${t.owner?' — '+t.owner:''}${t.due?' ('+t.due+')':''}`).join('\n')+'\n';
+  if(m.minutes) txt+=`\n*المحضر:*\n${m.minutes}\n`;
+  window.open('https://api.whatsapp.com/send?text='+encodeURIComponent(txt),'_blank');
+}
+function printMeetingStats(){
+  const s=meetingStats(); const absentBy={};
+  meetings.forEach(m=>(m.attendance||[]).forEach(a=>{ if(!a.present) absentBy[a.memberId]=(absentBy[a.memberId]||0)+1; }));
+  const rows=Object.entries(absentBy).map(([id,n])=>{ const x=members.find(y=>y.id===id); return {name:x?x.name:'—', n}; }).sort((a,b)=>b.n-a.n);
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>إحصائية الاجتماعات</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px;color:#1a0a0a;}
+    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;border-bottom:2px solid #b8934a;padding-bottom:12px;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;}
+    .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+    .c{border:1px solid #e0dccf;border-radius:10px;padding:16px;text-align:center;} .c .n{font-size:26px;font-weight:700;color:#7a1e1e;} .c .l{font-size:12px;color:#94908a;margin-top:4px;}
+    h2{font-size:15px;color:#7a1e1e;} table{width:100%;border-collapse:collapse;font-size:14px;} th,td{border:1px solid #e0dccf;padding:9px 12px;text-align:right;} th{background:#3a1010;color:#fff;} tr:nth-child(even){background:#faf7f2;}
+    ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+    <h1>هيئة محبي الحسين</h1><div class="sub">إحصائية اجتماعات مجلس الإدارة — ${hijriToday()}</div>
+    <div class="cards">
+      <div class="c"><div class="n">${s.count}</div><div class="l">عدد الاجتماعات</div></div>
+      <div class="c"><div class="n">${s.attPct}%</div><div class="l">نسبة الحضور</div></div>
+      <div class="c"><div class="n">${s.absPct}%</div><div class="l">نسبة الغياب</div></div>
+      <div class="c"><div class="n">${s.openDec}</div><div class="l">قرارات قيد التنفيذ</div></div>
+      <div class="c"><div class="n">${s.lateTasks}</div><div class="l">مهام متأخرة</div></div>
+      <div class="c"><div class="n">${s.topMember?escapeHtml(s.topMember.name):'—'}</div><div class="l">الأكثر غياباً (${s.topAbsN})</div></div>
+    </div>
+    <h2>غياب أعضاء الإدارة</h2>
+    <table><thead><tr><th>العضو</th><th>عدد مرات الغياب</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${r.n}</td></tr>`).join('')||'<tr><td colspan="2" style="text-align:center;color:#94908a">لا غيابات</td></tr>'}</tbody></table>
+    </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* ─── استمارة تسجيل عضو فارغة ─── */
+function printBlankMemberForm(){
+  const line='<div style="border-bottom:1px dashed #999;height:26px;margin-top:6px;"></div>';
+  const field=label=>`<div class="f"><label>${label}</label>${line}</div>`;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>استمارة تسجيل عضو</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:32px;color:#1a0a0a;}
+    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;border-bottom:2px solid #b8934a;padding-bottom:12px;margin-bottom:4px;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:24px;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;}
+    .f{display:flex;flex-direction:column;} .f.full{grid-column:1/-1;} label{font-size:13px;font-weight:600;color:#3a2a28;}
+    .checks{display:flex;gap:24px;margin-top:8px;font-size:14px;flex-wrap:wrap;} .box{display:inline-block;width:16px;height:16px;border:1.5px solid #7a1e1e;border-radius:3px;vertical-align:middle;margin-left:6px;}
+    .note{margin-top:24px;font-size:12px;color:#94908a;border-top:1px solid #eee;padding-top:12px;}
+    ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+    <h1>هيئة محبي الحسين</h1><div class="sub">استمارة تسجيل عضو جديد — تُعبّأ بخط اليد</div>
+    <div class="grid">
+      ${field('الاسم الكامل')}${field('رقم الهاتف')}${field('المنطقة')}${field('البريد الإلكتروني')}
+      <div class="f full">${field('العنوان')}</div>
+      ${field('تاريخ الميلاد (للأعضاء دون ١٨)')}${field('اسم اللجنة (إن وُجد)')}
+    </div>
+    <div class="f full" style="margin-top:16px"><label>نوع العضوية</label>
+      <div class="checks"><span><span class="box"></span>عادي فعّال</span><span><span class="box"></span>شرفي</span><span><span class="box"></span>كادر فعّال</span></div></div>
+    <div class="f full" style="margin-top:16px"><label>خيارات</label>
+      <div class="checks"><span><span class="box"></span>أكبر من ١٨ سنة</span><span><span class="box"></span>من إدارة الهيئة</span><span><span class="box"></span>لديه ميقات سنوي</span></div></div>
+    <div class="f full" style="margin-top:20px"><label>ملاحظات</label>${line}${line}</div>
+    <div class="note">يُنشأ رقم العضوية تلقائياً في النظام حسب نوع العضوية عند الإدخال. التاريخ: ${hijriToday()}</div>
+    </body></html>`);
+  w.document.close(); w.focus();
+}
+/* ═══════════════════════ نهاية وحدة الاجتماعات ═══════════════════════ */
+
 /* ═══════════ Init ═══════════ */
 (async ()=>{
   await loadData();
+  applyDarkMode();
   fillHeaderDates();
   renderDashboard();
   renderMembers();
