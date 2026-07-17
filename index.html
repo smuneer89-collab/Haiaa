@@ -500,6 +500,54 @@
   .mtg-absent-card b { font-size:15px; }
   .mtg-subtabs { margin-bottom:14px; }
 
+  /* ═══ الجمعية العمومية ═══ */
+  .asm-head { margin-bottom:14px; }
+  .asm-head select { padding:8px 12px; border:1px solid var(--line); border-radius:10px; font-family:inherit;
+    font-size:14px; background:var(--bg); color:var(--ink); font-weight:600; }
+  .asm-pills { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .asm-pill { border:1px solid var(--line-2); background:var(--surface); color:var(--muted); font-family:inherit;
+    font-size:13px; font-weight:600; padding:8px 16px; border-radius:20px; cursor:pointer; transition:all .15s; }
+  .asm-pill.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  body.dark .asm-pill.active { color:#1a1210; }
+  .asm-dash { display:flex; align-items:center; gap:20px; flex-wrap:wrap; justify-content:center;
+    background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .asm-bignum { text-align:center; }
+  .asm-bignum .n { font-size:52px; font-weight:800; color:var(--accent); line-height:1; letter-spacing:-2px; }
+  .asm-bignum .l { font-size:13px; color:var(--muted); margin-top:6px; }
+  .asm-donut { width:140px; height:140px; }
+  .asm-legend { display:flex; flex-direction:column; gap:8px; font-size:14px; }
+  .asm-legend .lg { display:flex; align-items:center; gap:8px; color:var(--ink-2); }
+  .asm-legend .dot { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .asm-legend .dot.ok { background:var(--ok); } .asm-legend .dot.no { background:var(--danger); }
+  .asm-legend .pct { color:var(--muted); font-size:12px; }
+  .asm-legend .muted-line { font-size:12px; color:var(--muted); margin-top:2px; }
+  .asm-results { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .asm-result-row, .asm-attend-row { display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:9px 13px; }
+  .asm-result-row .nm, .asm-attend-row .nm { font-size:14px; font-weight:500; color:var(--ink); }
+  .asm-result-row .nm small, .asm-attend-row .nm small { display:block; font-size:11px; font-weight:400; margin-top:1px; }
+  .badge-active { color:var(--ok); } .badge-inactive { color:var(--danger); }
+  .asm-attend-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .asm-new-btn { background:var(--accent-soft); border:1px dashed var(--accent); border-radius:10px;
+    padding:12px; text-align:center; color:var(--accent); font-weight:600; cursor:pointer; font-size:13px; margin-top:8px; }
+  .asm-add-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .asm-add-row input, .asm-add-row select { flex:1; min-width:110px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:9px; font-family:inherit; font-size:13px; background:var(--bg); color:var(--ink); }
+  .projects-list { display:flex; flex-direction:column; gap:14px; }
+  .proj-group h4 { font-size:14px; color:var(--accent); margin:0 0 8px; padding-right:8px; border-right:3px solid var(--gold); }
+  .proj-card { display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--surface);
+    border:1px solid var(--line); border-radius:10px; padding:10px 13px; margin-bottom:6px; }
+  .proj-card .pt { font-size:14px; color:var(--ink); font-weight:500; }
+  .proj-card .pc { font-size:11px; color:var(--muted); }
+  .proj-card .cat { font-size:11px; font-weight:600; background:var(--accent-soft); color:var(--accent); padding:2px 10px; border-radius:12px; }
+  .asm-season { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  @media (max-width:560px){ .asm-season { grid-template-columns:repeat(2,1fr); } }
+  .asm-dec-card { margin-top:14px; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center; }
+  .asm-dec-card .dc-pct { font-size:34px; font-weight:800; color:var(--ok); line-height:1; }
+  .asm-dec-card .dc-l { font-size:12px; color:var(--muted); margin-top:4px; }
+  .asm-dec-bar { height:8px; background:var(--line); border-radius:6px; overflow:hidden; margin-top:10px; }
+  .asm-dec-bar > i { display:block; height:100%; background:var(--ok); border-radius:6px; }
+
   /* بطاقة ملخّص الاجتماعات في الأخبار */
   .mtg-summary-card { cursor:pointer; border-right:3px solid var(--gold); background:linear-gradient(180deg,var(--accent-soft),var(--surface)); }
   .mtg-summary-card:hover { box-shadow:0 4px 14px -6px rgba(20,8,8,.18); }
@@ -889,6 +937,7 @@
       <div class="tabs mtg-subtabs">
         <button class="tab active" data-mtab="list" onclick="switchMeetingSubtab('list')">قائمة الاجتماعات</button>
         <button class="tab" data-mtab="followup" onclick="switchMeetingSubtab('followup')">📌 لوحة المتابعة</button>
+        <button class="tab" data-mtab="assembly" onclick="switchMeetingSubtab('assembly')">🏛️ الجمعية العمومية</button>
       </div>
 
       <!-- LIST -->
@@ -928,6 +977,88 @@
             </select>
           </div>
           <div id="followupList" class="followup-list"></div>
+        </div>
+      </div>
+
+      <!-- ASSEMBLY (الجمعية العمومية) -->
+      <div id="mtab-assembly" style="display:none">
+        <div class="panel">
+          <div class="asm-head">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label style="font-size:13px;color:var(--muted);font-weight:600;">الجمعية:</label>
+              <select id="asmYear" onchange="switchAssembly()"></select>
+              <button class="btn btn-ghost btn-sm" onclick="newAssembly()">➕ جمعية جديدة</button>
+            </div>
+          </div>
+          <div id="asmEmpty" class="empty" style="display:none"><div class="icon">🏛️</div><div class="txt">لا توجد جمعية عمومية بعد. اضغط «➕ جمعية جديدة».</div></div>
+          <div id="asmBody" style="display:none">
+            <div class="asm-pills">
+              <button class="asm-pill active" data-apill="attend" onclick="switchAsmPill('attend')">الحضور</button>
+              <button class="asm-pill" data-apill="projects" onclick="switchAsmPill('projects')">المشاريع المنجزة</button>
+              <button class="asm-pill" data-apill="report" onclick="switchAsmPill('report')">التقرير الأدبي</button>
+            </div>
+
+            <!-- الحضور -->
+            <div id="apane-attend">
+              <div class="asm-dash">
+                <div class="asm-bignum"><div class="n" id="asmPresentCount">0</div><div class="l">الحاضرون في الجمعية</div></div>
+                <div class="asm-donut" id="asmDonut"></div>
+                <div class="asm-legend">
+                  <div class="lg"><span class="dot ok"></span> مفعّل العضوية: <b id="asmActiveN">0</b> <span id="asmActivePct" class="pct">0%</span></div>
+                  <div class="lg"><span class="dot no"></span> غير مفعّل: <b id="asmInactiveN">0</b> <span id="asmInactivePct" class="pct">0%</span></div>
+                  <div class="lg muted-line">من إجمالي <b id="asmTotalMembers">0</b> عضو في الهيئة</div>
+                </div>
+              </div>
+              <div class="search-box" style="margin-top:14px;">
+                <input id="asmSearch" placeholder="ابحث باسم العضو لتسجيل حضوره..." oninput="renderAsmSearch()" />
+                <span class="ico">⌕</span>
+              </div>
+              <div id="asmSearchResults" class="asm-results"></div>
+              <div class="section-label" style="margin-top:16px;">قائمة الحاضرين (<span id="asmAttendListCount">0</span>)</div>
+              <div id="asmAttendList" class="asm-attend-list"></div>
+            </div>
+
+            <!-- المشاريع -->
+            <div id="apane-projects" style="display:none">
+              <div class="asm-add-row">
+                <input id="projTitle" placeholder="اسم المشروع" />
+                <select id="projCommittee">
+                  <option value="أمانة السر">أمانة السر</option>
+                  <option value="اللجنة المالية">اللجنة المالية</option>
+                  <option value="اللجنة الإعلامية">اللجنة الإعلامية</option>
+                  <option value="أخرى">أخرى</option>
+                </select>
+                <input id="projCategory" placeholder="التصنيف (خدمي/ثقافي...)" />
+                <button class="btn btn-primary btn-sm" onclick="addProject()">➕</button>
+              </div>
+              <div id="projectsList" class="projects-list"></div>
+            </div>
+
+            <!-- التقرير الأدبي -->
+            <div id="apane-report" style="display:none">
+              <div class="form-grid">
+                <div class="field full"><label>كلمة الإدارة</label><textarea id="rpAdminWord" rows="3" oninput="saveReportField()"></textarea></div>
+                <div class="field full"><label>خطة الهيئة لهذا العام</label><textarea id="rpPlan" rows="3" oninput="saveReportField()"></textarea></div>
+              </div>
+              <div class="section-label" style="margin-top:12px;">إحصائيات الموسم</div>
+              <div class="asm-season">
+                <div class="field"><label>المجالس</label><input id="rpMajalis" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
+                <div class="field"><label>الفعاليات</label><input id="rpEvents" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
+                <div class="field"><label>المواكب</label><input id="rpMawakib" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
+                <div class="field"><label>الإنجازات</label><input id="rpAchievements" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
+              </div>
+              <div class="asm-dec-card" id="asmDecCard"></div>
+              <div class="form-grid" style="margin-top:12px;">
+                <div class="field full"><label>أبرز المشاريع المنجزة</label><textarea id="rpTopProjects" rows="3" oninput="saveReportField()"></textarea></div>
+                <div class="field full"><label>التحديات التي واجهت الهيئة</label><textarea id="rpChallenges" rows="3" oninput="saveReportField()"></textarea></div>
+                <div class="field full"><label>التكريم الحسيني لخادم الإمام الحسين</label><textarea id="rpHonoring" rows="3" oninput="saveReportField()"></textarea></div>
+              </div>
+              <div class="actions-row" style="margin-top:14px;">
+                <button class="btn btn-primary" onclick="printAssemblyReport()">🖨️ طباعة التقرير الأدبي PDF</button>
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
     </div>
