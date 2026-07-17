@@ -597,7 +597,7 @@ function cardHTML(m){
   const mms=memberMiqats(m);
   const miqatsBlock=mms.length?`<div class="id-card-miqats"><div class="head">المواقيت</div>
     ${mms.map(mq=>`<div class="miqat-line"><span class="n">${escapeHtml(mq.name)}</span><span class="d">${fmtMiqatDate(mq)}</span></div>`).join('')}</div>`:'';
-  const logoBand = `<div class="cband">هيئة محبي الحسين</div>`;
+  const logoBand = `<img src="${HAIAA_LOGO_WHITE}" alt="هيئة محبي الحسين" />`;
   return `<div class="id-card" id="printableCard">
     <div class="id-card-band">${logoBand}</div>
     <div class="id-card-body">
@@ -1429,15 +1429,21 @@ function printMeetingMinutes(id){
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>محضر اجتماع رقم ${escapeHtml(m.number)}</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
     <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px;color:#1a0a0a;line-height:1.7;}
-    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;border-bottom:2px solid #b8934a;padding-bottom:12px;margin-bottom:6px;}
+    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;margin:0 0 6px;}
     .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;}
+    .pdf-logo{display:block;margin:0 auto 8px;max-width:260px;max-height:90px;width:auto;height:auto;}
+    .pdf-header{border-bottom:2px solid #b8934a;padding-bottom:12px;margin-bottom:6px;}
+    .signature-block{margin-top:40px;text-align:left;page-break-inside:avoid;}
+    .signature-block .sig-title{font-size:14px;font-weight:600;color:#1a0a0a;margin-bottom:2px;}
+    .signature-block .sig-name{font-size:14px;color:#1a0a0a;margin-bottom:4px;}
+    .signature-block .sig-img{display:block;max-width:150px;max-height:110px;width:auto;height:auto;}
     h2{font-size:15px;color:#7a1e1e;border-right:3px solid #b8934a;padding-right:8px;margin:22px 0 8px;}
     .info{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:14px;margin-bottom:8px;} .info span{color:#94908a;}
     .txt{white-space:pre-wrap;font-size:14px;background:#faf7f2;border:1px solid #e0dccf;border-radius:8px;padding:10px 12px;}
     ol{margin:0;padding-right:20px;} li{margin-bottom:4px;font-size:14px;} .muted{color:#94908a;font-size:13px;}
     .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;} .cols ul{list-style:none;margin:0;padding:0;} .cols li{padding:3px 0;border-bottom:1px solid #eee;}
     ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
-    <h1>هيئة محبي الحسين</h1><div class="sub">محضر اجتماع مجلس الإدارة — رقم ${escapeHtml(m.number)}</div>
+    <div class="pdf-header"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" /></div><div class="sub">محضر اجتماع مجلس الإدارة — رقم ${escapeHtml(m.number)}</div>
     <div class="info">
       <div><span>التاريخ والوقت:</span> ${fmtMeetingDT(m.datetime)}</div>
       <div><span>اللجنة:</span> ${m.committee?escapeHtml(m.committee):'—'}</div>
@@ -1455,6 +1461,11 @@ function printMeetingMinutes(id){
     <h2>القرارات (${(m.decisions||[]).length})</h2>${listHTML(m.decisions||[])}
     <h2>المهام (${(m.tasks||[]).length})</h2>${listHTML(m.tasks||[])}
     ${m.minutes?`<h2>نص المحضر</h2><div class="txt">${escapeHtml(m.minutes)}</div>`:''}
+    <div class="signature-block">
+      <div class="sig-title">أمين السر</div>
+      <div class="sig-name">صادق الغسرة</div>
+      <img class="sig-img" src="${HAIAA_SIGNATURE}" alt="التوقيع" />
+    </div>
     </body></html>`);
   w.document.close(); w.focus();
 }
