@@ -843,15 +843,22 @@ async function backupExport(){
 }
 async function backupImport(e){
   const file=e.target.files[0]; if(!file) return;
+  let text;
   try{
-    const backup=JSON.parse(await file.text());
-    if(!backup.members||!Array.isArray(backup.members)){ toast('الملف غير صالح'); e.target.value=''; return; }
-    if(!confirm(`استيراد ${backup.members.length} عضو؟ سيتم استبدال البيانات الحالية بالكامل.`)){ e.target.value=''; return; }
+    text=await file.text();
+  }catch(err){ alert('تعذّر فتح الملف: '+err.message); e.target.value=''; return; }
+  let backup;
+  try{
+    backup=JSON.parse(text);
+  }catch(err){ alert('الملف ليس بصيغة JSON صحيحة: '+err.message); e.target.value=''; return; }
+  if(!backup.members||!Array.isArray(backup.members)){ toast('الملف غير صالح'); e.target.value=''; return; }
+  if(!confirm(`استيراد ${backup.members.length} عضو؟ سيتم استبدال البيانات الحالية بالكامل.`)){ e.target.value=''; return; }
+  try{
     members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[]; assemblies=backup.assemblies||[];
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await persistSettings();
     e.target.value=''; toast(`تمت الاستعادة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
-  }catch(err){ toast('تعذّرت قراءة الملف'); e.target.value=''; }
+  }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
 }
 
 /* ═══════════ Bulk messaging ═══════════ */
