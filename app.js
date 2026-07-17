@@ -62,8 +62,8 @@ let settings = {
   templates: {
     reminder: 'السلام عليكم ورحمة الله،\nنذكّركم بدفع اشتراك العضوية السنوي في هيئة محبي الحسين. قيمة الاشتراك {fee} د.ب.\nيمكنكم التواصل مع أمانة السر للترتيب.\nبارك الله فيكم.',
     meeting: 'السلام عليكم ورحمة الله،\nندعوكم لحضور اجتماع أعضاء الهيئة يوم [التاريخ] الساعة [الوقت] في مقر الهيئة.\nحضوركم مهم.\nبارك الله فيكم.',
-    condolence: 'إنا لله وإنا إليه راجعون.\nنعزّي أنفسنا وإياكم في مصابنا بسيد الشهداء الإمام الحسين عليه السلام.\nأعظم الله لكم الأجر.',
-    celebration: 'السلام عليكم ورحمة الله،\nنبارك لكم مولد [المناسبة]، جعله الله عليكم مباركاً.\nكل عام وأنتم بخير.'
+    occasion: '*[اسم المناسبة]*  ✨\n🏴 *[نوع الليلة]*\n\n🎙️ *الخطيب [الاسم]*\n🌑 *الليلة:* [اليوم]\n🗓️ *التاريخ الهجري:* [التاريخ الهجري]\n📆 *التاريخ الميلادي:* [التاريخ الميلادي]\n🕰️ *التوقيت:* [الوقت]\n\n🎙️ *الرادود [الاسم]*\n(لطم كربلائي)\n🕰️ *التوقيت:* [الوقت]\n📍 *المكان:* [المكان]\n\n====================\nانستقرام هيئة محبي الحسين\nhttps://www.instagram.com/alhaiaa\n\n🔸للــنـشر\n🔸نسألكم الدعاء 🔸',
+    adminMeeting: 'دعوة إلى الاجتماع رقم ( )\nلهيئة محبي الحسين (ع)\n\nيسر إدارة هيئة محبي الحسين (ع) دعوتكم لحضور الاجتماع، وذلك لمناقشة عدد من الموضوعات المتعلقة بأعمال الهيئة وخططها المقبلة وأهمها:\n\n-\n-\n-\n\n📅 التاريخ: [اليوم] [التاريخ]\n🕗 الوقت: الساعة [الوقت]\n📍 المكان: [المكان]\n\nحضوركم محل تقدير واعتزاز، ونسأل الله تعالى التوفيق والسداد للجميع، وأن يبارك في جهودكم لخدمة الإمام الحسين (عليه السلام).'
   }
 };
 let currentPhoto = null;
@@ -803,7 +803,7 @@ function openAdminBulk(){ openBulkMessage(); $('#bulkFilter').value='admins'; up
 function fillSettings(){
   $('#setFee').value=settings.fee; $('#setYear').value=settings.year;
   $('#tplReminder').value=settings.templates.reminder; $('#tplMeeting').value=settings.templates.meeting;
-  $('#tplCondolence').value=settings.templates.condolence; $('#tplCelebration').value=settings.templates.celebration;
+  $('#tplOccasion').value=settings.templates.occasion; $('#tplAdminMeeting').value=settings.templates.adminMeeting;
 }
 async function saveSettings(){
   const fee=parseFloat($('#setFee').value); const year=parseInt($('#setYear').value);
@@ -812,7 +812,7 @@ async function saveSettings(){
 }
 async function saveTemplates(){
   settings.templates.reminder=$('#tplReminder').value; settings.templates.meeting=$('#tplMeeting').value;
-  settings.templates.condolence=$('#tplCondolence').value; settings.templates.celebration=$('#tplCelebration').value;
+  settings.templates.occasion=$('#tplOccasion').value; settings.templates.adminMeeting=$('#tplAdminMeeting').value;
   await persistSettings(); toast('تم حفظ القوالب');
 }
 function exportCSV(){
