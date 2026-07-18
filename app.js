@@ -130,8 +130,38 @@ async function saveMeetings(){ try{ await storage.set('meetings',JSON.stringify(
 async function saveAssemblies(){ try{ await storage.set('assemblies',JSON.stringify(assemblies)); }catch(e){ toast('تعذر حفظ الجمعية'); } }
 
 /* ─── WhatsApp ─── */
-function normalizePhone(phone){ let c=String(phone||'').replace(/\D/g,''); if(c.startsWith('00'))c=c.slice(2); if(c.startsWith('973'))return c; return '973'+c; }
-function whatsappLink(phone,text){ const n=normalizePhone(phone); const q=text?`?text=${encodeURIComponent(text)}`:''; return `https://wa.me/${n}${q}`; }
+const COUNTRIES=[
+  {code:'973',flag:'🇧🇭',name:'البحرين'},
+  {code:'966',flag:'🇸🇦',name:'السعودية'},
+  {code:'965',flag:'🇰🇼',name:'الكويت'},
+  {code:'974',flag:'🇶🇦',name:'قطر'},
+  {code:'971',flag:'🇦🇪',name:'الإمارات'},
+  {code:'968',flag:'🇴🇲',name:'عُمان'},
+  {code:'964',flag:'🇮🇶',name:'العراق'},
+  {code:'98',flag:'🇮🇷',name:'إيران'},
+  {code:'962',flag:'🇯🇴',name:'الأردن'},
+  {code:'963',flag:'🇸🇾',name:'سوريا'},
+  {code:'961',flag:'🇱🇧',name:'لبنان'},
+  {code:'970',flag:'🇵🇸',name:'فلسطين'},
+  {code:'20',flag:'🇪🇬',name:'مصر'},
+  {code:'967',flag:'🇾🇪',name:'اليمن'},
+  {code:'249',flag:'🇸🇩',name:'السودان'},
+  {code:'218',flag:'🇱🇾',name:'ليبيا'},
+  {code:'216',flag:'🇹🇳',name:'تونس'},
+  {code:'213',flag:'🇩🇿',name:'الجزائر'},
+  {code:'212',flag:'🇲🇦',name:'المغرب'},
+  {code:'222',flag:'🇲🇷',name:'موريتانيا'},
+  {code:'252',flag:'🇸🇴',name:'الصومال'},
+  {code:'253',flag:'🇩🇯',name:'جيبوتي'},
+];
+const COUNTRY_CODES=COUNTRIES.map(c=>c.code).sort((a,b)=>b.length-a.length);
+function countryOptions(selected){ return COUNTRIES.map(c=>`<option value="${c.code}"${selected===c.code?' selected':''}>${c.flag} ${c.name} +${c.code}</option>`).join(''); }
+function splitPhone(phone){ let c=toEnglishDigits(phone).replace(/\D/g,''); if(c.startsWith('00'))c=c.slice(2); for(const cc of COUNTRY_CODES){ if(c.startsWith(cc)) return {code:cc, local:c.slice(cc.length)}; } return {code:'', local:c}; }
+function toEnglishDigits(s){ return String(s||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); }
+function normalizePhone(phone){ let c=toEnglishDigits(phone).replace(/\D/g,''); if(c.startsWith('00'))c=c.slice(2); if(c.startsWith('973'))return c; return '973'+c; }
+function localPhone(phone){ let c=normalizePhone(phone); return c.startsWith('973')?c.slice(3):c; }
+function digitsOnly(phone){ let c=toEnglishDigits(phone).replace(/\D/g,''); if(c.startsWith('00'))c=c.slice(2); return c; }
+function whatsappLink(phone,text){ const n=digitsOnly(phone); const q=text?`?text=${encodeURIComponent(text)}`:''; return `https://wa.me/${n}${q}`; }
 const WA_ICON = '<svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2M12.05 3.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 012.41 5.83c0 4.54-3.7 8.23-8.24 8.23-1.48 0-2.93-.39-4.19-1.15l-.3-.17-3.12.82.83-3.04-.2-.32a8.188 8.188 0 01-1.26-4.38c.01-4.54 3.7-8.24 8.25-8.24M8.53 7.33c-.16 0-.43.06-.66.31-.22.25-.87.85-.87 2.07 0 1.22.89 2.4 1 2.57.14.17 1.76 2.67 4.25 3.73.59.27 1.05.42 1.41.53.59.19 1.13.16 1.56.1.48-.07 1.46-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.07-.1-.23-.16-.48-.27-.25-.14-1.47-.74-1.69-.82-.23-.08-.37-.12-.56.12-.16.25-.64.81-.78.97-.15.17-.29.19-.53.07-.26-.13-1.06-.39-2-1.23-.74-.66-1.23-1.47-1.38-1.72-.12-.24-.01-.39.11-.5.11-.11.27-.29.37-.44.13-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.11-.56-1.35-.77-1.84-.2-.48-.4-.42-.56-.43-.14 0-.3-.01-.47-.01"/></svg>';
 
 /* ─── Photo processing ─── */
@@ -448,7 +478,7 @@ $('#addForm').addEventListener('submit',async e=>{
     id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
     number:num, type,
     name:fd.get('name').trim(), isMinor, age, birthdate,
-    phone:fd.get('phone').trim(), area:(fd.get('area')||'').trim(),
+    phone:'+'+(fd.get('countryCode')||'973')+toEnglishDigits(fd.get('phone')).replace(/\D/g,''), area:(fd.get('area')||'').trim(),
     email:(fd.get('email')||'').trim(), address:(fd.get('address')||'').trim(),
     photo:currentPhoto||null, isAdmin, committee:isAdmin?($('#adminCommInput').value.trim()):'',
     miqats:formMiqats, joinDate:today(), paymentDate:null, expiryDate:null, paidAmount:null
@@ -522,7 +552,7 @@ function openEditMember(id){
   const m=members.find(x=>x.id===id); if(!m) return;
   editingMemberId=id;
   $('#editName').value=m.name||'';
-  $('#editPhone').value=m.phone||'';
+  const sp=splitPhone(m.phone); $('#editCountryCode').value=sp.code||'973'; $('#editPhone').value=sp.local;
   $('#editType').value=m.type||'عادي';
   $('#editArea').value=m.area||'';
   $('#editEmail').value=m.email||'';
@@ -548,7 +578,7 @@ async function saveEditMember(){
   const m=members.find(x=>x.id===editingMemberId); if(!m) return;
   const name=$('#editName').value.trim(); const phone=$('#editPhone').value.trim();
   if(!name||!phone){ toast('الاسم والهاتف مطلوبان'); return; }
-  m.name=name; m.phone=phone; m.type=$('#editType').value;
+  m.name=name; m.phone='+'+($('#editCountryCode').value||'973')+toEnglishDigits(phone).replace(/\D/g,''); m.type=$('#editType').value;
   m.area=$('#editArea').value.trim(); m.email=$('#editEmail').value.trim(); m.address=$('#editAddress').value.trim();
   m.isMinor=$('#editIsMinor').checked;
   if(m.isMinor){ m.birthdate=$('#editBirthdate').value||null; m.age=m.birthdate?ageFromBirthdate(m.birthdate):null; }
@@ -595,57 +625,48 @@ function openCard(id){ const m=members.find(x=>x.id===id); if(!m) return; cardMe
   $('#cardPreviewWrap').innerHTML=cardHTML(m); closeModal('detailModal'); $('#cardModal').classList.add('open'); }
 function cardHTML(m){
   const mms=memberMiqats(m);
-  const miqatsBlock=mms.length?`<div style="margin-top:16px;background:rgba(255,255,255,.06);border-radius:12px;padding:12px 16px;">
-      <div style="font-size:11px;color:#d4b877;letter-spacing:2px;font-weight:600;margin-bottom:8px;">المواقيت</div>
-      ${mms.map(mq=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13.5px;"><span style="color:#f2e6cf;">${escapeHtml(mq.name)}</span><span style="color:#e5c878;font-weight:600;">${fmtMiqatDate(mq)}</span></div>`).join('')}</div>`:'';
-  const photoBlock=m.photo?`<div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid #b8934a;flex-shrink:0;"><img src="${m.photo}" alt="" style="width:100%;height:100%;object-fit:cover;" /></div>`:'';
-  const birthRow=(m.isMinor&&m.birthdate)?`<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);"><span style="color:#c9a86a;font-size:14px;">تاريخ الميلاد</span><span style="font-weight:600;color:#fff;font-size:15px;">${fmtDate(m.birthdate)}</span></div>`:'';
-  return `<div class="id-card" id="printableCard" style="width:100%;max-width:410px;background:#3a1010;border-radius:20px;padding:10px;box-shadow:0 20px 50px rgba(58,16,16,.3);font-family:var(--font-sans);">
-    <div style="border:2px solid #b8934a;border-radius:14px;padding:24px 22px;">
-      <div style="text-align:center;padding-bottom:18px;border-bottom:1px solid rgba(184,147,74,.35);">
-        <img src="${HAIAA_LOGO_WHITE}" alt="هيئة محبي الحسين" style="max-height:76px;max-width:85%;" />
-      </div>
-      <div style="display:flex;align-items:center;gap:14px;justify-content:center;padding:18px 0 6px;">
-        ${photoBlock}
-        <div style="text-align:center;">
-          <div style="font-size:12px;color:#d4b877;letter-spacing:3px;">رقم العضوية</div>
-          <div style="font-size:30px;font-weight:800;color:#fff;letter-spacing:2px;line-height:1.1;">${memberCode(m)}</div>
-          <div style="margin-top:6px;display:inline-block;padding:3px 14px;border-radius:20px;background:rgba(184,147,74,.25);color:#e5c878;font-size:12px;font-weight:700;">${m.type}</div>
+  const miqatsBlock=mms.length?`<div class="id-card-miqats"><div class="head">المواقيت</div>
+    ${mms.map(mq=>`<div class="miqat-line"><span class="n">${escapeHtml(mq.name)}</span><span class="d">${fmtMiqatDate(mq)}</span></div>`).join('')}</div>`:'';
+  const logoBand = `<img src="${HAIAA_LOGO_WHITE}" alt="هيئة محبي الحسين" />`;
+  return `<div class="id-card" id="printableCard">
+    <div class="id-card-band">${logoBand}</div>
+    <div class="id-card-body">
+      <div class="id-card-top">
+        ${m.photo?`<div class="id-card-photo"><img src="${m.photo}" alt="" /></div>`:''}
+        <div class="id-card-numblock">
+          <div><div class="label">رقم العضوية</div><div class="num">${memberCode(m)}</div></div>
+          <div class="type-chip ${m.type}">${m.type}</div>
         </div>
       </div>
-      <div style="background:rgba(255,255,255,.06);border-radius:12px;padding:6px 18px;margin-top:14px;">
-        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);"><span style="color:#c9a86a;font-size:14px;">الاسم</span><span style="font-weight:700;color:#fff;font-size:15.5px;">${escapeHtml(m.name)}</span></div>
-        ${birthRow}
-        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);"><span style="color:#c9a86a;font-size:14px;">بداية العضوية</span><span style="font-weight:600;color:#f2e6cf;font-size:14.5px;">${fmtHijriStart(m)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:12px 0;"><span style="color:#c9a86a;font-size:14px;">صالحة حتى</span><span style="font-weight:700;color:#e5c878;font-size:14.5px;">${fmtHijriEnd(m)}</span></div>
+      <div class="id-card-rows">
+        <div class="id-card-row"><span class="k">الاسم</span><span class="v">${escapeHtml(m.name)}</span></div>
+        ${m.isMinor&&m.birthdate?`<div class="id-card-row"><span class="k">تاريخ الميلاد</span><span class="v">${fmtDate(m.birthdate)}</span></div>`:''}
+        <div class="id-card-row"><span class="k">بداية العضوية</span><span class="v">${fmtHijriStart(m)}</span></div>
+        <div class="id-card-row"><span class="k">صالحة حتى</span><span class="v">${fmtHijriEnd(m)}</span></div>
       </div>
       ${miqatsBlock}
-      <div style="margin-top:16px;padding:14px 16px;background:rgba(184,147,74,.12);border-right:3px solid #b8934a;border-radius:8px;text-align:center;color:#f2e6cf;font-size:13.5px;line-height:1.8;">
+      <div class="id-card-message">
         بارك الله فيك على خدمتك الحسينية<br/>وانضمامك لهيئة محبي الحسين،<br/>
         جعله الله في ميزان حسناتك،<br/>ورزقك شفاعة أبي عبدالله ﷺ.
       </div>
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(184,147,74,.35);display:flex;justify-content:space-between;color:#c9a86a;font-size:12px;">
-        <span>عضوية سنوية</span><span>محرم ${memberStartYear(m)} — محرم ${memberEndYear(m)} هـ</span>
-      </div>
     </div>
+    <div class="id-card-footer"><span>عضوية سنوية</span><span>محرم ${memberStartYear(m)} — محرم ${memberEndYear(m)} هـ</span></div>
   </div>`;
 }
 function printCard(){
   const cardEl=document.getElementById('printableCard'); if(!cardEl) return;
+  const styles=document.querySelector('style').innerHTML;
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>بطاقة عضوية</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-      :root{--font-sans:'IBM Plex Sans Arabic',sans-serif;}
-      *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-      body{margin:0;padding:30px 20px 50px;background:#eae5dc;min-height:100vh;font-family:var(--font-sans);}
+    <style>${styles}
+      body{margin:0;padding:0 20px 40px;background:#eae5dc;min-height:100vh;}
       .wrap{display:flex;justify-content:center;align-items:flex-start;}
-      /* تكبير البطاقة للطباعة مع الحفاظ على التصميم */
-      #printableCard{max-width:560px !important;transform-origin:top center;}
+      .id-card{max-width:420px;}
       .bar{display:flex;gap:8px;justify-content:center;padding:12px;background:#3a1010;margin:0 -20px 28px;}
       .bar button{font-family:inherit;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px;border:1px solid #b8934a;background:transparent;color:#f2e6cf;cursor:pointer;}
       .bar button:first-child{background:#b8934a;color:#3a1010;}
-      @media print{ .no-print{display:none !important;} #printableCard{max-width:520px !important;} }
+      @media print{ .no-print{display:none !important;} body *{visibility:visible;} }
     </style>
     </head><body>
       <div class="no-print bar">
@@ -785,13 +806,10 @@ function printMiqats(status){
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${titleMap[status]}</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
-    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px;color:#1a0a0a;}
-    .pdf-logo{display:block;margin:0 auto 8px;max-width:240px;max-height:85px;width:auto;height:auto;}
-    .pdf-head{border-bottom:2px solid #b8934a;padding-bottom:12px;text-align:center;}
-    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;margin:0;}
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px;color:#1a0a0a;} h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;border-bottom:2px solid #b8934a;padding-bottom:12px;}
     .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;} table{width:100%;border-collapse:collapse;font-size:14px;} th,td{border:1px solid #e0dccf;padding:10px 12px;text-align:right;} th{background:#3a1010;color:#fff;} tr:nth-child(even){background:#faf7f2;}
     ${PRINT_BAR_CSS}</style>
-    </head><body>${PRINT_BAR}<div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" /></div><div class="sub">${titleMap[status]} — ${hijriToday()}</div>
+    </head><body>${PRINT_BAR}<h1>هيئة محبي الحسين</h1><div class="sub">${titleMap[status]} — ${hijriToday()}</div>
     <table><thead>${head}</thead>
     <tbody>${rows||`<tr><td colspan="${cols}" style="text-align:center;color:#94908a">لا توجد مواقيت</td></tr>`}</tbody></table>
     </body></html>`);
@@ -1447,67 +1465,44 @@ function printMeetingMinutes(id){
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>محضر اجتماع رقم ${escapeHtml(m.number)}</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
-    <style>
-    *{box-sizing:border-box;}
-    body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:40px 44px;color:#241412;line-height:1.85;font-size:16px;}
-    .pdf-logo{display:block;margin:0 auto 10px;max-width:300px;max-height:105px;width:auto;height:auto;}
-    .pdf-header{text-align:center;padding-bottom:18px;margin-bottom:8px;border-bottom:3px double #b8934a;}
-    .doc-title{text-align:center;font-family:'Amiri',serif;font-size:26px;font-weight:700;color:#7a1e1e;margin:14px 0 4px;}
-    .doc-sub{text-align:center;color:#8a7d75;font-size:15px;margin-bottom:26px;letter-spacing:.3px;}
-    .info-card{background:#faf6ef;border:1px solid #ece3d4;border-radius:14px;padding:18px 22px;margin-bottom:28px;}
-    .info{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;font-size:16px;}
-    .info .item{display:flex;flex-direction:column;gap:2px;}
-    .info .lbl{color:#a08d7a;font-size:13px;font-weight:600;}
-    .info .val{color:#241412;font-weight:600;font-size:16.5px;}
-    h2{font-size:19px;color:#fff;background:#7a1e1e;display:inline-block;padding:7px 18px 7px 22px;border-radius:0 20px 20px 0;margin:34px 0 14px;box-shadow:0 2px 6px rgba(122,30,30,.2);}
-    h2 .cnt{opacity:.75;font-size:15px;font-weight:400;}
-    .txt{white-space:pre-wrap;font-size:16.5px;line-height:1.9;background:#fbf9f5;border:1px solid #ece3d4;border-right:4px solid #b8934a;border-radius:10px;padding:16px 20px;color:#33201d;}
-    ol{margin:0;padding-right:26px;} li{margin-bottom:9px;font-size:16.5px;line-height:1.75;}
-    li b{color:#7a1e1e;}
-    .muted{color:#a08d7a;font-size:15px;font-style:italic;}
-    .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:6px;}
-    .att-box{background:#fbf9f5;border:1px solid #ece3d4;border-radius:12px;padding:14px 18px;}
-    .att-box .att-head{font-weight:700;font-size:16px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #ece3d4;}
-    .att-box.present .att-head{color:#2f6b34;} .att-box.absent .att-head{color:#a12b2b;}
-    .att-box ul{list-style:none;margin:0;padding:0;} .att-box li{padding:6px 0;border-bottom:1px solid #f0eae0;font-size:16px;}
-    .att-box li:last-child{border-bottom:none;}
-    .att-box li::before{content:'•';color:#b8934a;margin-left:8px;font-weight:700;}
-    .signature-block{margin-top:56px;text-align:center;page-break-inside:avoid;}
-    .signature-block .sig-img{display:block;margin:0 auto 2px;max-width:190px;max-height:130px;width:auto;height:auto;}
-    .signature-block .sig-line{width:230px;border-top:1.5px solid #cbb48f;margin:0 auto 8px;}
-    .signature-block .sig-title{font-size:16px;font-weight:700;color:#241412;}
-    .signature-block .sig-name{font-size:16px;color:#5a4a44;margin-top:2px;}
-    .foot{margin-top:40px;padding-top:14px;border-top:1px solid #ece3d4;text-align:center;color:#b0a498;font-size:12.5px;}
-    @media print{body{padding:28px;}}
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px;color:#1a0a0a;line-height:1.7;}
+    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;margin:0 0 6px;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;}
+    .pdf-logo{display:block;margin:0 auto 8px;max-width:260px;max-height:90px;width:auto;height:auto;}
+    .pdf-header{border-bottom:2px solid #b8934a;padding-bottom:12px;margin-bottom:6px;}
+    .signature-block{margin-top:40px;text-align:left;page-break-inside:avoid;}
+    .signature-block .sig-title{font-size:14px;font-weight:600;color:#1a0a0a;margin-bottom:2px;}
+    .signature-block .sig-name{font-size:14px;color:#1a0a0a;margin-bottom:4px;}
+    .signature-block .sig-img{display:block;max-width:150px;max-height:110px;width:auto;height:auto;}
+    h2{font-size:15px;color:#7a1e1e;border-right:3px solid #b8934a;padding-right:8px;margin:22px 0 8px;}
+    .info{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:14px;margin-bottom:8px;} .info span{color:#94908a;}
+    .txt{white-space:pre-wrap;font-size:14px;background:#faf7f2;border:1px solid #e0dccf;border-radius:8px;padding:10px 12px;}
+    ol{margin:0;padding-right:20px;} li{margin-bottom:4px;font-size:14px;} .muted{color:#94908a;font-size:13px;}
+    .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;} .cols ul{list-style:none;margin:0;padding:0;} .cols li{padding:3px 0;border-bottom:1px solid #eee;}
     ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
-    <div class="pdf-header"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" />
-      <div class="doc-title">محضر اجتماع مجلس الإدارة</div>
-      <div class="doc-sub">اجتماع رقم ${escapeHtml(m.number)} · ${hijriToday()}</div>
+    <div class="pdf-header"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" /></div><div class="sub">محضر اجتماع مجلس الإدارة — رقم ${escapeHtml(m.number)}</div>
+    <div class="info">
+      <div><span>التاريخ والوقت:</span> ${fmtMeetingDT(m.datetime)}</div>
+      <div><span>اللجنة:</span> ${m.committee?escapeHtml(m.committee):'—'}</div>
+      <div><span>المدة الفعلية:</span> ${dur||'—'}</div>
+      <div><span>الحضور / الغياب:</span> ${present.length} / ${absent.length}</div>
     </div>
-    <div class="info-card"><div class="info">
-      <div class="item"><span class="lbl">التاريخ والوقت</span><span class="val">${fmtMeetingDT(m.datetime)}</span></div>
-      <div class="item"><span class="lbl">اللجنة</span><span class="val">${m.committee?escapeHtml(m.committee):'—'}</span></div>
-      <div class="item"><span class="lbl">المدة الفعلية</span><span class="val">${dur||'—'}</span></div>
-      <div class="item"><span class="lbl">الحضور / الغياب</span><span class="val">${present.length} حاضر · ${absent.length} غائب</span></div>
-    </div></div>
     ${m.speech?`<h2>كلمة الاجتماع</h2><div class="txt">${escapeHtml(m.speech)}</div>`:''}
     <h2>الحضور والغياب</h2>
     <div class="cols">
-      <div class="att-box present"><div class="att-head">الحاضرون (${present.length})</div><ul>${present.map(n=>`<li>${n}</li>`).join('')||'<li>—</li>'}</ul></div>
-      <div class="att-box absent"><div class="att-head">الغائبون (${absent.length})</div><ul>${absent.map(n=>`<li>${n}</li>`).join('')||'<li>—</li>'}</ul></div>
+      <div><b>الحاضرون (${present.length})</b><ul>${present.map(n=>`<li>${n}</li>`).join('')||'<li>—</li>'}</ul></div>
+      <div><b>الغائبون (${absent.length})</b><ul>${absent.map(n=>`<li>${n}</li>`).join('')||'<li>—</li>'}</ul></div>
     </div>
     ${m.agenda?`<h2>جدول الأعمال</h2><div class="txt">${escapeHtml(m.agenda)}</div>`:''}
     ${m.proceedings?`<h2>مجريات الاجتماع</h2><div class="txt">${escapeHtml(m.proceedings)}</div>`:''}
-    <h2>القرارات <span class="cnt">(${(m.decisions||[]).length})</span></h2>${listHTML(m.decisions||[])}
-    <h2>المهام <span class="cnt">(${(m.tasks||[]).length})</span></h2>${listHTML(m.tasks||[])}
+    <h2>القرارات (${(m.decisions||[]).length})</h2>${listHTML(m.decisions||[])}
+    <h2>المهام (${(m.tasks||[]).length})</h2>${listHTML(m.tasks||[])}
     ${m.minutes?`<h2>نص المحضر</h2><div class="txt">${escapeHtml(m.minutes)}</div>`:''}
     <div class="signature-block">
-      <img class="sig-img" src="${HAIAA_SIGNATURE}" alt="التوقيع" />
-      <div class="sig-line"></div>
       <div class="sig-title">أمين السر</div>
       <div class="sig-name">صادق الغسرة</div>
+      <img class="sig-img" src="${HAIAA_SIGNATURE}" alt="التوقيع" />
     </div>
-    <div class="foot">هيئة محبي الحسين (ع) — وثيقة رسمية</div>
     </body></html>`);
   w.document.close(); w.focus();
 }
@@ -1562,9 +1557,7 @@ function printBlankMemberForm(){
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>استمارة تسجيل عضو</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
     <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:32px;color:#1a0a0a;}
-    .pdf-logo{display:block;margin:0 auto 8px;max-width:240px;max-height:85px;width:auto;height:auto;}
-    .pdf-head{border-bottom:2px solid #b8934a;padding-bottom:12px;margin-bottom:4px;text-align:center;}
-    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;margin:0;}
+    h1{font-family:'Amiri',serif;color:#7a1e1e;text-align:center;border-bottom:2px solid #b8934a;padding-bottom:12px;margin-bottom:4px;}
     .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:24px;}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;}
     .f{display:flex;flex-direction:column;} .f.full{grid-column:1/-1;} label{font-size:13px;font-weight:600;color:#3a2a28;}
@@ -1575,7 +1568,7 @@ function printBlankMemberForm(){
     .blank{display:flex;align-items:center;gap:6px;flex:1;min-width:190px;font-weight:600;} .ln{flex:1;border-bottom:1px dashed #999;height:18px;min-width:110px;}
     .note{margin-top:24px;font-size:12px;color:#94908a;border-top:1px solid #eee;padding-top:12px;}
     ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
-    <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" /></div><div class="sub">استمارة تسجيل عضو جديد — تُعبّأ بخط اليد</div>
+    <h1>هيئة محبي الحسين</h1><div class="sub">استمارة تسجيل عضو جديد — تُعبّأ بخط اليد</div>
     <div class="grid">
       ${field('الاسم الكامل')}${field('رقم الهاتف')}${field('المنطقة')}${field('البريد الإلكتروني')}
       <div class="f full">${field('العنوان')}</div>
@@ -1809,10 +1802,16 @@ function printAssemblyReport(){
 /* ═══════════════ نهاية وحدة الجمعية العمومية ═══════════════ */
 
 /* ═══════════ Init ═══════════ */
+function fillCountrySelects(){
+  const opts=countryOptions('');
+  const add=$('#addCountryCode'); if(add) add.innerHTML=`<option value="" disabled selected>اختر الدولة</option>`+opts;
+  const edit=$('#editCountryCode'); if(edit) edit.innerHTML=opts;
+}
 (async ()=>{
   await loadData();
   applyDarkMode();
   fillHeaderDates();
+  fillCountrySelects();
   renderDashboard();
   renderMembers();
   fillSettings();

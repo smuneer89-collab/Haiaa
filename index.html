@@ -196,6 +196,9 @@
     color: var(--ink); transition: all .15s; width: 100%; }
   .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--ink); background: var(--surface); }
   .field input::placeholder { color: var(--muted-2); }
+  .phone-wrap { display: flex; align-items: stretch; gap: 6px; direction: ltr; }
+  .phone-wrap select.country-select { flex: 0 0 auto; max-width: 150px; padding: 10px 8px; border: 1px solid var(--line); border-radius: 8px; font-family: var(--font-sans); font-size: 14px; background: var(--surface); color: var(--ink); direction: rtl; }
+  .phone-wrap input { flex: 1; text-align: left; direction: ltr; }
 
   .toggle-section { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 14px 16px; margin-top: 10px; }
   .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -779,7 +782,7 @@
           <div class="field"><label>الاسم الكامل <span class="req">مطلوب</span></label>
             <input name="name" required autocomplete="off" /></div>
           <div class="field"><label>رقم الهاتف <span class="req">مطلوب</span></label>
-            <input name="phone" required inputmode="tel" placeholder="3xxxxxxx" /></div>
+            <div class="phone-wrap"><select name="countryCode" id="addCountryCode" class="country-select" required></select><input name="phone" required inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="رقم الهاتف" /></div></div>
           <div class="field"><label>نوع العضوية <span class="req">مطلوب</span></label>
             <select name="type" required>
               <option value="عادي">عادي فعّال — A</option>
@@ -1184,7 +1187,7 @@
   <div class="subtitle">عدّل البيانات ثم احفظ</div>
   <div class="form-grid">
     <div class="field"><label>الاسم الكامل <span class="req">مطلوب</span></label><input id="editName" /></div>
-    <div class="field"><label>رقم الهاتف <span class="req">مطلوب</span></label><input id="editPhone" inputmode="tel" /></div>
+    <div class="field"><label>رقم الهاتف <span class="req">مطلوب</span></label><div class="phone-wrap"><select id="editCountryCode" class="country-select"></select><input id="editPhone" inputmode="numeric" pattern="[0-9]*" maxlength="12" /></div></div>
     <div class="field"><label>نوع العضوية</label>
       <select id="editType">
         <option value="عادي">عادي فعّال — A</option>
