@@ -184,6 +184,39 @@
   .occasion-alert .oa-name { font-weight:600; font-size:14px; color:var(--ink); }
   .occasion-alert .oa-meta { font-size:12px; color:var(--warn); margin-top:2px; }
 
+  /* Recent members carousel */
+  .recent-carousel { display:flex; gap:12px; overflow-x:auto; padding:4px 2px 10px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .recent-carousel::-webkit-scrollbar { display:none; }
+  .recent-card { flex:0 0 auto; width:160px; scroll-snap-align:start; background:linear-gradient(160deg,#4a0f0f,#7a1e1e); border-radius:14px; padding:16px 14px; color:#fff; box-shadow:0 6px 18px rgba(58,16,16,.2); cursor:pointer; border:1px solid rgba(184,147,74,.3); }
+  .recent-card .rc-avatar { width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.12); border:2px solid #b8934a; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:10px; overflow:hidden; }
+  .recent-card .rc-avatar img { width:100%; height:100%; object-fit:cover; }
+  .recent-card .rc-name { font-weight:700; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .recent-card .rc-code { font-size:12px; color:#e5c878; font-weight:600; }
+  .recent-card .rc-date { font-size:11px; color:#d8c3a0; margin-top:6px; }
+
+  /* Social links */
+  .social-links { display:flex; gap:10px; flex-wrap:wrap; }
+  .social-btn { flex:1; min-width:90px; display:flex; flex-direction:column; align-items:center; gap:6px; padding:16px 10px; border-radius:14px; text-decoration:none; color:#fff; font-weight:600; font-size:13px; transition:transform .15s; }
+  .social-btn:active { transform:scale(.96); }
+  .social-btn .s-ico { font-size:26px; }
+  .social-btn.insta { background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045); }
+  .social-btn.yt { background:#ff0000; }
+  .social-btn.wa { background:#25d366; }
+
+  /* Miqat reminder in member profile */
+  .miqat-reminder { background:var(--warn-soft); border:1px solid #e8d9b0; border-right:3px solid var(--warn); border-radius:10px; padding:12px 14px; margin:8px 0; }
+  .miqat-reminder .mr-head { font-weight:700; font-size:13px; color:var(--warn); margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+  .miqat-reminder .mr-name { font-weight:600; font-size:14px; color:var(--ink); }
+  .miqat-reminder .mr-meta { font-size:12px; color:var(--muted); margin:2px 0 10px; }
+  .miqat-reminder .mr-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .miqat-reminder .mr-btn { flex:1; min-width:90px; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 12px; border-radius:8px; font-family:var(--font-sans); font-size:13px; font-weight:600; cursor:pointer; border:none; text-decoration:none; }
+  .miqat-reminder .mr-btn.wa { background:#25d366; color:#fff; }
+  .miqat-reminder .mr-btn.call { background:#3a1010; color:#fff; }
+  .miqat-reminder .mr-btn.done { background:var(--surface); color:var(--ink); border:1px solid var(--line); }
+  .miqat-reminder.reminded { background:var(--ok-soft); border-right-color:var(--ok); }
+  .miqat-reminder.reminded .mr-head { color:var(--ok); }
+  .mr-done-badge { display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--ok); font-weight:700; }
+
   /* Forms */
   .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
   .field { display: flex; flex-direction: column; gap: 6px; }
@@ -715,6 +748,14 @@
       <div class="stat-card inactive clickable" onclick="openMembersFiltered('inactive')"><div class="num" id="statInactive">0</div><div class="lbl">غير مفعّلة</div></div>
     </div>
 
+    <div class="panel" id="recentMembersPanel" style="display:none">
+      <div class="panel-header">
+        <div class="panel-title">✨ أحدث الأعضاء</div>
+        <span class="panel-sub">آخر من انضم للهيئة</span>
+      </div>
+      <div class="recent-carousel" id="recentMembersCarousel"></div>
+    </div>
+
     <div class="panel">
       <div class="section-label">🔍 بحث شامل</div>
       <div class="search-box">
@@ -738,6 +779,15 @@
         <button class="btn btn-primary btn-sm" onclick="openNewsModal()">+ إضافة خبر</button>
       </div>
       <div id="newsList"></div>
+    </div>
+
+    <div class="panel social-panel">
+      <div class="section-label">🌐 تابعونا على</div>
+      <div class="social-links">
+        <a href="https://www.instagram.com/alhaiaa" target="_blank" class="social-btn insta"><span class="s-ico">📷</span><span class="s-name">انستقرام</span></a>
+        <a href="https://www.youtube.com" target="_blank" class="social-btn yt"><span class="s-ico">▶️</span><span class="s-name">يوتيوب</span></a>
+        <a href="https://wa.me/973" target="_blank" class="social-btn wa"><span class="s-ico">💬</span><span class="s-name">واتساب</span></a>
+      </div>
     </div>
   </section>
 

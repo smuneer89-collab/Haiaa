@@ -207,7 +207,26 @@ function switchTab(name){ const b=document.querySelector(`.tab[data-tab="${name}
 function renderDashboard(){
   const total=members.length, active=members.filter(isActive).length;
   $('#statTotal').textContent=total; $('#statActive').textContent=active; $('#statInactive').textContent=total-active;
-  renderUpcoming(); renderNews(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
+  renderUpcoming(); renderNews(); renderRecentMembers(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
+}
+
+/* آخر 5 عضويات مضافة - كرت متحرك */
+function renderRecentMembers(){
+  const panel=$('#recentMembersPanel'); const car=$('#recentMembersCarousel');
+  if(!panel||!car) return;
+  if(!members.length){ panel.style.display='none'; return; }
+  const recent=[...members].sort((a,b)=>{
+    const ta=(a.joinDate||'')+''; const tb=(b.joinDate||'')+'';
+    if(ta!==tb) return tb.localeCompare(ta);
+    return (b.id||'').localeCompare(a.id||'');
+  }).slice(0,5);
+  panel.style.display='block';
+  car.innerHTML=recent.map(m=>`<div class="recent-card" onclick="showDetail('${m.id}')">
+    <div class="rc-avatar">${m.photo?`<img src="${m.photo}" alt="" />`:'👤'}</div>
+    <div class="rc-name">${escapeHtml(m.name)}</div>
+    <div class="rc-code">${memberCode(m)}</div>
+    <div class="rc-date">${m.joinDate?fmtDate(m.joinDate):''}</div>
+  </div>`).join('');
 }
 /* الضغط على الإحصائيات يفتح قائمة الأعضاء مفلترة */
 function openMembersFiltered(status){
@@ -237,7 +256,7 @@ function renderUpcoming(){
   });
   const el=$('#upcomingOccasions');
   if(!withinTwo.length){ el.innerHTML=`<div class="empty"><div class="txt">لا توجد مناسبات خلال الشهرين القادمين</div></div>`; return; }
-  el.innerHTML=withinTwo.map(o=>{
+  el.innerHTML=withinTwo.slice(0,6).map(o=>{
     let diff=(o.month-cur+12)%12;
     const when = diff===0?'هذا الشهر':(diff===1?'الشهر القادم':'بعد شهرين');
     return `<div class="occasion-alert"><div class="oa-name">${escapeHtml(o.name)}</div>
@@ -510,6 +529,55 @@ $('#addForm').addEventListener('submit',async e=>{
 
 /* ═══════════ Member detail ═══════════ */
 function memberMiqats(m){ return miqats.filter(mq=>(mq.bookings||[]).some(b=>b.memberId===m.id)); }
+
+/* المواقيت التي تبعد أقل من شهرين هجريين عن اليوم (لتذكير العضو) */
+function upcomingMemberMiqats(m){
+  const h=hijriParts(); const cur=h.month;
+  return memberMiqats(m).filter(mq=>{
+    let diff=(mq.month-cur+12)%12;
+    if(diff===0) return mq.day>=h.day;
+    return diff<=2;
+  }).sort((a,b)=>{ let da=(a.month-cur+12)%12, db=(b.month-cur+12)%12; if(da!==db) return da-db; return a.day-b.day; });
+}
+function miqatRemindKey(mq){ const h=hijriParts(); return `${mq.id}_${h.year}`; }
+function isMiqatReminded(m,mq){ return (m.remindedMiqats||[]).includes(miqatRemindKey(mq)); }
+function miqatRemindersHTML(m){
+  const ups=upcomingMemberMiqats(m);
+  if(!ups.length) return '';
+  return ups.map(mq=>{
+    const reminded=isMiqatReminded(m,mq);
+    const diff=(mq.month-hijriParts().month+12)%12;
+    const when = diff===0?'هذا الشهر':(diff===1?'الشهر القادم':'خلال شهرين');
+    const msg=`السلام عليكم ${m.name}،\nنذكّركم بقرب ميقات *${mq.name}* بتاريخ ${fmtMiqatDate(mq)} (${when}).\nنسألكم الحضور والمشاركة.\nبارك الله فيكم — هيئة محبي الحسين.`;
+    return `<div class="miqat-reminder ${reminded?'reminded':''}">
+      <div class="mr-head">${reminded?'✅ تم تذكير العضو':'🔔 تذكير بميقات قريب'}</div>
+      <div class="mr-name">${escapeHtml(mq.name)}</div>
+      <div class="mr-meta">${fmtMiqatDate(mq)} · ${when}</div>
+      <div class="mr-actions">
+        <a href="${whatsappLink(m.phone,msg)}" target="_blank" class="mr-btn wa" onclick="markReminded('${m.id}','${mq.id}')">💬 واتساب</a>
+        <a href="tel:${m.phone}" class="mr-btn call" onclick="markReminded('${m.id}','${mq.id}')">📞 اتصال</a>
+        ${reminded
+          ? `<button class="mr-btn done" onclick="unmarkReminded('${m.id}','${mq.id}')"><span class="mr-done-badge">✓ تم</span></button>`
+          : `<button class="mr-btn done" onclick="markReminded('${m.id}','${mq.id}',true)">وضع علامة تم</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+async function markReminded(memberId,miqatId,refresh){
+  const m=members.find(x=>x.id===memberId); const mq=miqats.find(x=>x.id===miqatId);
+  if(!m||!mq) return;
+  const key=miqatRemindKey(mq);
+  if(!m.remindedMiqats) m.remindedMiqats=[];
+  if(!m.remindedMiqats.includes(key)){ m.remindedMiqats.push(key); await saveMembers(); }
+  if(refresh) showDetail(memberId);
+}
+async function unmarkReminded(memberId,miqatId){
+  const m=members.find(x=>x.id===memberId); const mq=miqats.find(x=>x.id===miqatId);
+  if(!m||!mq) return;
+  const key=miqatRemindKey(mq);
+  m.remindedMiqats=(m.remindedMiqats||[]).filter(k=>k!==key);
+  await saveMembers(); showDetail(memberId);
+}
 function showDetail(id){
   const m=members.find(x=>x.id===id); if(!m) return;
   const active=isActive(m);
@@ -519,6 +587,7 @@ function showDetail(id){
   const miqatsHTML=mms.length?`<div class="detail-miqats"><div class="title">مواقيته</div><ul>
     ${mms.map(mq=>{ const b=mq.bookings.find(x=>x.memberId===m.id); return `<li><span class="name">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</span><span class="date">${fmtMoney(b?b.amount:0)}</span></li>`; }).join('')}
     </ul></div>`:'';
+  const reminderHTML=miqatRemindersHTML(m);
   $('#detailContent').innerHTML=`
     <div class="detail-rows">
       ${m.isMinor&&m.birthdate?detailRow('تاريخ الميلاد', fmtDate(m.birthdate)):''}
@@ -534,6 +603,7 @@ function showDetail(id){
       ${m.paidAmount!=null?detailRow('المبلغ المدفوع',fmtMoney(m.paidAmount)):''}
     </div>
     ${miqatsHTML}
+    ${reminderHTML}
     <div class="actions-row">
       ${!active?`<button class="btn btn-primary" onclick="recordPayment('${m.id}')">تسجيل الاشتراك (${settings.fee} د.ب)</button>`:''}
       ${active?`<button class="btn btn-accent" onclick="openCard('${m.id}')">بطاقة العضوية</button>`:''}
