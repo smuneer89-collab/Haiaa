@@ -595,65 +595,57 @@ function openCard(id){ const m=members.find(x=>x.id===id); if(!m) return; cardMe
   $('#cardPreviewWrap').innerHTML=cardHTML(m); closeModal('detailModal'); $('#cardModal').classList.add('open'); }
 function cardHTML(m){
   const mms=memberMiqats(m);
-  const miqatsBlock=mms.length?`<div class="id-card-miqats"><div class="head">المواقيت</div>
-    ${mms.map(mq=>`<div class="miqat-line"><span class="n">${escapeHtml(mq.name)}</span><span class="d">${fmtMiqatDate(mq)}</span></div>`).join('')}</div>`:'';
-  const logoBand = `<img src="${HAIAA_LOGO_WHITE}" alt="هيئة محبي الحسين" />`;
-  return `<div class="id-card" id="printableCard">
-    <div class="id-card-band">${logoBand}</div>
-    <div class="id-card-body">
-      <div class="id-card-top">
-        ${m.photo?`<div class="id-card-photo"><img src="${m.photo}" alt="" /></div>`:''}
-        <div class="id-card-numblock">
-          <div><div class="label">رقم العضوية</div><div class="num">${memberCode(m)}</div></div>
-          <div class="type-chip ${m.type}">${m.type}</div>
+  const miqatsBlock=mms.length?`<div style="margin-top:16px;background:rgba(255,255,255,.06);border-radius:12px;padding:12px 16px;">
+      <div style="font-size:11px;color:#d4b877;letter-spacing:2px;font-weight:600;margin-bottom:8px;">المواقيت</div>
+      ${mms.map(mq=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13.5px;"><span style="color:#f2e6cf;">${escapeHtml(mq.name)}</span><span style="color:#e5c878;font-weight:600;">${fmtMiqatDate(mq)}</span></div>`).join('')}</div>`:'';
+  const photoBlock=m.photo?`<div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid #b8934a;flex-shrink:0;"><img src="${m.photo}" alt="" style="width:100%;height:100%;object-fit:cover;" /></div>`:'';
+  const birthRow=(m.isMinor&&m.birthdate)?`<div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);"><span style="color:#c9a86a;font-size:14px;">تاريخ الميلاد</span><span style="font-weight:600;color:#fff;font-size:15px;">${fmtDate(m.birthdate)}</span></div>`:'';
+  return `<div class="id-card" id="printableCard" style="width:100%;max-width:410px;background:#3a1010;border-radius:20px;padding:10px;box-shadow:0 20px 50px rgba(58,16,16,.3);font-family:var(--font-sans);">
+    <div style="border:2px solid #b8934a;border-radius:14px;padding:24px 22px;">
+      <div style="text-align:center;padding-bottom:18px;border-bottom:1px solid rgba(184,147,74,.35);">
+        <img src="${HAIAA_LOGO_WHITE}" alt="هيئة محبي الحسين" style="max-height:76px;max-width:85%;" />
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;justify-content:center;padding:18px 0 6px;">
+        ${photoBlock}
+        <div style="text-align:center;">
+          <div style="font-size:12px;color:#d4b877;letter-spacing:3px;">رقم العضوية</div>
+          <div style="font-size:30px;font-weight:800;color:#fff;letter-spacing:2px;line-height:1.1;">${memberCode(m)}</div>
+          <div style="margin-top:6px;display:inline-block;padding:3px 14px;border-radius:20px;background:rgba(184,147,74,.25);color:#e5c878;font-size:12px;font-weight:700;">${m.type}</div>
         </div>
       </div>
-      <div class="id-card-rows">
-        <div class="id-card-row"><span class="k">الاسم</span><span class="v">${escapeHtml(m.name)}</span></div>
-        ${m.isMinor&&m.birthdate?`<div class="id-card-row"><span class="k">تاريخ الميلاد</span><span class="v">${fmtDate(m.birthdate)}</span></div>`:''}
-        <div class="id-card-row"><span class="k">بداية العضوية</span><span class="v">${fmtHijriStart(m)}</span></div>
-        <div class="id-card-row"><span class="k">صالحة حتى</span><span class="v">${fmtHijriEnd(m)}</span></div>
+      <div style="background:rgba(255,255,255,.06);border-radius:12px;padding:6px 18px;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);"><span style="color:#c9a86a;font-size:14px;">الاسم</span><span style="font-weight:700;color:#fff;font-size:15.5px;">${escapeHtml(m.name)}</span></div>
+        ${birthRow}
+        <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);"><span style="color:#c9a86a;font-size:14px;">بداية العضوية</span><span style="font-weight:600;color:#f2e6cf;font-size:14.5px;">${fmtHijriStart(m)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;"><span style="color:#c9a86a;font-size:14px;">صالحة حتى</span><span style="font-weight:700;color:#e5c878;font-size:14.5px;">${fmtHijriEnd(m)}</span></div>
       </div>
       ${miqatsBlock}
-      <div class="id-card-message">
+      <div style="margin-top:16px;padding:14px 16px;background:rgba(184,147,74,.12);border-right:3px solid #b8934a;border-radius:8px;text-align:center;color:#f2e6cf;font-size:13.5px;line-height:1.8;">
         بارك الله فيك على خدمتك الحسينية<br/>وانضمامك لهيئة محبي الحسين،<br/>
         جعله الله في ميزان حسناتك،<br/>ورزقك شفاعة أبي عبدالله ﷺ.
       </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(184,147,74,.35);display:flex;justify-content:space-between;color:#c9a86a;font-size:12px;">
+        <span>عضوية سنوية</span><span>محرم ${memberStartYear(m)} — محرم ${memberEndYear(m)} هـ</span>
+      </div>
     </div>
-    <div class="id-card-footer"><span>عضوية سنوية</span><span>محرم ${memberStartYear(m)} — محرم ${memberEndYear(m)} هـ</span></div>
   </div>`;
 }
 function printCard(){
   const cardEl=document.getElementById('printableCard'); if(!cardEl) return;
-  const styles=document.querySelector('style').innerHTML;
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>بطاقة عضوية</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-    <style>${styles}
-      body{margin:0;padding:0 20px 40px;background:#eae5dc;min-height:100vh;}
+    <style>
+      :root{--font-sans:'IBM Plex Sans Arabic',sans-serif;}
+      *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      body{margin:0;padding:30px 20px 50px;background:#eae5dc;min-height:100vh;font-family:var(--font-sans);}
       .wrap{display:flex;justify-content:center;align-items:flex-start;}
-      /* تكبير البطاقة وتوضيح الخطوط للطباعة */
-      .id-card{max-width:600px !important;width:600px !important;box-shadow:0 10px 40px rgba(0,0,0,.18);}
-      .id-card-band{padding:22px 28px !important;}
-      .id-card-band img{max-height:96px !important;}
-      .id-card-body{padding:30px !important;}
-      .id-card-top{gap:18px !important;padding-bottom:18px !important;margin-bottom:18px !important;}
-      .id-card-photo{width:96px !important;height:96px !important;}
-      .id-card-numblock .label{font-size:13px !important;letter-spacing:2px !important;margin-bottom:6px !important;}
-      .id-card-numblock .num{font-size:32px !important;}
-      .id-card-rows{gap:2px;}
-      .id-card-row{padding:11px 0 !important;font-size:17px !important;}
-      .id-card-row .k{font-size:15px !important;}
-      .id-card-row .v{font-size:17px !important;font-weight:600 !important;}
-      .id-card-miqats{margin-top:18px !important;padding:16px 18px !important;}
-      .id-card-miqats .head{font-size:13px !important;margin-bottom:9px !important;}
-      .id-card-miqats .miqat-line{padding:7px 0 !important;font-size:16px !important;}
-      .id-card-message{margin-top:18px !important;padding:16px 18px !important;font-size:15px !important;line-height:1.7 !important;}
-      .id-card-footer{padding:16px 28px !important;font-size:14px !important;}
+      /* تكبير البطاقة للطباعة مع الحفاظ على التصميم */
+      #printableCard{max-width:560px !important;transform-origin:top center;}
       .bar{display:flex;gap:8px;justify-content:center;padding:12px;background:#3a1010;margin:0 -20px 28px;}
       .bar button{font-family:inherit;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px;border:1px solid #b8934a;background:transparent;color:#f2e6cf;cursor:pointer;}
       .bar button:first-child{background:#b8934a;color:#3a1010;}
-      @media print{ .no-print{display:none !important;} body *{visibility:visible;} .id-card{width:100% !important;max-width:640px !important;} }
+      @media print{ .no-print{display:none !important;} #printableCard{max-width:520px !important;} }
     </style>
     </head><body>
       <div class="no-print bar">
