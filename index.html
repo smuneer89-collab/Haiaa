@@ -19,7 +19,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Reem+Kufi:wght@400;500;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
  <style>
 /* ===== حركات هادئة ===== */
 
@@ -78,13 +78,24 @@
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
   
+  /* ═══════════════════════════════════════════════════════════
+     ألوان الموقع (النموذج الخامس: أخضر عميق + ذهبي)
+     غيّر هذه القيم لتغيير مظهر الموقع كاملاً.
+     ═══════════════════════════════════════════════════════════ */
   :root {
-    --bg: #fafaf7; --surface: #ffffff; --ink: #1a0a0a; --ink-2: #3a2a28;
-    --muted: #94908a; --muted-2: #b8b3ab; --line: #eeeae2; --line-2: #e0dccf;
-    --accent: #7a1e1e; --accent-deep: #4a0f0f; --accent-soft: #f5e8e8;
-    --ok: #2f5c2b; --ok-soft: #e6f0e2; --warn: #8a6a1a; --warn-soft: #f4ecd8;
-    --danger: #9c2a2a; --danger-soft: #f5dcdc; --gold: #b8934a; --banner-bg: #3a1010;
-    --font-sans: 'IBM Plex Sans Arabic', 'Tajawal', sans-serif; --font-serif: 'Amiri', serif;
+    /* الخلفيات والنصوص */
+    --bg: #f4efe6; --surface: #fffdf8; --ink: #1a2620; --ink-2: #3a473f;
+    --muted: #8a7c6b; --muted-2: #b3a894; --line: #e6ddcb; --line-2: #d8ccb6;
+    /* اللون الأساسي (الأخضر) */
+    --accent: #1c4536; --accent-deep: #123028; --accent-soft: #e6f0ea;
+    /* حالات الأعضاء والمهام */
+    --ok: #2f8f5b; --ok-soft: #e6f3ea; --warn: #b5763a; --warn-soft: #f6ecdf;
+    --danger: #b85c5c; --danger-soft: #f6e6e6;
+    /* الذهبي وخلفية الشعار */
+    --gold: #c19a3e; --banner-bg: #123028;
+    /* الخطوط */
+    --font-sans: 'IBM Plex Sans Arabic', 'Tajawal', sans-serif; --font-serif: 'Aref Ruqaa', 'Amiri', serif;
+    --font-display: 'Reem Kufi', 'IBM Plex Sans Arabic', sans-serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; }
@@ -130,7 +141,7 @@
     border-radius: 12px; padding: 5px; margin-bottom: 20px; overflow-x: auto; scrollbar-width: none; }
   .tabs::-webkit-scrollbar { display: none; }
   .tab { flex: 1 0 auto; min-width: 92px; padding: 10px 12px; border: none; background: transparent;
-    color: var(--muted); font-family: var(--font-sans); font-size: 14px; font-weight: 500;
+    color: var(--muted); font-family: var(--font-display); font-size: 14px; font-weight: 500;
     cursor: pointer; border-radius: 8px; transition: all .15s; white-space: nowrap; }
   .tab:hover { color: var(--ink); background: var(--bg); }
   .tab.active { background: var(--ink); color: var(--bg); font-weight: 600; }
@@ -149,7 +160,7 @@
     padding: 20px; margin-bottom: 16px; }
   .panel-header { display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 16px; gap: 10px; flex-wrap: wrap; }
-  .panel-title { font-size: 17px; font-weight: 600; color: var(--ink); margin: 0; letter-spacing: -.2px;
+  .panel-title { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--ink); margin: 0; letter-spacing: -.2px;
     display:flex; align-items:center; gap:8px; }
   .panel-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
   .section-label { font-size:12px; color:var(--muted); font-weight:600; letter-spacing:1px;
@@ -187,18 +198,18 @@
   /* Recent members carousel */
   .recent-carousel { display:flex; gap:12px; overflow-x:auto; padding:4px 2px 10px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
   .recent-carousel::-webkit-scrollbar { display:none; }
-  .recent-card { flex:0 0 auto; width:160px; scroll-snap-align:start; background:linear-gradient(160deg,#4a0f0f,#7a1e1e); border-radius:14px; padding:16px 14px; color:#fff; box-shadow:0 6px 18px rgba(58,16,16,.2); cursor:pointer; border:1px solid rgba(184,147,74,.3); }
-  .recent-card .rc-avatar { width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.12); border:2px solid #b8934a; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:10px; overflow:hidden; }
+  .recent-card { flex:0 0 auto; width:160px; scroll-snap-align:start; background:linear-gradient(160deg,#123028,#1c4536); border-radius:14px; padding:16px 14px; color:#fff; box-shadow:0 6px 18px rgba(18,48,40,.22); cursor:pointer; border:1px solid rgba(193,154,62,.35); }
+  .recent-card .rc-avatar { width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.12); border:2px solid #c19a3e; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:10px; overflow:hidden; }
   .recent-card .rc-avatar img { width:100%; height:100%; object-fit:cover; }
   .recent-card .rc-name { font-weight:700; font-size:14px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .recent-card .rc-code { font-size:12px; color:#e5c878; font-weight:600; }
-  .recent-card .rc-date { font-size:11px; color:#d8c3a0; margin-top:6px; }
+  .recent-card .rc-code { font-size:12px; color:#e8c66a; font-weight:600; }
+  .recent-card .rc-date { font-size:11px; color:#c8dccb; margin-top:6px; }
 
   /* Social links - نموذج 11 */
-  .social-panel-11 { background:linear-gradient(135deg,#4a0f0f,#7a1e1e); border-radius:16px; padding:18px 20px; display:flex; align-items:center; gap:16px; margin-bottom:16px; }
-  .social-title-11 { color:#e5c878; font-weight:800; font-size:16px; line-height:1.3; flex-shrink:0; }
+  .social-panel-11 { background:linear-gradient(135deg,#123028,#1c4536); border-radius:16px; padding:18px 20px; display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+  .social-title-11 { color:#e8c66a; font-weight:800; font-size:16px; line-height:1.3; flex-shrink:0; }
   .social-icons-11 { flex:1; display:flex; justify-content:flex-end; gap:12px; }
-  .social-ic-11 { width:46px; height:46px; border-radius:12px; background:rgba(255,255,255,.1); border:1px solid rgba(184,147,74,.35); display:flex; align-items:center; justify-content:center; color:#f2e6cf; text-decoration:none; transition:transform .15s, background .15s; }
+  .social-ic-11 { width:46px; height:46px; border-radius:12px; background:rgba(255,255,255,.1); border:1px solid rgba(193,154,62,.4); display:flex; align-items:center; justify-content:center; color:#f0dca6; text-decoration:none; transition:transform .15s, background .15s; }
   .social-ic-11:active { transform:scale(.92); background:rgba(255,255,255,.18); }
   .social-ic-11 svg { width:22px; height:22px; }
 
@@ -210,7 +221,7 @@
   .miqat-reminder .mr-actions { display:flex; gap:8px; flex-wrap:wrap; }
   .miqat-reminder .mr-btn { flex:1; min-width:90px; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 12px; border-radius:8px; font-family:var(--font-sans); font-size:13px; font-weight:600; cursor:pointer; border:none; text-decoration:none; }
   .miqat-reminder .mr-btn.wa { background:#25d366; color:#fff; }
-  .miqat-reminder .mr-btn.call { background:#3a1010; color:#fff; }
+  .miqat-reminder .mr-btn.call { background:#123028; color:#fff; }
   .miqat-reminder .mr-btn.done { background:var(--surface); color:var(--ink); border:1px solid var(--line); }
   .miqat-reminder.reminded { background:var(--ok-soft); border-right-color:var(--ok); }
   .miqat-reminder.reminded .mr-head { color:var(--ok); }
@@ -543,7 +554,7 @@
   .asm-pill { border:1px solid var(--line-2); background:var(--surface); color:var(--muted); font-family:inherit;
     font-size:13px; font-weight:600; padding:8px 16px; border-radius:20px; cursor:pointer; transition:all .15s; }
   .asm-pill.active { background:var(--accent); border-color:var(--accent); color:#fff; }
-  body.dark .asm-pill.active { color:#1a1210; }
+  body.dark .asm-pill.active { color:#0b1712; }
   .asm-dash { display:flex; align-items:center; gap:20px; flex-wrap:wrap; justify-content:center;
     background:var(--bg); border:1px solid var(--line); border-radius:14px; padding:20px; }
   .asm-bignum { text-align:center; }
@@ -702,19 +713,19 @@
 
   /* ═══════════ Dark mode ═══════════ */
   body.dark {
-    --bg:#1a1210; --surface:#241a17; --ink:#f3e9df; --ink-2:#d9cabb;
-    --muted:#a2938a; --muted-2:#7d6f66; --line:#3a2c26; --line-2:#4a382f;
-    --accent:#e0a85a; --accent-deep:#c98f3e; --accent-soft:#3a2a1c;
-    --ok:#7cc47a; --ok-soft:#22331f; --warn:#e0b45a; --warn-soft:#33291446;
-    --danger:#e08a7a; --danger-soft:#3a2320; --gold:#d8b464; --banner-bg:#120c0b;
+    --bg:#101f19; --surface:#17281f; --ink:#eaf1e8; --ink-2:#c6d4c8;
+    --muted:#93a89a; --muted-2:#6a7f70; --line:#26362d; --line-2:#33463a;
+    --accent:#4e9e79; --accent-deep:#3c8262; --accent-soft:#1c3327;
+    --ok:#6fc48f; --ok-soft:#1c3327; --warn:#d8b464; --warn-soft:#33291446;
+    --danger:#e08a7a; --danger-soft:#33231f; --gold:#e8c66a; --banner-bg:#0b1712;
   }
-  body.dark .tab.active { background:var(--accent); color:#1a1210; }
+  body.dark .tab.active { background:var(--accent); color:#0b1712; }
   body.dark .switch input:checked + .slider { background:var(--accent); }
-  body.dark .btn-primary { background:var(--accent); color:#1a1210; }
+  body.dark .btn-primary { background:var(--accent); color:#0b1712; }
   body.dark .btn-primary:hover { background:var(--accent-deep); }
-  body.dark .mtg-att-toggle button.on-present { color:#12210f; }
-  body.dark .mtg-att-toggle button.on-absent { color:#2a100c; }
-  body.dark .mtg-count { color:#1a1210; }
+  body.dark .mtg-att-toggle button.on-present { color:#0b1712; }
+  body.dark .mtg-att-toggle button.on-absent { color:#0b1712; }
+  body.dark .mtg-count { color:#0b1712; }
   body.dark .stat-card.active .num { color:var(--ok); }
 </style>
 </head>
