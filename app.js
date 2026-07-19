@@ -221,12 +221,50 @@ function renderRecentMembers(){
     return (b.id||'').localeCompare(a.id||'');
   }).slice(0,5);
   panel.style.display='block';
-  car.innerHTML=recent.map(m=>`<div class="recent-card" onclick="showDetail('${m.id}')">
+  const cardsHTML=recent.map(m=>`<div class="recent-card" onclick="showDetail('${m.id}')">
     <div class="rc-avatar">${m.photo?`<img src="${m.photo}" alt="" />`:'👤'}</div>
     <div class="rc-name">${escapeHtml(m.name)}</div>
     <div class="rc-code">${memberCode(m)}</div>
     <div class="rc-date">${m.joinDate?fmtDate(m.joinDate):''}</div>
   </div>`).join('');
+  buildMarquee(car, cardsHTML, {axis:'x', speed:40});
+}
+
+/* ═══ كاروسيل متحرك تلقائياً باستمرار (أفقي للأعضاء، عمودي للمناسبات) ═══ */
+function buildMarquee(container, itemsHTML, opts){
+  if(!container) return;
+  const axis = opts.axis;                       // 'x' أفقي | 'y' عمودي
+  const speed = opts.speed || 40;               // بكسل/ثانية
+  const vh = opts.height || 190;                // ارتفاع النافذة العمودية
+  const trackClass = axis==='x' ? 'rc-track' : 'occ-track';
+  const distVar = axis==='x' ? '--rc-dist' : '--occ-dist';
+  // إذا كان المستخدم يفضّل تقليل الحركة: اعرض القائمة ثابتة
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    container.innerHTML = axis==='y'
+      ? `<div class="occ-viewport" style="height:auto"><div class="${trackClass}">${itemsHTML}</div></div>`
+      : `<div class="${trackClass}">${itemsHTML}</div>`;
+    return;
+  }
+  // ابنِ نسخة واحدة أولاً لقياس حجمها
+  container.innerHTML = axis==='y'
+    ? `<div class="occ-viewport"><div class="${trackClass}">${itemsHTML}</div></div>`
+    : `<div class="${trackClass}">${itemsHTML}</div>`;
+  const viewport = axis==='y' ? container.querySelector('.occ-viewport') : container;
+  const track = container.querySelector('.'+trackClass);
+  if(!track) return;
+  requestAnimationFrame(()=>{
+    const one = axis==='x' ? track.scrollWidth : track.scrollHeight; // حجم نسخة واحدة
+    if(one <= 0) return;
+    const avail = axis==='x' ? (viewport.clientWidth||300) : vh;
+    // كرّر العناصر حتى تملأ ضعف النافذة على الأقل (لحركة سلسة دون فراغات)
+    let reps = Math.max(2, Math.ceil((avail*2)/one) + 1);
+    reps = Math.min(reps, 40);
+    track.innerHTML = new Array(reps).fill(itemsHTML).join('');
+    if(axis==='y') viewport.style.height = vh+'px';
+    track.style.setProperty(distVar, one+'px');           // ينزلق بمقدار نسخة واحدة
+    track.style.animationDuration = Math.max(12, one/speed)+'s';
+    track.classList.add('run');
+  });
 }
 /* الضغط على الإحصائيات يفتح قائمة الأعضاء مفلترة */
 function openMembersFiltered(status){
@@ -256,12 +294,13 @@ function renderUpcoming(){
   });
   const el=$('#upcomingOccasions');
   if(!withinTwo.length){ el.innerHTML=`<div class="empty"><div class="txt">لا توجد مناسبات خلال الشهرين القادمين</div></div>`; return; }
-  el.innerHTML=withinTwo.slice(0,6).map(o=>{
+  const itemsHTML=withinTwo.slice(0,8).map(o=>{
     let diff=(o.month-cur+12)%12;
     const when = diff===0?'هذا الشهر':(diff===1?'الشهر القادم':'بعد شهرين');
     return `<div class="occasion-alert"><div class="oa-name">${escapeHtml(o.name)}</div>
       <div class="oa-meta">${o.day} ${HIJRI_MONTHS[o.month]} · ${when}</div></div>`;
   }).join('');
+  buildMarquee(el, itemsHTML, {axis:'y', height:190, speed:30});
 }
 
 /* News */
@@ -548,7 +587,7 @@ function miqatRemindersHTML(m){
     const reminded=isMiqatReminded(m,mq);
     const diff=(mq.month-hijriParts().month+12)%12;
     const when = diff===0?'هذا الشهر':(diff===1?'الشهر القادم':'خلال شهرين');
-    const msg=`السلام عليكم ${m.name}،\nنذكّركم بقرب ميقات *${mq.name}* بتاريخ ${fmtMiqatDate(mq)} (${when}).\nنسألكم الحضور والمشاركة.\nبارك الله فيكم — هيئة محبي الحسين.`;
+    const msg=`السلام عليكم\n\nالعضو ${m.name}،\nنذكّركم بقرب ميقات \n\n*${mq.name}* \nبتاريخ ${fmtMiqatDate(mq)} ${when} ☝🏼\n\nنسألكم الحضور والمشاركة.\nبارك الله فيكم — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
     return `<div class="miqat-reminder ${reminded?'reminded':''}">
       <div class="mr-head">${reminded?'✅ تم تذكير العضو':'🔔 تذكير بميقات قريب'}</div>
       <div class="mr-name">${escapeHtml(mq.name)}</div>
