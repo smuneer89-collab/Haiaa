@@ -121,13 +121,9 @@
     filter: drop-shadow(0 4px 16px rgba(0,0,0,0.35)); }
   /* Fallback emblem when logo.jpg is missing */
   .banner-inner { position: relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:10px; }
-  .banner-tagline { font-family: var(--font-serif); font-size: 19px; color: var(--gold2, #e8c66a);
-    letter-spacing:.5px; text-align:center; text-shadow:0 2px 10px rgba(0,0,0,.35);
-    position:relative; padding:0 34px; }
-  .banner-tagline::before, .banner-tagline::after { content:'۞'; position:absolute; top:50%;
-    transform:translateY(-50%); color:rgba(232,198,106,.55); font-size:13px; }
-  .banner-tagline::before { right:6px; } .banner-tagline::after { left:6px; }
-  @media (max-width:640px){ .banner-tagline { font-size:16px; padding:0 26px; } }
+  .banner-tagline { font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 300; font-size: 21px;
+    color: #ffffff; letter-spacing: 1.5px; text-align: center; text-shadow: 0 2px 10px rgba(0,0,0,.3); }
+  @media (max-width:640px){ .banner-tagline { font-size: 17px; letter-spacing: 1px; } }
   .logo-fallback { position: relative; z-index:1; text-align:center; color: var(--gold); }
   .logo-fallback .em { font-size: 40px; line-height:1; margin-bottom:8px; }
   .logo-fallback .t1 { font-family: var(--font-serif); font-size: 26px; font-weight:700;
@@ -203,21 +199,22 @@
   .occasion-alert .oa-name { font-weight:600; font-size:14px; color:var(--ink); }
   .occasion-alert .oa-meta { font-size:12px; color:var(--warn); margin-top:2px; }
 
-  /* Recent members carousel (auto-marquee) */
+  /* Recent members carousel (auto + سحب) */
   .recent-carousel { overflow:hidden; padding:4px 2px 10px; }
   .recent-carousel::-webkit-scrollbar { display:none; }
-  .rc-track { display:flex; gap:12px; width:max-content; }
-  .rc-track.run { animation-name:rcMarquee; animation-timing-function:linear; animation-iteration-count:infinite; }
-  .recent-carousel:hover .rc-track.run { animation-play-state:paused; }
-  @keyframes rcMarquee { from { transform:translateX(0); } to { transform:translateX(calc(var(--rc-dist,0px) * -1)); } }
+  .rc-track { display:flex; gap:12px; width:max-content; cursor:grab; user-select:none;
+    -webkit-user-select:none; will-change:transform; touch-action:pan-y; }
+  .rc-track:active { cursor:grabbing; }
+  .rc-track .recent-card { pointer-events:auto; }
 
-  /* Upcoming occasions (vertical auto-marquee) */
+  /* Upcoming occasions (vertical auto + سحب) */
   .occ-viewport { overflow:hidden; position:relative; }
-  .occ-track { display:flex; flex-direction:column; gap:10px; }
-  .occ-track.run { animation-name:occMarquee; animation-timing-function:linear; animation-iteration-count:infinite; }
-  .occ-viewport:hover .occ-track.run { animation-play-state:paused; }
-  @keyframes occMarquee { from { transform:translateY(0); } to { transform:translateY(calc(var(--occ-dist,0px) * -1)); } }
-  @media (prefers-reduced-motion: reduce) { .rc-track.run, .occ-track.run { animation:none !important; } }
+  .occ-track { display:flex; flex-direction:column; gap:10px; cursor:grab; user-select:none;
+    -webkit-user-select:none; will-change:transform; touch-action:pan-x; }
+  .occ-track:active { cursor:grabbing; }
+  .occ-track .occasion-alert { cursor:pointer; transition:border-color .15s, box-shadow .2s; }
+  .occ-track .occasion-alert:hover { box-shadow:0 4px 14px -6px rgba(18,48,40,.18); }
+  @media (prefers-reduced-motion: reduce) { .rc-track, .occ-track { transform:none !important; } }
   .recent-card { flex:0 0 auto; width:160px; scroll-snap-align:start; background:linear-gradient(160deg,#123028,#1c4536); border-radius:14px; padding:16px 14px; color:#fff; box-shadow:0 6px 18px rgba(18,48,40,.22); cursor:pointer; border:1px solid rgba(193,154,62,.35); }
   .recent-card .rc-avatar { width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.12); border:2px solid #c19a3e; display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:10px; overflow:hidden; }
   .recent-card .rc-avatar img { width:100%; height:100%; object-fit:cover; }

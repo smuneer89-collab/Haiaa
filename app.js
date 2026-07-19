@@ -219,7 +219,7 @@ function renderRecentMembers(){
     const ta=(a.joinDate||'')+''; const tb=(b.joinDate||'')+'';
     if(ta!==tb) return tb.localeCompare(ta);
     return (b.id||'').localeCompare(a.id||'');
-  }).slice(0,5);
+  }).slice(0,10);
   panel.style.display='block';
   const cardsHTML=recent.map(m=>`<div class="recent-card" onclick="showDetail('${m.id}')">
     <div class="rc-avatar">${m.photo?`<img src="${m.photo}" alt="" />`:'👤'}</div>
@@ -230,40 +230,82 @@ function renderRecentMembers(){
   buildMarquee(car, cardsHTML, {axis:'x', speed:40});
 }
 
-/* ═══ كاروسيل متحرك تلقائياً باستمرار (أفقي للأعضاء، عمودي للمناسبات) ═══ */
+/* ═══ كاروسيل متحرك تلقائياً + قابل للإيقاف والسحب باللمس/الماوس ═══ */
 function buildMarquee(container, itemsHTML, opts){
   if(!container) return;
-  const axis = opts.axis;                       // 'x' أفقي | 'y' عمودي
-  const speed = opts.speed || 40;               // بكسل/ثانية
-  const vh = opts.height || 190;                // ارتفاع النافذة العمودية
+  const axis = opts.axis;                 // 'x' أفقي (يمين↔يسار) | 'y' عمودي (أعلى↕أسفل)
+  const speed = opts.speed || 40;         // بكسل/ثانية للحركة الآلية
+  const vh = opts.height || 190;          // ارتفاع نافذة العمودي
   const trackClass = axis==='x' ? 'rc-track' : 'occ-track';
-  const distVar = axis==='x' ? '--rc-dist' : '--occ-dist';
-  // إذا كان المستخدم يفضّل تقليل الحركة: اعرض القائمة ثابتة
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    container.innerHTML = axis==='y'
-      ? `<div class="occ-viewport" style="height:auto"><div class="${trackClass}">${itemsHTML}</div></div>`
-      : `<div class="${trackClass}">${itemsHTML}</div>`;
-    return;
-  }
-  // ابنِ نسخة واحدة أولاً لقياس حجمها
+
+  // ألغِ أي حركة سابقة على نفس الحاوية (عند إعادة الرسم)
+  if(container.__marqStop){ container.__marqStop(); container.__marqStop=null; }
+
   container.innerHTML = axis==='y'
     ? `<div class="occ-viewport"><div class="${trackClass}">${itemsHTML}</div></div>`
     : `<div class="${trackClass}">${itemsHTML}</div>`;
   const viewport = axis==='y' ? container.querySelector('.occ-viewport') : container;
   const track = container.querySelector('.'+trackClass);
   if(!track) return;
+  if(axis==='y') viewport.style.height = vh+'px';
+
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   requestAnimationFrame(()=>{
-    const one = axis==='x' ? track.scrollWidth : track.scrollHeight; // حجم نسخة واحدة
+    let one = axis==='x' ? track.scrollWidth : track.scrollHeight; // حجم نسخة واحدة
     if(one <= 0) return;
     const avail = axis==='x' ? (viewport.clientWidth||300) : vh;
-    // كرّر العناصر حتى تملأ ضعف النافذة على الأقل (لحركة سلسة دون فراغات)
-    let reps = Math.max(2, Math.ceil((avail*2)/one) + 1);
-    reps = Math.min(reps, 40);
+    // كرّر العناصر حتى تملأ ضعف النافذة (لحركة سلسة ولإتاحة السحب)
+    let reps = Math.min(40, Math.max(3, Math.ceil((avail*2)/one) + 2));
     track.innerHTML = new Array(reps).fill(itemsHTML).join('');
-    if(axis==='y') viewport.style.height = vh+'px';
-    track.style.setProperty(distVar, one+'px');           // ينزلق بمقدار نسخة واحدة
-    track.style.animationDuration = Math.max(12, one/speed)+'s';
-    track.classList.add('run');
+    one = (axis==='x' ? track.scrollWidth : track.scrollHeight) / reps; // حجم نسخة واحدة بعد التكرار
+
+    let pos = 0, paused = false, dragging = false, moved = false;
+    let startPt = 0, startPos = 0, lastT = 0, raf = 0;
+
+    const apply = ()=>{ track.style.transform = axis==='x' ? `translateX(${-pos}px)` : `translateY(${-pos}px)`; };
+    const wrap  = ()=>{ pos = ((pos % one) + one) % one; };  // إبقاء الإزاحة ضمن نسخة واحدة (تكرار غير محسوس)
+
+    const frame = (t)=>{
+      if(!lastT) lastT = t;
+      const dt = (t - lastT)/1000; lastT = t;
+      if(!paused && !dragging && !reduce){ pos += speed*dt; wrap(); apply(); }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+
+    // إيقاف مؤقت عند مرور مؤشر الماوس (سطح المكتب)
+    track.addEventListener('mouseenter', ()=>{ paused = true; });
+    track.addEventListener('mouseleave', ()=>{ if(!dragging) paused = false; });
+
+    // السحب باللمس أو الماوس
+    const down = (e)=>{
+      dragging = true; moved = false; paused = true;
+      startPt = axis==='x' ? e.clientX : e.clientY; startPos = pos;
+      try{ track.setPointerCapture(e.pointerId); }catch(_){}
+      track.style.cursor = 'grabbing';
+    };
+    const move = (e)=>{
+      if(!dragging) return;
+      const cur = axis==='x' ? e.clientX : e.clientY;
+      const delta = cur - startPt;
+      if(Math.abs(delta) > 4) moved = true;
+      pos = startPos - delta; wrap(); apply();   // سحب لليمين/الأسفل يرجع، ولليسار/الأعلى يقدّم
+    };
+    const up = ()=>{
+      if(!dragging) return;
+      dragging = false; track.style.cursor = 'grab';
+      setTimeout(()=>{ paused = false; }, 1000);  // استئناف الحركة بعد لحظة
+    };
+    track.addEventListener('pointerdown', down);
+    track.addEventListener('pointermove', move);
+    track.addEventListener('pointerup', up);
+    track.addEventListener('pointercancel', up);
+
+    // لا تفتح تفاصيل العنصر إن كان المستخدم يسحب (وليس ضغطة)
+    track.addEventListener('click', (e)=>{ if(moved){ e.preventDefault(); e.stopPropagation(); moved=false; } }, true);
+
+    container.__marqStop = ()=>{ cancelAnimationFrame(raf); };
   });
 }
 /* الضغط على الإحصائيات يفتح قائمة الأعضاء مفلترة */
@@ -281,7 +323,7 @@ function renderUpcoming(){
   const cur = h.month; // 0-based
   // gather all miqats + member annual miqats as occasions
   const occ=[];
-  miqats.forEach(mq=> occ.push({name:mq.name, day:mq.day, month:mq.month}));
+  miqats.forEach(mq=> occ.push({id:mq.id, name:mq.name, day:mq.day, month:mq.month}));
   const seen=new Set(occ.map(o=>o.name+o.day+o.month));
   // compute "months ahead" (0,1,2) within window
   const withinTwo = occ.filter(o=>{
@@ -297,7 +339,7 @@ function renderUpcoming(){
   const itemsHTML=withinTwo.slice(0,8).map(o=>{
     let diff=(o.month-cur+12)%12;
     const when = diff===0?'هذا الشهر':(diff===1?'الشهر القادم':'بعد شهرين');
-    return `<div class="occasion-alert"><div class="oa-name">${escapeHtml(o.name)}</div>
+    return `<div class="occasion-alert" onclick="showMiqatDetail('${o.id}')"><div class="oa-name">${escapeHtml(o.name)}</div>
       <div class="oa-meta">${o.day} ${HIJRI_MONTHS[o.month]} · ${when}</div></div>`;
   }).join('');
   buildMarquee(el, itemsHTML, {axis:'y', height:190, speed:30});
