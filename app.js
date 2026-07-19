@@ -212,22 +212,61 @@ function renderDashboard(){
 
 /* آخر 5 عضويات مضافة - كرت متحرك */
 function renderRecentMembers(){
-  const panel=$('#recentMembersPanel'); const car=$('#recentMembersCarousel');
-  if(!panel||!car) return;
-  if(!members.length){ panel.style.display='none'; return; }
-  const recent=[...members].sort((a,b)=>{
-    const ta=(a.joinDate||'')+''; const tb=(b.joinDate||'')+'';
-    if(ta!==tb) return tb.localeCompare(ta);
-    return (b.id||'').localeCompare(a.id||'');
-  }).slice(0,10);
+  const panel=$('#recentMembersPanel'); const box=$('#recentMembersCarousel');
+  if(!panel||!box) return;
+  const h=hijriParts(); const cur=h.month; const curYear=parseInt(h.year,10)||0;
+  // اجمع صفاً لكل (عضو + ميقات) قريب خلال الشهرين القادمين
+  let rows=[];
+  members.forEach(m=>{
+    (miqats||[]).forEach(mq=>{
+      const booked=(mq.bookings||[]).some(b=>b.memberId===m.id);
+      if(!booked) return;
+      let diff=(mq.month-cur+12)%12;              // فرق الأشهر
+      if(diff===0 && mq.day < h.day) return;      // مضى هذا الشهر
+      if(diff>2) return;                          // أبعد من شهرين
+      // الأيام المتبقية التقريبية (شهر هجري ≈ 29.5 يوم)
+      let daysLeft = Math.round(diff*29.5 + (mq.day - h.day));
+      if(daysLeft<0) daysLeft=0;
+      rows.push({m, mq, diff, daysLeft});
+    });
+  });
+  if(!rows.length){ panel.style.display='none'; return; }
   panel.style.display='block';
-  const cardsHTML=recent.map(m=>`<div class="recent-card" onclick="showDetail('${m.id}')">
-    <div class="rc-avatar">${m.photo?`<img src="${m.photo}" alt="" />`:'👤'}</div>
-    <div class="rc-name">${escapeHtml(m.name)}</div>
-    <div class="rc-code">${memberCode(m)}</div>
-    <div class="rc-date">${m.joinDate?fmtDate(m.joinDate):''}</div>
-  </div>`).join('');
-  buildMarquee(car, cardsHTML, {axis:'x', speed:40});
+  rows.sort((a,b)=> a.daysLeft - b.daysLeft);
+
+  const MAXD=60; // مدى شريط التقدّم (شهران)
+  box.innerHTML = rows.map(({m,mq,diff,daysLeft})=>{
+    const cls = daysLeft<=7 ? 'near' : (diff===0 ? 'soon' : (diff===1 ? 'soon' : 'far'));
+    const pct = Math.max(6, Math.min(100, Math.round((MAXD-daysLeft)/MAXD*100)));
+    const whenTxt = diff===0 ? 'هذا الشهر' : (diff===1 ? 'الشهر القادم' : 'بعد شهرين');
+    const leftTxt = daysLeft<=0 ? 'اليوم' : (daysLeft===1 ? 'باقٍ يوم' : `باقٍ ${daysLeft} يوماً`);
+    const reminded = isMiqatReminded(m,mq);
+    const av = m.photo ? `<img src="${m.photo}" alt="">` : escapeHtml((m.name||'؟').trim().charAt(0));
+    return `<div class="mq-card ${cls}">
+      <div class="mq-top">
+        <div class="mq-av" onclick="showDetail('${m.id}')">${av}</div>
+        <div class="mq-mid" onclick="showDetail('${m.id}')">
+          <div class="mq-name">${escapeHtml(m.name)} <span class="code">${memberCode(m)}</span></div>
+          <div class="mq-line">${escapeHtml(mq.name)} <span class="dt">· ${fmtMiqatDate(mq)}</span></div>
+        </div>
+        <button class="mq-wa ${reminded?'done':''}" onclick="sendMiqatReminder('${m.id}','${mq.id}')">${reminded?'✓ ذُكّر':'✆ تذكير'}</button>
+      </div>
+      <div class="mq-bar"><span style="width:${pct}%"></span></div>
+      <div class="mq-foot"><span>${whenTxt}</span><b>${leftTxt}</b></div>
+    </div>`;
+  }).join('');
+}
+
+/* إرسال تذكير الميقات عبر واتساب بالرسالة الجاهزة */
+function sendMiqatReminder(memberId, miqatId){
+  const m=members.find(x=>x.id===memberId); const mq=miqats.find(x=>x.id===miqatId);
+  if(!m||!mq) return;
+  const h=hijriParts(); let diff=(mq.month-h.month+12)%12;
+  const when = diff===0?'هذا الشهر':(diff===1?'الشهر القادم':'خلال شهرين');
+  const msg=`السلام عليكم\n\nالعضو ${m.name}،\nنذكّركم بقرب ميقات \n\n*${mq.name}* \nبتاريخ ${fmtMiqatDate(mq)} ${when} ☝🏼\n\nنسألكم الحضور والمشاركة.\nبارك الله فيكم — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
+  markReminded(memberId, miqatId);
+  window.open(whatsappLink(m.phone, msg), '_blank');
+  setTimeout(renderRecentMembers, 400);
 }
 
 /* ═══ كاروسيل متحرك تلقائياً + قابل للإيقاف والسحب باللمس/الماوس ═══ */
@@ -952,16 +991,17 @@ const PRINT_BAR_CSS = `
 function printMiqats(status){
   const list=miqatsByNearest().filter(mq=>miqatStatus(mq)===status);
   const titleMap={red:'المواقيت غير المحجوزة', yellow:'المواقيت التي تحتاج تعزيز', green:'المواقيت المحجوزة'};
-  // المحجوزة وغير المحجوزة: اسم المناسبة فقط. تحتاج تعزيز: الاسم + المبلغ الموصول.
-  const isYellow = status==='yellow';
-  const head = isYellow
-    ? '<tr><th>المناسبة</th><th>المبلغ الموصول</th></tr>'
+  // تحتاج تعزيز + غير محجوزة: اسم المناسبة + المبلغ المطلوب لإكمالها. المحجوزة: الاسم فقط.
+  const needsAmount = (status==='yellow' || status==='red');
+  const head = needsAmount
+    ? '<tr><th>المناسبة</th><th>المطلوب لإكمال المبلغ</th></tr>'
     : '<tr><th>المناسبة</th></tr>';
-  const rows = list.map(mq=> isYellow
-    ? `<tr><td>${escapeHtml(mq.name)}</td><td>${fmtMoney(miqatPaid(mq))}</td></tr>`
-    : `<tr><td>${escapeHtml(mq.name)}</td></tr>`
-  ).join('');
-  const cols = isYellow?2:1;
+  const rows = list.map(mq=>{
+    if(!needsAmount) return `<tr><td>${escapeHtml(mq.name)}</td></tr>`;
+    const rem=Math.max(0, (Number(mq.requiredAmount)||0) - miqatPaid(mq));
+    return `<tr><td>${escapeHtml(mq.name)}</td><td class="amt">${fmtMoney(rem)}</td></tr>`;
+  }).join('');
+  const cols = needsAmount?2:1;
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${titleMap[status]}</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
@@ -969,7 +1009,7 @@ function printMiqats(status){
     .pdf-logo{display:block;margin:0 auto 8px;max-width:240px;max-height:85px;width:auto;height:auto;}
     .pdf-head{border-bottom:2px solid #c19a3e;padding-bottom:12px;text-align:center;}
     h1{font-family:'Amiri',serif;color:#1c4536;text-align:center;margin:0;}
-    .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;} table{width:100%;border-collapse:collapse;font-size:14px;} th,td{border:1px solid #e0dccf;padding:10px 12px;text-align:right;} th{background:#123028;color:#fff;} tr:nth-child(even){background:#faf7f2;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin-bottom:20px;} table{width:100%;border-collapse:collapse;font-size:14px;} th,td{border:1px solid #e0dccf;padding:10px 12px;text-align:right;} th{background:#123028;color:#fff;} tr:nth-child(even){background:#faf7f2;} td.amt{color:#b5763a;font-weight:600;white-space:nowrap;}
     ${PRINT_BAR_CSS}</style>
     </head><body>${PRINT_BAR}<div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" /></div><div class="sub">${titleMap[status]} — ${hijriToday()}</div>
     <table><thead>${head}</thead>
