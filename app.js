@@ -689,6 +689,7 @@ async function markReminded(memberId,miqatId,refresh){
   const key=miqatRemindKey(mq);
   if(!m.remindedMiqats) m.remindedMiqats=[];
   if(!m.remindedMiqats.includes(key)){ m.remindedMiqats.push(key); await saveMembers(); }
+  renderRecentMembers();          // مزامنة قائمة «مواقيت تقترب» في الرئيسية
   if(refresh) showDetail(memberId);
 }
 async function unmarkReminded(memberId,miqatId){
@@ -696,7 +697,9 @@ async function unmarkReminded(memberId,miqatId){
   if(!m||!mq) return;
   const key=miqatRemindKey(mq);
   m.remindedMiqats=(m.remindedMiqats||[]).filter(k=>k!==key);
-  await saveMembers(); showDetail(memberId);
+  await saveMembers();
+  renderRecentMembers();          // مزامنة قائمة «مواقيت تقترب» في الرئيسية
+  showDetail(memberId);
 }
 function showDetail(id){
   const m=members.find(x=>x.id===id); if(!m) return;
