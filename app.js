@@ -758,8 +758,54 @@ function openEditMember(id){
   $('#editComm').value=m.committee||'';
   editPhoto=m.photo||null;
   $('#editPhotoPreview').innerHTML=editPhoto?`<img src="${editPhoto}" alt="" />`:'👤';
+  renderEditMiqats();
   closeModal('detailModal');
   $('#editModal').classList.add('open');
+}
+
+/* ─── مواقيت العضو داخل نافذة التعديل ─── */
+function renderEditMiqats(){
+  const m=members.find(x=>x.id===editingMemberId); if(!m) return;
+  const list=$('#editMiqatsList'); const sel=$('#editMiqatSelect');
+  const mine=memberMiqats(m);
+  list.innerHTML = mine.length
+    ? mine.map(mq=>{
+        const bk=(mq.bookings||[]).find(b=>b.memberId===m.id)||{};
+        return `<div class="em-row">
+          <span class="em-name">${escapeHtml(mq.name)} <span class="em-date">· ${fmtMiqatDate(mq)}</span></span>
+          <span class="em-amt">${fmtMoney(Number(bk.amount)||0)}</span>
+          <button class="em-del" title="إزالة" onclick="removeEditMiqat('${mq.id}')">×</button>
+        </div>`;
+      }).join('')
+    : `<div class="em-empty">لا توجد مواقيت مسجّلة لهذا العضو</div>`;
+  // المواقيت المتاحة للإضافة (التي لم يُحجز فيها بعد)
+  const available=miqats.filter(mq=>!(mq.bookings||[]).some(b=>b.memberId===m.id));
+  sel.innerHTML = available.length
+    ? `<option value="">اختر ميقاتاً لإضافته…</option>` + available.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)}</option>`).join('')
+    : `<option value="">لا توجد مواقيت أخرى متاحة</option>`;
+  $('#editMiqatAmount').value='';
+}
+async function addEditMiqat(){
+  const m=members.find(x=>x.id===editingMemberId); if(!m) return;
+  const miqatId=$('#editMiqatSelect').value;
+  if(!miqatId){ toast('اختر ميقاتاً أولاً'); return; }
+  const amount=parseFloat($('#editMiqatAmount').value)||0;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  mq.bookings=mq.bookings||[];
+  const ex=mq.bookings.find(b=>b.memberId===m.id);
+  if(ex) ex.amount=(Number(ex.amount)||0)+amount; else mq.bookings.push({memberId:m.id, amount});
+  await saveMiqats();
+  renderEditMiqats(); renderMiqats(); renderRecentMembers(); renderDashboard();
+  toast('تمت إضافة الميقات للعضو');
+}
+async function removeEditMiqat(miqatId){
+  const m=members.find(x=>x.id===editingMemberId); if(!m) return;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  if(!confirm('إزالة هذا الميقات من العضو؟')) return;
+  mq.bookings=(mq.bookings||[]).filter(b=>b.memberId!==m.id);
+  await saveMiqats();
+  renderEditMiqats(); renderMiqats(); renderRecentMembers(); renderDashboard();
+  toast('تمت إزالة الميقات');
 }
 let editPhoto=null;
 async function handleEditPhoto(e){
