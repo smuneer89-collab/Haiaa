@@ -920,7 +920,8 @@ let formMode='add', editingId=null, editRemovedBookings=new Set();
 function openEditMember(id){
   const m=members.find(x=>x.id===id); if(!m) return;
   formMode='edit'; editingId=id; editingMemberId=id;
-  switchTab('add');
+  $$('.tab-content').forEach(c=>c.style.display='none');
+  $('#tab-add').style.display='block';
   const F=sel=>document.querySelector('#addForm '+sel);
   F('[name=name]').value=m.name||'';
   const sp=splitPhone(m.phone); const cc=document.getElementById('addCountryCode'); if(cc) cc.value=sp.code||'973'; F('[name=phone]').value=sp.local||'';
