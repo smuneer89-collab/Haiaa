@@ -102,7 +102,18 @@ function hijriParts(){
 function hijriToday(){ const h=hijriParts(); return `${h.day} ${HIJRI_MONTHS[h.month]} ${h.year} هـ`; }
 
 /* ─── Miqat status ─── */
-function miqatPaid(mq){ return (mq.bookings||[]).reduce((s,b)=>s+(Number(b.amount)||0),0); }
+/* ─── الحجز/الاكتمال بالمدفوع فعلاً (تقسيط) ─── */
+function bookingAgreed(b){ return Number(b&&b.amount)||0; }                 // المبلغ المتّفق عليه
+function bookingPaid(b){ if(b && Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); return Number(b&&b.amount)||0; } // القديم = مدفوع بالكامل
+function bookingRemaining(b){ return Math.max(0, bookingAgreed(b)-bookingPaid(b)); }
+function miqatPaid(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingPaid(b),0); }   // اكتمال الميقات = المُحصّل فعلاً
+function miqatAgreed(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingAgreed(b),0); }
+/* ─── العضوية بالتقسيط ─── */
+function memberFeeTotal(m){ return m.feeTotal!=null ? (Number(m.feeTotal)||0) : (Number(settings.fee)||0); }
+function memberPaid(m){ if(Array.isArray(m.payments)) return m.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); return m.paymentDate ? (m.paidAmount!=null?Number(m.paidAmount):memberFeeTotal(m)) : 0; }
+function memberRemaining(m){ return Math.max(0, memberFeeTotal(m)-memberPaid(m)); }
+function memberSubStatus(m){ const paid=memberPaid(m), tot=memberFeeTotal(m); if(paid<=0) return 'none'; if(paid<tot) return 'partial'; return 'full'; }
+function memberPayments(m){ if(Array.isArray(m.payments)) return m.payments; return m.paymentDate ? [{amount:(m.paidAmount!=null?Number(m.paidAmount):memberFeeTotal(m)), date:m.paymentDate}] : []; }
 /* أنواع المساهمة: نقدي أو عيني (بقيمة تقديرية يكتبها المستخدم). كل حجز قد يضم عدّة بنود */
 const CONTRIB_KINDS = ['نقدي','وجبة غداء','وجبة عشاء','أجرة خطيب','أجرة رادود','أخرى'];
 function bookingItems(b){ if(b && Array.isArray(b.items) && b.items.length) return b.items; return [{kind:'نقدي', value:Number(b&&b.amount)||0}]; }
@@ -317,7 +328,7 @@ function switchTab(name){ const b=document.querySelector(`.tab[data-tab="${name}
 function renderDashboard(){
   const total=members.length, active=members.filter(isActive).length;
   $('#statTotal').textContent=total; $('#statActive').textContent=active; $('#statInactive').textContent=total-active;
-  renderPhotoCarousel(); renderNews(); renderRecentMembers(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
+  renderPhotoCarousel(); renderNews(); renderRecentMembers(); renderDues(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
 }
 
 /* آخر 5 عضويات مضافة - كرت متحرك */
@@ -546,7 +557,12 @@ function showMiqatDetail(id){
   const st=miqatStatus(mq), paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
   const pct=req>0?Math.min(100,Math.round(paid/req*100)):(paid>0?100:0);
   const bookers=(mq.bookings||[]).map(b=>{ const m=members.find(x=>x.id===b.memberId);
-    return `<li><span class="name">${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span></span><span class="date">${fmtBooking(b)}</span></li>`;
+    const ag=bookingAgreed(b), pd=bookingPaid(b), rem=bookingRemaining(b);
+    const payLine = rem>0
+      ? `<div class="bk-pay">مدفوع ${fmtMoney(pd)} من ${fmtMoney(ag)} · <span class="bk-rem">متبقّي ${fmtMoney(rem)}</span>
+           <button class="bk-add" onclick="openBookingPayment('${mq.id}','${b.memberId}')">➕ دفعة</button></div>`
+      : (ag>0?`<div class="bk-pay" style="color:var(--ok)">مدفوع بالكامل ✓</div>`:'');
+    return `<li><span class="name">${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span><br><span style="font-size:12px;color:var(--muted)">${fmtBooking(b)}</span>${payLine}</span></li>`;
   }).join('');
   $('#miqatDetailTitle').textContent=mq.name;
   $('#miqatDetailSub').innerHTML=`${fmtMiqatDate(mq)} · <span class="badge mc-status st-${st}">${STATUS_LABEL[st]}</span>`;
@@ -554,8 +570,9 @@ function showMiqatDetail(id){
     <div class="detail-rows">
       ${detailRow('التاريخ الهجري', fmtMiqatDate(mq))}
       ${detailRow('المبلغ المطلوب', fmtMoney(req))}
-      ${detailRow('المبلغ الموصول', fmtMoney(paid))}
-      ${detailRow('المتبقّي', fmtMoney(Math.max(0,req-paid)))}
+      ${detailRow('المتّفق عليه', fmtMoney(miqatAgreed(mq)))}
+      ${detailRow('المُحصّل فعلاً', fmtMoney(paid))}
+      ${detailRow('المتبقّي تحصيله', fmtMoney(Math.max(0,req-paid)))}
       ${detailRow('عدد المشاركين', (mq.bookings||[]).length)}
     </div>
     <div class="progress" style="margin:12px 0;"><span style="width:${pct}%"></span></div>
@@ -838,12 +855,13 @@ function showDetail(id){
       ${detailRow('تاريخ التسجيل', fmtDate(m.joinDate))}
       ${m.paymentDate?detailRow('بداية العضوية', fmtHijriStart(m)):''}
       ${m.paymentDate?detailRow('انتهاء العضوية', fmtHijriEnd(m)):''}
-      ${m.paidAmount!=null?detailRow('المبلغ المدفوع',fmtMoney(m.paidAmount)):''}
     </div>
+    ${subInstallmentHTML(m)}
     ${miqatsHTML}
     ${reminderHTML}
     <div class="actions-row">
-      ${!active?`<button class="btn btn-primary" onclick="recordPayment('${m.id}')">تسجيل الاشتراك (${settings.fee} د.ب)</button>`:''}
+      ${memberSubStatus(m)!=='full'?`<button class="btn btn-primary" onclick="openAddSubPayment('${m.id}')">➕ تسجيل دفعة اشتراك</button>`:''}
+      ${(memberPayments(m).length||memberMiqats(m).length)?`<button class="btn btn-ghost" onclick="printSubReceipt('${m.id}')">🧾 تقرير الأقساط PDF</button>`:''}
       ${active?`<button class="btn btn-accent" onclick="openCard('${m.id}')">بطاقة العضوية</button>`:''}
       <button class="btn btn-ghost" onclick="openEditMember('${m.id}')">✏️ تعديل الملف</button>
       <a href="${whatsappLink(m.phone)}" target="_blank" class="btn wa-btn large">${WA_ICON} واتساب</a>
@@ -938,8 +956,134 @@ function ageFromBirthdate(iso){
 function detailRow(k,v){ return `<div class="detail-row"><span class="k">${k}</span><span class="v">${v}</span></div>`; }
 function closeModal(id){ $('#'+id).classList.remove('open'); }
 
+/* ─── كتلة أقساط العضوية في ملف العضو ─── */
+function subInstallmentHTML(m){
+  const tot=memberFeeTotal(m), paid=memberPaid(m), rem=memberRemaining(m);
+  const st=memberSubStatus(m);
+  const pct = tot>0 ? Math.min(100, Math.round(paid/tot*100)) : (paid>0?100:0);
+  const label = st==='full'?'مسدَّد بالكامل':(st==='partial'?'مقسّط':'غير مسدَّد');
+  const pays=memberPayments(m);
+  const paysHTML = pays.length ? `<div class="pay-list">${pays.map(p=>`<div class="pay-item"><span>${fmtMoney(p.amount)}${p.note?` <span class="pn">— ${escapeHtml(p.note)}</span>`:''}</span><span class="pd">${p.date?fmtDate(p.date):''}</span></div>`).join('')}</div>` : '';
+  return `<div class="sub-inst">
+    <div class="si-head"><span class="si-title">اشتراك العضوية</span><span class="si-badge st-${st==='full'?'green':(st==='partial'?'yellow':'red')}">${label}</span></div>
+    <div class="si-bar"><span style="width:${pct}%"></span></div>
+    <div class="si-nums"><span>مدفوع <b>${fmtMoney(paid)}</b> من ${fmtMoney(tot)}</span><span>${rem>0?`متبقّي <b>${fmtMoney(rem)}</b>`:'مكتمل'}</span></div>
+    ${paysHTML}
+  </div>`;
+}
+let subPayMemberId=null;
+function openAddSubPayment(id){ const m=members.find(x=>x.id===id); if(!m) return; subPayMemberId=id;
+  $('#subPaySub').textContent=`${m.name} — متبقّي ${fmtMoney(memberRemaining(m))}`;
+  $('#subPayAmount').value=memberRemaining(m)||''; const n=$('#subPayNote'); if(n) n.value=''; $('#subPayModal').classList.add('open'); }
+async function addSubPayment(){
+  const m=members.find(x=>x.id===subPayMemberId); if(!m) return;
+  const amount=parseFloat($('#subPayAmount').value)||0;
+  const note=($('#subPayNote')?$('#subPayNote').value:'').trim();
+  if(amount<=0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  if(!Array.isArray(m.payments)) m.payments = m.paymentDate ? [{amount:(m.paidAmount!=null?Number(m.paidAmount):memberFeeTotal(m)), date:m.paymentDate}] : [];
+  if(m.feeTotal==null) m.feeTotal=Number(settings.fee)||0;
+  m.payments.push({amount, date:today(), note});
+  m.paidAmount=memberPaid(m);
+  if(memberPaid(m)>=memberFeeTotal(m) && !m.paymentDate){ m.paymentDate=today(); m.expiryDate=addYear(m.paymentDate); m.hijriStartYear=settings.year||1448; m.hijriEndYear=(settings.year||1448)+1; }
+  await saveMembers(); closeModal('subPayModal');
+  toast(memberSubStatus(m)==='full'?'اكتمل الاشتراك — العضوية مفعّلة':'تم تسجيل الدفعة');
+  showDetail(m.id); renderMembers(); renderDashboard();
+}
+
+/* ─── دفعات مساهمة الميقات ─── */
+let bkPayCtx=null;
+function openBookingPayment(miqatId, memberId){
+  const mq=miqats.find(x=>x.id===miqatId); const m=members.find(x=>x.id===memberId); if(!mq||!m) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  bkPayCtx={miqatId, memberId};
+  $('#bkPaySub').textContent=`${m.name} · ${mq.name} — متبقّي ${fmtMoney(bookingRemaining(b))}`;
+  $('#bkPayAmount').value=bookingRemaining(b)||''; const n=$('#bkPayNote'); if(n) n.value='';
+  $('#bkPayModal').classList.add('open');
+}
+async function addBookingPayment(){
+  if(!bkPayCtx) return; const {miqatId, memberId}=bkPayCtx;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  const amount=parseFloat($('#bkPayAmount').value)||0;
+  const note=($('#bkPayNote')?$('#bkPayNote').value:'').trim();
+  if(amount<=0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  if(!Array.isArray(b.payments)) b.payments=[]; // القديم يُعامل كمدفوع كامل عبر bookingPaid؛ عند أول دفعة نبدأ العد الصريح
+  b.payments.push({amount, date:today(), note});
+  await saveMiqats(); closeModal('bkPayModal');
+  toast('تم تسجيل الدفعة'); renderMiqats(); renderDashboard();
+  if($('#miqatDetailModal').classList.contains('open')) showMiqatDetail(miqatId);
+}
+
+/* ─── قائمة الأقساط المتبقّية ─── */
+function renderDues(){
+  const box=$('#duesList'); const panel=$('#duesPanel'); if(!box) return;
+  const subDue=members.filter(m=>memberSubStatus(m)==='partial')
+    .map(m=>({m, rem:memberRemaining(m)})).sort((a,b)=>b.rem-a.rem);
+  let miqatDue=[];
+  miqats.forEach(mq=>(mq.bookings||[]).forEach(b=>{ const rem=bookingRemaining(b); if(rem>0){ const m=members.find(x=>x.id===b.memberId); if(m) miqatDue.push({m,mq,rem}); } }));
+  miqatDue.sort((a,b)=>b.rem-a.rem);
+  if(!subDue.length && !miqatDue.length){ if(panel) panel.style.display='none'; box.innerHTML=''; return; }
+  if(panel) panel.style.display='block';
+  let html='';
+  if(subDue.length){ html+=`<div class="due-sec-title">اشتراكات مقسّطة (${subDue.length})</div>`;
+    html+=subDue.map(({m,rem})=>`<div class="due-item"><div class="di-mid"><div class="di-name">${escapeHtml(m.name)}</div><div class="di-sub">${memberCode(m)} · مدفوع ${fmtMoney(memberPaid(m))} من ${fmtMoney(memberFeeTotal(m))}</div></div><div class="di-rem">${fmtMoney(rem)}</div><button class="bk-add" onclick="openAddSubPayment('${m.id}')">➕ دفعة</button></div>`).join(''); }
+  if(miqatDue.length){ html+=`<div class="due-sec-title">مساهمات مواقيت مقسّطة (${miqatDue.length})</div>`;
+    html+=miqatDue.map(({m,mq,rem})=>`<div class="due-item"><div class="di-mid"><div class="di-name">${escapeHtml(m.name)}</div><div class="di-sub">${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div></div><div class="di-rem">${fmtMoney(rem)}</div><button class="bk-add" onclick="openBookingPayment('${mq.id}','${m.id}')">➕ دفعة</button></div>`).join(''); }
+  box.innerHTML=html;
+}
+
+/* ─── تقرير أقساط العضو الشامل PDF (العضوية + المواقيت) ─── */
+function printSubReceipt(id){
+  const m=members.find(x=>x.id===id); if(!m) return;
+  const money=fmtMoney;
+  // العضوية
+  const subPays=memberPayments(m); const subTot=memberFeeTotal(m), subPaid=memberPaid(m), subRem=memberRemaining(m);
+  const subRows=subPays.map((p,i)=>`<tr><td>${i+1}</td><td>${money(p.amount)}</td><td>${p.date?fmtDate(p.date):''}</td><td>${escapeHtml(p.note||'')}</td></tr>`).join('')||`<tr><td colspan="4" class="empty">لا توجد دفعات</td></tr>`;
+  const subStatus = memberSubStatus(m)==='full'?'مسدَّد بالكامل':(memberSubStatus(m)==='partial'?`مقسّط (باقٍ ${money(subRem)})`:'غير مسدَّد');
+  // المواقيت
+  const mms=memberMiqats(m);
+  let grandAgreed=subTot, grandPaid=subPaid, grandRem=subRem;
+  const miqatBlocks=mms.map(mq=>{
+    const b=(mq.bookings||[]).find(x=>x.memberId===m.id); if(!b) return '';
+    const ag=bookingAgreed(b), pd=bookingPaid(b), rem=bookingRemaining(b);
+    grandAgreed+=ag; grandPaid+=pd; grandRem+=rem;
+    const pays=Array.isArray(b.payments)?b.payments:[{amount:ag,date:'',note:'مدفوع بالكامل'}];
+    const rows=pays.map((p,i)=>`<tr><td>${i+1}</td><td>${money(p.amount)}</td><td>${p.date?fmtDate(p.date):''}</td><td>${escapeHtml(p.note||'')}</td></tr>`).join('')||`<tr><td colspan="4" class="empty">لا توجد دفعات</td></tr>`;
+    const stt = rem<=0?'مكتمل':`قيد التقسيط (باقٍ ${money(rem)})`;
+    return `<div class="blk"><div class="blk-h">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)} <span class="st">${stt}</span></div>
+      <div class="sm">المتّفق عليه: <b>${money(ag)}</b> · المدفوع: <b class="paid">${money(pd)}</b> · المتبقّي: <b class="rem">${money(rem)}</b></div>
+      <table><thead><tr><th>#</th><th>المبلغ</th><th>التاريخ</th><th>ملاحظة</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير أقساط — ${escapeHtml(m.name)}</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:28px;color:#1a0a0a;}
+    .pdf-logo{display:block;margin:0 auto 8px;max-width:210px;max-height:78px;}
+    .pdf-head{border-bottom:2px solid #c19a3e;padding-bottom:12px;text-align:center;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin:6px 0 16px;}
+    .info{font-size:14px;margin-bottom:14px;} .info b{color:#1c4536;}
+    .grand{display:flex;justify-content:space-between;gap:10px;background:#f6f1e6;border:1px solid #e0dccf;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:14px;font-weight:600;}
+    .grand .paid{color:#2f8f5b;} .grand .rem{color:#b5763a;}
+    .blk{margin-bottom:18px;} .blk-h{font-weight:700;color:#1c4536;border-right:3px solid #c19a3e;padding-right:8px;margin-bottom:6px;}
+    .blk-h .st{font-weight:400;color:#94908a;font-size:12px;}
+    .sm{font-size:12.5px;color:#555;margin-bottom:6px;} .sm .paid{color:#2f8f5b;} .sm .rem{color:#b5763a;}
+    table{width:100%;border-collapse:collapse;font-size:13px;} th,td{border:1px solid #e0dccf;padding:7px 10px;text-align:right;} th{background:#123028;color:#fff;}
+    td.empty{text-align:center;color:#94908a;}
+    ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+    <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" /><div class="sub">تقرير الأقساط — ${hijriToday()}</div></div>
+    <div class="info">العضو: <b>${escapeHtml(m.name)}</b> — رقم العضوية: <b>${memberCode(m)}</b></div>
+    <div class="grand"><span>الإجمالي المتّفق عليه: ${money(grandAgreed)}</span><span class="paid">المدفوع: ${money(grandPaid)}</span><span class="rem">المتبقّي: ${money(grandRem)}</span></div>
+    <div class="blk"><div class="blk-h">اشتراك العضوية <span class="st">${subStatus}</span></div>
+      <div class="sm">الإجمالي: <b>${money(subTot)}</b> · المدفوع: <b class="paid">${money(subPaid)}</b> · المتبقّي: <b class="rem">${money(subRem)}</b></div>
+      <table><thead><tr><th>#</th><th>المبلغ</th><th>التاريخ</th><th>ملاحظة</th></tr></thead><tbody>${subRows}</tbody></table></div>
+    ${miqatBlocks}
+    </body></html>`);
+  w.document.close(); w.focus();
+}
+
 async function recordPayment(id){ const m=members.find(x=>x.id===id); if(!m) return;
-  m.paymentDate=today(); m.expiryDate=addYear(m.paymentDate); m.paidAmount=settings.fee;
+  m.paymentDate=today(); m.expiryDate=addYear(m.paymentDate); m.paidAmount=settings.fee; m.feeTotal=Number(settings.fee)||0;
+  m.payments=[{amount:Number(settings.fee)||0, date:today()}];
   m.hijriStartYear=settings.year||1448; m.hijriEndYear=(settings.year||1448)+1;
   await saveMembers(); toast('تم تسجيل الاشتراك — العضوية مفعّلة'); closeModal('detailModal'); openCard(id); renderDashboard(); }
 async function renewPayment(id){ const m=members.find(x=>x.id===id); if(!m) return;
@@ -1113,7 +1257,7 @@ function openBooking(miqatId){
   $('#bookingMiqatId').value=miqatId; $('#bookingSub').textContent=`${mq.name} · ${fmtMiqatDate(mq)}`;
   $('#bookingMember').innerHTML=members.slice().sort((a,b)=>a.number-b.number).map(m=>`<option value="${m.id}">${escapeHtml(m.name)} — ${memberCode(m)}</option>`).join('');
   if(!members.length){ toast('أضف أعضاء أولاً'); return; }
-  contribInit('booking');
+  contribInit('booking'); const bi=$('#bookingInitPaid'); if(bi) bi.value='';
   $('#bookingModal').classList.add('open');
 }
 /* ═══ محرّر بنود المساهمة (متعدّد: نقدي/عيني بقيمة تقديرية) ═══ */
@@ -1153,10 +1297,17 @@ async function saveBooking(){
   const miqatId=$('#bookingMiqatId').value; const memberId=$('#bookingMember').value;
   const items=contribItems('booking'); const amount=items.reduce((s,i)=>s+i.value,0);
   if(!items.length){ toast('أدخل بنداً واحداً على الأقل'); return; }
+  const initRaw=$('#bookingInitPaid').value; const initPaid = initRaw==='' ? amount : Math.max(0, Math.min(amount, parseFloat(initRaw)||0));
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   mq.bookings=mq.bookings||[]; const existing=mq.bookings.find(b=>b.memberId===memberId);
-  if(existing){ existing.items=[...bookingItems(existing).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...items]; existing.amount=(Number(existing.amount)||0)+amount; }
-  else mq.bookings.push({memberId, amount, items});
+  if(existing){
+    existing.items=[...bookingItems(existing).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...items];
+    existing.amount=(Number(existing.amount)||0)+amount;
+    if(!Array.isArray(existing.payments)) existing.payments=[{amount:Number(existing.amount)-amount, date:today()}];
+    if(initPaid>0) existing.payments.push({amount:initPaid, date:today()});
+  } else {
+    mq.bookings.push({memberId, amount, items, payments: initPaid>0?[{amount:initPaid, date:today()}]:[]});
+  }
   await saveMiqats(); closeModal('bookingModal'); renderMiqats(); renderRecentMembers(); renderDashboard(); toast('تم إضافة الحجز');
 }
 async function removeBooking(miqatId,memberId){ const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;

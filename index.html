@@ -247,6 +247,34 @@
   .contrib-total { font-size:13px; color:var(--muted); }
   .contrib-total b { color:var(--accent); font-family:var(--font-display); }
 
+  /* ═══ التقسيط (العضوية والمساهمات) ═══ */
+  .sub-inst { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px; margin:12px 0; }
+  .si-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .si-title { font-family:var(--font-display); font-size:14px; color:var(--ink); }
+  .si-badge { font-size:11.5px; padding:4px 11px; border-radius:20px; font-weight:500; }
+  .si-badge.st-green { background:var(--ok-soft); color:var(--ok); }
+  .si-badge.st-yellow { background:var(--warn-soft); color:var(--warn); }
+  .si-badge.st-red { background:var(--danger-soft); color:var(--danger); }
+  .si-bar { height:7px; border-radius:7px; background:var(--line); overflow:hidden; }
+  .si-bar span { display:block; height:100%; border-radius:7px; background:linear-gradient(90deg,var(--gold),var(--accent)); }
+  .si-nums { display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-top:8px; }
+  .si-nums b { color:var(--ink); font-family:var(--font-display); }
+  .pay-list { margin-top:10px; display:flex; flex-direction:column; gap:6px; }
+  .pay-item { display:flex; justify-content:space-between; font-size:12.5px; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:7px 11px; }
+  .pay-item .pd { color:var(--muted); }
+  .pay-item .pn { color:var(--muted); font-size:11.5px; }
+  .bk-pay { display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12px; color:var(--muted); }
+  .bk-pay .bk-rem { color:var(--warn); font-weight:600; }
+  .bk-pay .bk-add { margin-right:auto; background:var(--accent-soft); color:var(--accent); border:0; border-radius:8px; padding:5px 11px; font-size:11.5px; cursor:pointer; font-family:var(--font-display); }
+  /* قائمة الأقساط المتبقّية */
+  .due-item { display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line);
+    border-right:3px solid var(--warn); border-radius:12px; padding:12px 14px; margin-bottom:10px; }
+  .due-item .di-mid { flex:1; min-width:0; }
+  .due-item .di-name { font-weight:600; font-size:14px; }
+  .due-item .di-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .due-item .di-rem { font-family:var(--font-display); color:var(--warn); font-weight:600; white-space:nowrap; }
+  .due-sec-title { font-family:var(--font-display); font-size:14px; color:var(--accent); margin:16px 0 10px; }
+
   /* ═══ ألبوم الصور (اللجنة الإعلامية) ═══ */
   .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
   .album-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow:hidden;
@@ -864,6 +892,14 @@
       <div class="mq-soon-list" id="recentMembersCarousel"></div>
     </div>
 
+    <div class="panel" id="duesPanel" style="display:none">
+      <div class="panel-header">
+        <div class="panel-title">🧾 أقساط متبقّية</div>
+        <span class="panel-sub">اشتراكات ومساهمات لم تُسدَّد بالكامل</span>
+      </div>
+      <div id="duesList"></div>
+    </div>
+
     <div class="panel">
       <div class="section-label">🔍 بحث شامل</div>
       <div class="search-box">
@@ -1460,6 +1496,8 @@
   <div class="field"><label>العضو</label><select id="bookingMember"></select></div>
   <div class="field" style="margin-top:10px;"><label>المساهمة <span class="opt">نقدي أو عيني — أضف بنداً لكل نوع</span></label>
     <div id="bookingItems" class="contrib-editor" data-ctx="booking"></div></div>
+  <div class="field" style="margin-top:10px;"><label>المدفوع الآن (د.ب) <span class="opt">اتركه فارغاً إذا دُفع المبلغ كاملاً — أو أدخل الدفعة الأولى للتقسيط</span></label>
+    <input type="number" id="bookingInitPaid" min="0" step="0.001" placeholder="مدفوع بالكامل" /></div>
   <div class="actions-row"><button class="btn btn-primary" onclick="saveBooking()">إضافة الحجز</button></div>
 </div></div>
 
@@ -1690,6 +1728,32 @@
     <p id="lightboxDesc"></p>
     <button class="btn btn-ghost btn-sm" id="lightboxDel">🗑️ حذف الصورة</button>
   </div>
+</div></div>
+
+<!-- Subscription installment payment modal -->
+<div class="modal-backdrop" id="subPayModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('subPayModal')">×</button>
+  <h3>➕ تسجيل دفعة اشتراك</h3>
+  <div class="subtitle" id="subPaySub"></div>
+  <div class="field"><label>مبلغ الدفعة (د.ب)</label>
+    <input type="number" id="subPayAmount" min="0" step="0.001" placeholder="0" /></div>
+  <div class="field" style="margin-top:8px"><label>ملاحظة <span class="opt">اختياري</span></label>
+    <input type="text" id="subPayNote" placeholder="مثال: دفعة أولى نقداً" /></div>
+  <div class="actions-row"><button class="btn btn-primary" onclick="addSubPayment()">حفظ الدفعة</button>
+    <button class="btn btn-ghost" onclick="closeModal('subPayModal')">إلغاء</button></div>
+</div></div>
+
+<!-- Miqat booking installment payment modal -->
+<div class="modal-backdrop" id="bkPayModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('bkPayModal')">×</button>
+  <h3>➕ تسجيل دفعة على المساهمة</h3>
+  <div class="subtitle" id="bkPaySub"></div>
+  <div class="field"><label>مبلغ الدفعة (د.ب)</label>
+    <input type="number" id="bkPayAmount" min="0" step="0.001" placeholder="0" /></div>
+  <div class="field" style="margin-top:8px"><label>ملاحظة <span class="opt">اختياري</span></label>
+    <input type="text" id="bkPayNote" placeholder="مثال: دفعة نقدية" /></div>
+  <div class="actions-row"><button class="btn btn-primary" onclick="addBookingPayment()">حفظ الدفعة</button>
+    <button class="btn btn-ghost" onclick="closeModal('bkPayModal')">إلغاء</button></div>
 </div></div>
 
 <script src="assets.js"></script>
