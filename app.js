@@ -758,54 +758,20 @@ function openEditMember(id){
   $('#editComm').value=m.committee||'';
   editPhoto=m.photo||null;
   $('#editPhotoPreview').innerHTML=editPhoto?`<img src="${editPhoto}" alt="" />`:'👤';
-  renderEditMiqats();
+  populateEditMiqatSelect();
   closeModal('detailModal');
   $('#editModal').classList.add('open');
 }
 
-/* ─── مواقيت العضو داخل نافذة التعديل ─── */
-function renderEditMiqats(){
+/* قائمة المواقيت المتاحة للإضافة في نافذة التعديل (التي لم يُحجز فيها العضو بعد) */
+function populateEditMiqatSelect(){
   const m=members.find(x=>x.id===editingMemberId); if(!m) return;
-  const list=$('#editMiqatsList'); const sel=$('#editMiqatSelect');
-  const mine=memberMiqats(m);
-  list.innerHTML = mine.length
-    ? mine.map(mq=>{
-        const bk=(mq.bookings||[]).find(b=>b.memberId===m.id)||{};
-        return `<div class="em-row">
-          <span class="em-name">${escapeHtml(mq.name)} <span class="em-date">· ${fmtMiqatDate(mq)}</span></span>
-          <span class="em-amt">${fmtMoney(Number(bk.amount)||0)}</span>
-          <button class="em-del" title="إزالة" onclick="removeEditMiqat('${mq.id}')">×</button>
-        </div>`;
-      }).join('')
-    : `<div class="em-empty">لا توجد مواقيت مسجّلة لهذا العضو</div>`;
-  // المواقيت المتاحة للإضافة (التي لم يُحجز فيها بعد)
+  const sel=$('#editMiqatSelect'); if(!sel) return;
   const available=miqats.filter(mq=>!(mq.bookings||[]).some(b=>b.memberId===m.id));
   sel.innerHTML = available.length
-    ? `<option value="">اختر ميقاتاً لإضافته…</option>` + available.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)}</option>`).join('')
-    : `<option value="">لا توجد مواقيت أخرى متاحة</option>`;
-  $('#editMiqatAmount').value='';
-}
-async function addEditMiqat(){
-  const m=members.find(x=>x.id===editingMemberId); if(!m) return;
-  const miqatId=$('#editMiqatSelect').value;
-  if(!miqatId){ toast('اختر ميقاتاً أولاً'); return; }
-  const amount=parseFloat($('#editMiqatAmount').value)||0;
-  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
-  mq.bookings=mq.bookings||[];
-  const ex=mq.bookings.find(b=>b.memberId===m.id);
-  if(ex) ex.amount=(Number(ex.amount)||0)+amount; else mq.bookings.push({memberId:m.id, amount});
-  await saveMiqats();
-  renderEditMiqats(); renderMiqats(); renderRecentMembers(); renderDashboard();
-  toast('تمت إضافة الميقات للعضو');
-}
-async function removeEditMiqat(miqatId){
-  const m=members.find(x=>x.id===editingMemberId); if(!m) return;
-  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
-  if(!confirm('إزالة هذا الميقات من العضو؟')) return;
-  mq.bookings=(mq.bookings||[]).filter(b=>b.memberId!==m.id);
-  await saveMiqats();
-  renderEditMiqats(); renderMiqats(); renderRecentMembers(); renderDashboard();
-  toast('تمت إزالة الميقات');
+    ? `<option value="">اختر ميقاتاً…</option>` + available.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)}</option>`).join('')
+    : `<option value="">لا توجد مواقيت متاحة</option>`;
+  const amt=$('#editMiqatAmount'); if(amt) amt.value='';
 }
 let editPhoto=null;
 async function handleEditPhoto(e){
@@ -824,9 +790,24 @@ async function saveEditMember(){
   else { m.birthdate=null; m.age=null; }
   m.isAdmin=$('#editIsAdmin').checked; m.committee=m.isAdmin?$('#editComm').value.trim():'';
   m.photo=editPhoto||null;
+  // إضافة ميقات جديد للعضو (إن اختير) مع مساهمته المالية
+  const addMiqatId=$('#editMiqatSelect') ? $('#editMiqatSelect').value : '';
+  let miqatsChanged=false;
+  if(addMiqatId){
+    const mq=miqats.find(x=>x.id===addMiqatId);
+    if(mq){
+      const amount=parseFloat($('#editMiqatAmount').value)||0;
+      mq.bookings=mq.bookings||[];
+      const ex=mq.bookings.find(b=>b.memberId===m.id);
+      if(ex) ex.amount=(Number(ex.amount)||0)+amount; else mq.bookings.push({memberId:m.id, amount});
+      miqatsChanged=true;
+    }
+  }
   await saveMembers();
+  if(miqatsChanged) await saveMiqats();
   closeModal('editModal'); toast('تم حفظ التعديلات');
   renderMembers(); renderAdmins(); renderDashboard();
+  if(miqatsChanged) renderMiqats();
   showDetail(m.id);
 }
 function ageFromBirthdate(iso){

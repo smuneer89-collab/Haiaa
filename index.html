@@ -229,22 +229,11 @@
   .mq-foot b { color:#e8c66a; font-family:var(--font-display); font-weight:500; }
   .mq-card.near { --mqc:#e0705a; } .mq-card.soon { --mqc:#e0b45a; } .mq-card.far { --mqc:#3f9e78; }
 
-  /* مواقيت العضو داخل نافذة التعديل */
-  #editMiqatsList { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
-  .em-row { display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line);
-    border-radius:10px; padding:9px 12px; }
-  .em-row .em-name { flex:1; min-width:0; font-size:13.5px; font-weight:500; color:var(--ink);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .em-row .em-date { font-size:11.5px; color:var(--muted); }
-  .em-row .em-amt { font-size:12px; color:var(--accent); font-weight:600; white-space:nowrap; }
-  .em-row .em-del { background:var(--danger-soft); color:var(--danger); border:0; border-radius:8px;
-    width:28px; height:28px; cursor:pointer; font-size:15px; flex:none; }
-  .em-empty { font-size:12.5px; color:var(--muted); background:var(--surface); border:1px dashed var(--line);
-    border-radius:10px; padding:12px; text-align:center; }
+  /* إضافة ميقات داخل نافذة التعديل */
   .edit-miqat-add { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .edit-miqat-add select { flex:1; min-width:150px; }
-  .edit-miqat-add input { width:100px; flex:none; }
-  .edit-miqat-add .btn { flex:none; }
+  .edit-miqat-add input { width:130px; flex:none; }
+  .edit-miqat-hint { font-size:11.5px; color:var(--muted); margin-top:8px; }
 
   /* Upcoming occasions (vertical auto + سحب) */
   .occ-viewport { overflow:hidden; position:relative; }
@@ -1351,13 +1340,12 @@
   </div>
 
   <div class="toggle-section" id="editMiqatsSection">
-    <div class="toggle-label" style="margin-bottom:10px">مواقيت العضو <span class="opt">حجوزاته الحالية</span></div>
-    <div id="editMiqatsList"></div>
+    <div class="toggle-label" style="margin-bottom:10px">إضافة ميقات للعضو <span class="opt">اختياري</span></div>
     <div class="edit-miqat-add">
       <select id="editMiqatSelect"></select>
-      <input id="editMiqatAmount" type="number" inputmode="decimal" min="0" placeholder="المبلغ" />
-      <button type="button" class="btn btn-ghost" onclick="addEditMiqat()">➕ إضافة ميقات</button>
+      <input id="editMiqatAmount" type="number" inputmode="decimal" min="0" placeholder="مساهمة العضو" />
     </div>
+    <div class="edit-miqat-hint">اختر الميقات وأدخل المساهمة، ثم اضغط «حفظ التعديلات».</div>
   </div>
 
   <div class="actions-row">
