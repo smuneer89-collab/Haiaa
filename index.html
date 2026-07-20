@@ -235,6 +235,18 @@
   .edit-miqat-add input { width:130px; flex:none; }
   .edit-miqat-hint { font-size:11.5px; color:var(--muted); margin-top:8px; }
 
+  /* محرّر بنود المساهمة (نقدي/عيني متعدّد) */
+  .contrib-editor { display:flex; flex-direction:column; gap:8px; }
+  .contrib-row { display:flex; gap:8px; align-items:center; }
+  .contrib-row select { flex:1; min-width:0; }
+  .contrib-row .contrib-other { flex:1; min-width:0; }
+  .contrib-row .contrib-val { width:96px; flex:none; }
+  .contrib-row .contrib-del { width:30px; height:30px; flex:none; border:0; border-radius:8px;
+    background:var(--danger-soft); color:var(--danger); cursor:pointer; font-size:16px; }
+  .contrib-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:2px; flex-wrap:wrap; }
+  .contrib-total { font-size:13px; color:var(--muted); }
+  .contrib-total b { color:var(--accent); font-family:var(--font-display); }
+
   /* ═══ ألبوم الصور (اللجنة الإعلامية) ═══ */
   .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
   .album-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow:hidden;
@@ -1386,9 +1398,9 @@
     <div class="toggle-label" style="margin-bottom:10px">إضافة ميقات للعضو <span class="opt">اختياري</span></div>
     <div class="edit-miqat-add">
       <select id="editMiqatSelect"></select>
-      <input id="editMiqatAmount" type="number" inputmode="decimal" min="0" placeholder="مساهمة العضو" />
     </div>
-    <div class="edit-miqat-hint">اختر الميقات وأدخل المساهمة، ثم اضغط «حفظ التعديلات».</div>
+    <div id="editMiqatItems" class="contrib-editor" style="margin-top:10px"></div>
+    <div class="edit-miqat-hint">اختر الميقات وأضف بنود المساهمة (نقدي/عيني)، ثم اضغط «حفظ التعديلات».</div>
   </div>
 
   <div class="actions-row">
@@ -1446,8 +1458,8 @@
   <div class="subtitle" id="bookingSub"></div>
   <input type="hidden" id="bookingMiqatId" />
   <div class="field"><label>العضو</label><select id="bookingMember"></select></div>
-  <div class="field" style="margin-top:10px;"><label>المبلغ المدفوع (د.ب)</label>
-    <input type="number" id="bookingAmount" min="0" step="0.001" placeholder="0" /></div>
+  <div class="field" style="margin-top:10px;"><label>المساهمة <span class="opt">نقدي أو عيني — أضف بنداً لكل نوع</span></label>
+    <div id="bookingItems" class="contrib-editor"></div></div>
   <div class="actions-row"><button class="btn btn-primary" onclick="saveBooking()">إضافة الحجز</button></div>
 </div></div>
 

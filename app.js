@@ -103,6 +103,16 @@ function hijriToday(){ const h=hijriParts(); return `${h.day} ${HIJRI_MONTHS[h.m
 
 /* ─── Miqat status ─── */
 function miqatPaid(mq){ return (mq.bookings||[]).reduce((s,b)=>s+(Number(b.amount)||0),0); }
+/* أنواع المساهمة: نقدي أو عيني (بقيمة تقديرية يكتبها المستخدم). كل حجز قد يضم عدّة بنود */
+const CONTRIB_KINDS = ['نقدي','وجبة غداء','وجبة عشاء','أجرة خطيب','أجرة رادود','أخرى'];
+function bookingItems(b){ if(b && Array.isArray(b.items) && b.items.length) return b.items; return [{kind:'نقدي', value:Number(b&&b.amount)||0}]; }
+function fmtBooking(b){
+  const items=bookingItems(b); const total=items.reduce((s,i)=>s+(Number(i.value)||0),0);
+  if(items.length===1 && (items[0].kind==='نقدي'||!items[0].kind)) return fmtMoney(total);
+  const parts=items.map(i=>`${escapeHtml(i.kind||'نقدي')} ${fmtMoney(Number(i.value)||0)}`);
+  return `${parts.join(' + ')} = ${fmtMoney(total)}`;
+}
+function contribKindOptions(sel){ return CONTRIB_KINDS.map(k=>`<option value="${k}"${k===sel?' selected':''}>${k}</option>`).join(''); }
 function miqatStatus(mq){
   const paid = miqatPaid(mq); const req = Number(mq.requiredAmount)||0;
   if (paid <= 0) return 'red';
@@ -536,7 +546,7 @@ function showMiqatDetail(id){
   const st=miqatStatus(mq), paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
   const pct=req>0?Math.min(100,Math.round(paid/req*100)):(paid>0?100:0);
   const bookers=(mq.bookings||[]).map(b=>{ const m=members.find(x=>x.id===b.memberId);
-    return `<li><span class="name">${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span></span><span class="date">${fmtMoney(b.amount)}</span></li>`;
+    return `<li><span class="name">${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span></span><span class="date">${fmtBooking(b)}</span></li>`;
   }).join('');
   $('#miqatDetailTitle').textContent=mq.name;
   $('#miqatDetailSub').innerHTML=`${fmtMiqatDate(mq)} · <span class="badge mc-status st-${st}">${STATUS_LABEL[st]}</span>`;
@@ -808,7 +818,7 @@ function showDetail(id){
   $('#detailSubtitle').innerHTML=`<span style="font-weight:600;color:var(--ink)">${memberCode(m)}</span> · ${m.type} · <span class="badge status-${active?'active':'inactive'}">${active?'مفعّلة':'غير مفعّلة'}</span> ${m.isAdmin?'· <span class="badge admin">إداري</span>':''}`;
   const mms=memberMiqats(m);
   const miqatsHTML=mms.length?`<div class="detail-miqats"><div class="title">مواقيته</div><ul>
-    ${mms.map(mq=>{ const b=mq.bookings.find(x=>x.memberId===m.id); return `<li><span class="name">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</span><span class="date">${fmtMoney(b?b.amount:0)}</span></li>`; }).join('')}
+    ${mms.map(mq=>{ const b=mq.bookings.find(x=>x.memberId===m.id); return `<li><span class="name">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</span><span class="date">${b?fmtBooking(b):fmtMoney(0)}</span></li>`; }).join('')}
     </ul></div>`:'';
   const reminderHTML=miqatRemindersHTML(m);
   $('#detailContent').innerHTML=`
@@ -871,7 +881,7 @@ function populateEditMiqatSelect(){
   sel.innerHTML = available.length
     ? `<option value="">اختر ميقاتاً…</option>` + available.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)}</option>`).join('')
     : `<option value="">لا توجد مواقيت متاحة</option>`;
-  const amt=$('#editMiqatAmount'); if(amt) amt.value='';
+  contribInit('edit');
 }
 let editPhoto=null;
 async function handleEditPhoto(e){
@@ -896,11 +906,14 @@ async function saveEditMember(){
   if(addMiqatId){
     const mq=miqats.find(x=>x.id===addMiqatId);
     if(mq){
-      const amount=parseFloat($('#editMiqatAmount').value)||0;
-      mq.bookings=mq.bookings||[];
-      const ex=mq.bookings.find(b=>b.memberId===m.id);
-      if(ex) ex.amount=(Number(ex.amount)||0)+amount; else mq.bookings.push({memberId:m.id, amount});
-      miqatsChanged=true;
+      const items=contribItems('edit'); const amount=items.reduce((s,i)=>s+i.value,0);
+      if(items.length){
+        mq.bookings=mq.bookings||[];
+        const ex=mq.bookings.find(b=>b.memberId===m.id);
+        if(ex){ ex.items=[...bookingItems(ex).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...items]; ex.amount=(Number(ex.amount)||0)+amount; }
+        else mq.bookings.push({memberId:m.id, amount, items});
+        miqatsChanged=true;
+      }
     }
   }
   await saveMembers();
@@ -1059,7 +1072,7 @@ function renderMiqats(){
     const pct=req>0?Math.min(100,Math.round(paid/req*100)):(paid>0?100:0);
     const bookers=(mq.bookings||[]).map(b=>{ const m=members.find(x=>x.id===b.memberId);
       return `<div class="booker-line"><span>${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span></span>
-        <span><span class="bl-amt">${fmtMoney(b.amount)}</span> <button class="bl-del" onclick="removeBooking('${mq.id}','${b.memberId}')">×</button></span></div>`; }).join('');
+        <span><span class="bl-amt">${fmtBooking(b)}</span> <button class="bl-del" onclick="removeBooking('${mq.id}','${b.memberId}')">×</button></span></div>`; }).join('');
     const details = open ? `
       <div class="mc-details">
         <div class="mc-date">${fmtMiqatDate(mq)}</div>
@@ -1094,14 +1107,51 @@ function openBooking(miqatId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   $('#bookingMiqatId').value=miqatId; $('#bookingSub').textContent=`${mq.name} · ${fmtMiqatDate(mq)}`;
   $('#bookingMember').innerHTML=members.slice().sort((a,b)=>a.number-b.number).map(m=>`<option value="${m.id}">${escapeHtml(m.name)} — ${memberCode(m)}</option>`).join('');
-  $('#bookingAmount').value=''; if(!members.length){ toast('أضف أعضاء أولاً'); return; } $('#bookingModal').classList.add('open');
+  if(!members.length){ toast('أضف أعضاء أولاً'); return; }
+  contribInit('booking');
+  $('#bookingModal').classList.add('open');
 }
+/* ═══ محرّر بنود المساهمة (متعدّد: نقدي/عيني بقيمة تقديرية) ═══ */
+const contribState = { booking: [], edit: [] };
+function contribInit(ctx){ contribState[ctx]=[{kind:'نقدي', other:'', value:''}]; contribRender(ctx); }
+function contribAdd(ctx){ contribState[ctx].push({kind:'نقدي', other:'', value:''}); contribRender(ctx); }
+function contribRemove(ctx,i){ contribState[ctx].splice(i,1); if(!contribState[ctx].length) contribState[ctx].push({kind:'نقدي',other:'',value:''}); contribRender(ctx); }
+function contribSetKind(ctx,i,v){ contribState[ctx][i].kind=v; contribRender(ctx); }
+function contribSetOther(ctx,i,v){ contribState[ctx][i].other=v; }
+function contribSetValue(ctx,i,v){ contribState[ctx][i].value=v; contribTotalUpdate(ctx); }
+function contribItems(ctx){
+  return contribState[ctx].map(it=>{
+    let kind = it.kind==='أخرى' ? (it.other||'').trim()||'أخرى' : it.kind;
+    return { kind, value: parseFloat(it.value)||0 };
+  }).filter(it=> it.value>0 || (it.kind && it.kind!=='نقدي'));
+}
+function contribTotal(ctx){ return contribState[ctx].reduce((s,it)=>s+(parseFloat(it.value)||0),0); }
+function contribTotalUpdate(ctx){ const el=document.getElementById(ctx==='booking'?'bookingTotal':'editMiqatTotal'); if(el) el.textContent=fmtMoney(contribTotal(ctx)); }
+function contribRender(ctx){
+  const box=document.getElementById(ctx==='booking'?'bookingItems':'editMiqatItems'); if(!box) return;
+  const rows=contribState[ctx].map((it,i)=>`
+    <div class="contrib-row">
+      <select onchange="contribSetKind('${ctx}',${i},this.value)">${contribKindOptions(it.kind)}</select>
+      ${it.kind==='أخرى'?`<input type="text" class="contrib-other" placeholder="النوع" value="${(it.other||'').replace(/"/g,'&quot;')}" oninput="contribSetOther('${ctx}',${i},this.value)">`:''}
+      <input type="number" class="contrib-val" min="0" step="0.001" placeholder="القيمة" value="${it.value}" oninput="contribSetValue('${ctx}',${i},this.value)">
+      <button type="button" class="contrib-del" onclick="contribRemove('${ctx}',${i})" title="حذف البند">×</button>
+    </div>`).join('');
+  box.innerHTML = `${rows}
+    <div class="contrib-foot">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="contribAdd('${ctx}')">➕ بند آخر</button>
+      <span class="contrib-total">الإجمالي: <b id="${ctx==='booking'?'bookingTotal':'editMiqatTotal'}">${fmtMoney(contribTotal(ctx))}</b></span>
+    </div>`;
+}
+
 async function saveBooking(){
-  const miqatId=$('#bookingMiqatId').value; const memberId=$('#bookingMember').value; const amount=parseFloat($('#bookingAmount').value)||0;
+  const miqatId=$('#bookingMiqatId').value; const memberId=$('#bookingMember').value;
+  const items=contribItems('booking'); const amount=items.reduce((s,i)=>s+i.value,0);
+  if(!items.length){ toast('أدخل بنداً واحداً على الأقل'); return; }
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   mq.bookings=mq.bookings||[]; const existing=mq.bookings.find(b=>b.memberId===memberId);
-  if(existing) existing.amount=(Number(existing.amount)||0)+amount; else mq.bookings.push({memberId,amount});
-  await saveMiqats(); closeModal('bookingModal'); renderMiqats(); toast('تم إضافة الحجز');
+  if(existing){ existing.items=[...bookingItems(existing).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...items]; existing.amount=(Number(existing.amount)||0)+amount; }
+  else mq.bookings.push({memberId, amount, items});
+  await saveMiqats(); closeModal('bookingModal'); renderMiqats(); renderRecentMembers(); renderDashboard(); toast('تم إضافة الحجز');
 }
 async function removeBooking(miqatId,memberId){ const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   if(!confirm('إزالة حجز هذا العضو؟')) return; mq.bookings=mq.bookings.filter(b=>b.memberId!==memberId); await saveMiqats(); renderMiqats(); }
