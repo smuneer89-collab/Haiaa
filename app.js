@@ -55,6 +55,7 @@ let miqats = [];   // {id, name, day, month, requiredAmount, bookings:[{memberId
 let news = [];     // {id, title, body, date}
 let meetings = []; // {id, number, datetime, committee, plannedMinutes, attendance:[{memberId,present}], speech, agenda, proceedings, minutes, decisions:[{id,text,owner,due,done}], tasks:[...], attachments:[{id,name,type,data}], startedAt, endedAt}
 let assemblies = []; // الجمعية العمومية: {id, year, attendees:[memberId], projects:[{id,title,committee,category}], report:{adminWord,plan,majalis,events,mawakib,achievements,topProjects,challenges,honoring}}
+let photos = []; // ألبوم الصور: {id, img, occasion, photographer, desc, date}
 let uiDark = false;
 let settings = {
   fee: 30, year: 1448,
@@ -120,6 +121,7 @@ async function loadData(){
     templates:{...settings.templates,...(JSON.parse(s).templates||{})}}; } catch(e){}
   try { const mt=await storage.get('meetings'); if(mt) meetings=JSON.parse(mt); } catch(e){ meetings=[]; }
   try { const asm=await storage.get('assemblies'); if(asm) assemblies=JSON.parse(asm); } catch(e){ assemblies=[]; }
+  try { const ph=await storage.get('photos'); if(ph) photos=JSON.parse(ph); } catch(e){ photos=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
 }
 async function saveMembers(){ try{ await storage.set('members',JSON.stringify(members)); }catch(e){ toast('تعذر الحفظ'); } }
@@ -128,6 +130,104 @@ async function saveNews(){ try{ await storage.set('news',JSON.stringify(news)); 
 async function persistSettings(){ try{ await storage.set('settings',JSON.stringify(settings)); }catch(e){} }
 async function saveMeetings(){ try{ await storage.set('meetings',JSON.stringify(meetings)); }catch(e){ toast('تعذر حفظ الاجتماع'); } }
 async function saveAssemblies(){ try{ await storage.set('assemblies',JSON.stringify(assemblies)); }catch(e){ toast('تعذر حفظ الجمعية'); } }
+async function savePhotos(){ try{ await storage.set('photos',JSON.stringify(photos)); }catch(e){ toast('تعذّر حفظ الصور'); } }
+
+/* ═══════════ ألبوم الصور (اللجنة الإعلامية) ═══════════ */
+let albumPhotoData=null;
+function renderAlbum(){
+  const grid=$('#albumGrid'); const cnt=$('#albumCount');
+  if(cnt) cnt.textContent=`${photos.length} صورة`;
+  if(!grid) return;
+  if(!photos.length){ grid.innerHTML=`<div class="album-empty">لا توجد صور بعد. اضغط «➕ إضافة صورة» لإضافة أول صورة.</div>`; return; }
+  const ordered=[...photos].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  grid.innerHTML=ordered.map(p=>`<div class="album-card" onclick="openLightbox('${p.id}')">
+    <img class="ac-img" src="${p.img}" alt="${escapeHtml(p.occasion||'')}" loading="lazy">
+    <div class="ac-body">
+      <div class="ac-occ">${escapeHtml(p.occasion||'بدون عنوان')}</div>
+      ${p.photographer?`<div class="ac-by">📷 ${escapeHtml(p.photographer)}</div>`:''}
+      ${p.desc?`<div class="ac-desc">${escapeHtml(p.desc)}</div>`:''}
+    </div>
+  </div>`).join('');
+}
+function openAddPhoto(){
+  albumPhotoData=null;
+  $('#albumPhotoPreview').innerHTML='🖼️';
+  $('#albumOccasion').value=''; $('#albumPhotographer').value=''; $('#albumDesc').value='';
+  $('#addPhotoModal').classList.add('open');
+}
+async function handleAlbumPhotoSelect(e){
+  const file=e.target.files[0]; if(!file) return;
+  if(file.size>15*1024*1024){ toast('الصورة كبيرة جداً (أقل من 15 ميجا)'); return; }
+  try{ albumPhotoData=await processPhoto(file, 1000, .78); $('#albumPhotoPreview').innerHTML=`<img src="${albumPhotoData}" alt="" />`; }
+  catch(err){ toast('تعذّرت معالجة الصورة'); }
+}
+async function saveAlbumPhoto(){
+  if(!albumPhotoData){ toast('اختر صورة أولاً'); return; }
+  const occasion=$('#albumOccasion').value.trim();
+  const photographer=$('#albumPhotographer').value.trim();
+  const desc=$('#albumDesc').value.trim();
+  photos.push({ id:'p_'+Date.now(), img:albumPhotoData, occasion, photographer, desc, date:new Date().toISOString() });
+  await savePhotos();
+  albumPhotoData=null;
+  closeModal('addPhotoModal'); toast('تمت إضافة الصورة');
+  renderAlbum(); renderPhotoCarousel();
+}
+function openLightbox(id){
+  const p=photos.find(x=>x.id===id); if(!p) return;
+  $('#lightboxImg').innerHTML=`<img src="${p.img}" alt="">`;
+  $('#lightboxOccasion').textContent=p.occasion||'بدون عنوان';
+  $('#lightboxBy').textContent=p.photographer?('📷 '+p.photographer):'';
+  $('#lightboxDesc').textContent=p.desc||'';
+  $('#lightboxDel').onclick=()=>deletePhoto(id);
+  $('#photoLightbox').classList.add('open');
+}
+async function deletePhoto(id){
+  if(!confirm('حذف هذه الصورة؟')) return;
+  photos=photos.filter(p=>p.id!==id);
+  await savePhotos();
+  closeModal('photoLightbox');
+  renderAlbum(); renderPhotoCarousel();
+  toast('تم حذف الصورة');
+}
+/* كاروسيل الصور في الرئيسية — ترتيب عشوائي وحركة آلية */
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function renderPhotoCarousel(){
+  const panel=$('#photoCarouselPanel'); const box=$('#photoCarousel');
+  if(!panel||!box) return;
+  if(!photos.length){ panel.style.display='none'; if(box.__marqStop){box.__marqStop();box.__marqStop=null;} return; }
+  panel.style.display='block';
+  const itemsHTML=shuffle(photos).map(p=>`<div class="pc-item" onclick="openLightbox('${p.id}')">
+    <img src="${p.img}" alt="${escapeHtml(p.occasion||'')}" loading="lazy">
+    <div class="pc-cap"><div class="t">${escapeHtml(p.occasion||'')}</div>${p.photographer?`<div class="b">📷 ${escapeHtml(p.photographer)}</div>`:''}</div>
+  </div>`).join('');
+  buildPhotoMarquee(box, itemsHTML);
+}
+function buildPhotoMarquee(container, itemsHTML){
+  if(container.__marqStop){ container.__marqStop(); container.__marqStop=null; }
+  container.innerHTML=`<div class="pc-track">${itemsHTML}</div>`;
+  const track=container.querySelector('.pc-track'); if(!track) return;
+  const reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  requestAnimationFrame(()=>{
+    let one=track.scrollWidth; if(one<=0) return;
+    const avail=container.clientWidth||300;
+    let reps=Math.min(30, Math.max(2, Math.ceil((avail*2)/one)+1));
+    track.innerHTML=new Array(reps).fill(itemsHTML).join('');
+    one=track.scrollWidth/reps;
+    let pos=0,paused=false,dragging=false,moved=false,startX=0,startPos=0,lastT=0,raf=0;
+    const apply=()=>track.style.transform=`translateX(${-pos}px)`;
+    const wrap=()=>{ pos=((pos%one)+one)%one; };
+    const frame=(t)=>{ if(!lastT)lastT=t; const dt=(t-lastT)/1000; lastT=t; if(!paused&&!dragging&&!reduce){ pos+=35*dt; wrap(); apply(); } raf=requestAnimationFrame(frame); };
+    raf=requestAnimationFrame(frame);
+    track.addEventListener('mouseenter',()=>{paused=true;});
+    track.addEventListener('mouseleave',()=>{ if(!dragging)paused=false; });
+    track.addEventListener('pointerdown',e=>{ dragging=true;moved=false;paused=true;startX=e.clientX;startPos=pos; try{track.setPointerCapture(e.pointerId);}catch(_){} track.style.cursor='grabbing'; });
+    track.addEventListener('pointermove',e=>{ if(!dragging)return; const d=e.clientX-startX; if(Math.abs(d)>4)moved=true; pos=startPos-d; wrap(); apply(); });
+    const up=()=>{ if(!dragging)return; dragging=false; track.style.cursor='grab'; setTimeout(()=>{paused=false;},1000); };
+    track.addEventListener('pointerup',up); track.addEventListener('pointercancel',up);
+    track.addEventListener('click',e=>{ if(moved){ e.preventDefault(); e.stopPropagation(); moved=false; } }, true);
+    container.__marqStop=()=>cancelAnimationFrame(raf);
+  });
+}
 
 /* ─── WhatsApp ─── */
 const COUNTRIES=[
@@ -207,7 +307,7 @@ function switchTab(name){ const b=document.querySelector(`.tab[data-tab="${name}
 function renderDashboard(){
   const total=members.length, active=members.filter(isActive).length;
   $('#statTotal').textContent=total; $('#statActive').textContent=active; $('#statInactive').textContent=total-active;
-  renderUpcoming(); renderNews(); renderRecentMembers(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
+  renderPhotoCarousel(); renderNews(); renderRecentMembers(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
 }
 
 /* آخر 5 عضويات مضافة - كرت متحرك */
@@ -1099,7 +1199,7 @@ function downloadBlob(content,type,filename){
   const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 async function backupExport(){
-  const backup={ app:'هيئة محبي الحسين', version:7, exportedAt:new Date().toISOString(), members, miqats, news, settings, meetings, assemblies };
+  const backup={ app:'هيئة محبي الحسين', version:8, exportedAt:new Date().toISOString(), members, miqats, news, settings, meetings, assemblies, photos };
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
   toast(`تم حفظ نسخة احتياطية (${members.length} عضو)`);
 }
@@ -1116,9 +1216,9 @@ async function backupImport(e){
   if(!backup.members||!Array.isArray(backup.members)){ toast('الملف غير صالح'); e.target.value=''; return; }
   if(!confirm(`استيراد ${backup.members.length} عضو؟ سيتم استبدال البيانات الحالية بالكامل.`)){ e.target.value=''; return; }
   try{
-    members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[]; assemblies=backup.assemblies||[];
+    members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[]; assemblies=backup.assemblies||[]; photos=backup.photos||[];
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
-    await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await persistSettings();
+    await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     e.target.value=''; toast(`تمت الاستعادة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
 }
@@ -1282,7 +1382,7 @@ function openIdara(which){
   if(which==='sec'){ idaraShow('sec'); renderMeetings(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ idaraShow('finance'); }
-  else if(which==='media'){ idaraShow('media'); }
+  else if(which==='media'){ idaraShow('media'); renderAlbum(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function openSecretariatFromHome(){ switchTab('meetings'); openIdara('sec'); }

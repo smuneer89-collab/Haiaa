@@ -235,6 +235,42 @@
   .edit-miqat-add input { width:130px; flex:none; }
   .edit-miqat-hint { font-size:11.5px; color:var(--muted); margin-top:8px; }
 
+  /* ═══ ألبوم الصور (اللجنة الإعلامية) ═══ */
+  .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .album-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    cursor:pointer; transition:transform .15s, box-shadow .2s; }
+  .album-card:hover { transform:translateY(-3px); box-shadow:0 10px 24px -8px rgba(18,48,40,.28); }
+  .album-card .ac-img { width:100%; aspect-ratio:1/1; object-fit:cover; display:block; background:#eee; }
+  .album-card .ac-body { padding:10px 12px; }
+  .album-card .ac-occ { font-family:var(--font-display); font-size:13.5px; color:var(--ink); font-weight:600;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .album-card .ac-by { font-size:11px; color:var(--gold); margin-top:2px; }
+  .album-card .ac-desc { font-size:11.5px; color:var(--muted); margin-top:4px; line-height:1.5;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .album-empty { grid-column:1/-1; text-align:center; color:var(--muted); font-size:13px; padding:30px 10px; }
+
+  /* Lightbox */
+  .lightbox-card { max-width:520px; padding:0; overflow:hidden; }
+  .lightbox-img { width:100%; max-height:60vh; background:#111; display:flex; align-items:center; justify-content:center; }
+  .lightbox-img img { width:100%; max-height:60vh; object-fit:contain; display:block; }
+  .lightbox-info { padding:18px 20px; }
+  .lightbox-info h2 { font-family:var(--font-display); font-size:18px; color:var(--ink); margin:0 0 4px; }
+  .lightbox-info .lightbox-by { font-size:12.5px; color:var(--gold); margin-bottom:8px; }
+  .lightbox-info p { font-size:13.5px; color:var(--ink-2); line-height:1.7; margin:0 0 14px; }
+
+  /* كاروسيل الصور في الرئيسية */
+  .photo-carousel { overflow:hidden; padding:2px; }
+  .pc-track { display:flex; gap:12px; width:max-content; cursor:grab; user-select:none; -webkit-user-select:none; will-change:transform; touch-action:pan-y; }
+  .pc-track:active { cursor:grabbing; }
+  .pc-item { flex:0 0 auto; width:240px; height:170px; border-radius:14px; overflow:hidden; position:relative; cursor:pointer;
+    border:1px solid rgba(232,198,106,.25); box-shadow:0 8px 20px -10px rgba(18,48,40,.4); }
+  .pc-item img { width:100%; height:100%; object-fit:cover; display:block; }
+  .pc-cap { position:absolute; inset:auto 0 0 0; padding:22px 12px 10px; color:#fff;
+    background:linear-gradient(to top, rgba(9,26,20,.92), transparent); }
+  .pc-cap .t { font-family:var(--font-display); font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pc-cap .b { font-size:11px; color:#e8c66a; margin-top:2px; }
+  @media (prefers-reduced-motion: reduce) { .pc-track { transform:none !important; } }
+
   /* Upcoming occasions (vertical auto + سحب) */
   .occ-viewport { overflow:hidden; position:relative; }
   .occ-track { display:flex; flex-direction:column; gap:10px; cursor:grab; user-select:none;
@@ -825,12 +861,12 @@
       <div class="search-results" id="searchResults"></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="photoCarouselPanel" style="display:none">
       <div class="panel-header">
-        <div class="panel-title">🔔 مناسبات قريبة</div>
-        <span class="panel-sub">تنبيه قبل شهرين حسب التقويم الهجري</span>
+        <div class="panel-title">📷 ألبوم الصور</div>
+        <span class="panel-sub">من فعاليات الهيئة</span>
       </div>
-      <div id="upcomingOccasions"></div>
+      <div class="photo-carousel" id="photoCarousel"></div>
     </div>
 
     <div class="panel">
@@ -1185,7 +1221,14 @@
     <!-- MEDIA -->
     <div id="idara-media" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
-      <div class="panel"><div class="empty"><div class="icon">🎥</div><div class="txt">اللجنة الإعلامية — قريباً</div></div></div>
+      <div class="panel">
+        <div class="panel-header">
+          <div><h2 class="panel-title">📷 ألبوم الصور</h2>
+            <div class="panel-sub" id="albumCount">0 صورة</div></div>
+          <button class="btn btn-primary" onclick="openAddPhoto()">➕ إضافة صورة</button>
+        </div>
+        <div id="albumGrid" class="album-grid"></div>
+      </div>
     </div>
 
     <!-- ADMINS -->
@@ -1601,6 +1644,40 @@
 </div></div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Add photo modal -->
+<div class="modal" id="addPhotoModal"><div class="modal-card">
+  <div class="modal-head"><h2>➕ إضافة صورة</h2><button class="modal-x" onclick="closeModal('addPhotoModal')">✕</button></div>
+  <div class="field full"><label>الصورة</label>
+    <div class="photo-row">
+      <div class="photo-preview" id="albumPhotoPreview">🖼️</div>
+      <div>
+        <input type="file" id="albumPhotoInput" accept="image/*" style="display:none" onchange="handleAlbumPhotoSelect(event)">
+        <button type="button" class="photo-btn" onclick="document.getElementById('albumPhotoInput').click()">اختر صورة</button>
+        <div class="photo-hint">تُصغَّر تلقائياً للحفظ</div>
+      </div>
+    </div>
+  </div>
+  <div class="field full"><label>مناسبة الصورة</label><input id="albumOccasion" type="text" placeholder="مثال: ليلة عاشوراء ١٤٤٧"></div>
+  <div class="field full"><label>اسم المصوّر</label><input id="albumPhotographer" type="text" placeholder="اسم من التقط الصورة"></div>
+  <div class="field full"><label>وصف الصورة</label><textarea id="albumDesc" rows="3" placeholder="وصف مختصر للصورة"></textarea></div>
+  <div class="actions-row">
+    <button class="btn btn-primary" onclick="saveAlbumPhoto()">حفظ الصورة</button>
+    <button class="btn btn-ghost" onclick="closeModal('addPhotoModal')">إلغاء</button>
+  </div>
+</div></div>
+
+<!-- Photo lightbox -->
+<div class="modal" id="photoLightbox"><div class="modal-card lightbox-card">
+  <button class="modal-x" onclick="closeModal('photoLightbox')">✕</button>
+  <div class="lightbox-img" id="lightboxImg"></div>
+  <div class="lightbox-info">
+    <h2 id="lightboxOccasion"></h2>
+    <div class="lightbox-by" id="lightboxBy"></div>
+    <p id="lightboxDesc"></p>
+    <button class="btn btn-ghost btn-sm" id="lightboxDel">🗑️ حذف الصورة</button>
+  </div>
+</div></div>
 
 <script src="assets.js"></script>
 <script src="app.js"></script>
