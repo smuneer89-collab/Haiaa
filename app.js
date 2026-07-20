@@ -902,7 +902,7 @@ function showDetail(id){
     ${miqatsHTML}
     ${reminderHTML}
     <div class="actions-row">
-      <button class="btn btn-primary" onclick="openAddSubPayment('${m.id}')">💳 تقسيط العضوية</button>
+      <button class="btn btn-primary" onclick="openAddSubPayment('${m.id}')">💳 تفعيل العضوية</button>
       ${(memberPayments(m).length||memberMiqats(m).length)?`<button class="btn btn-ghost" onclick="printSubReceipt('${m.id}')">🧾 تقرير الأقساط PDF</button>`:''}
       ${active?`<button class="btn btn-accent" onclick="openCard('${m.id}')">بطاقة العضوية</button>`:''}
       <button class="btn btn-ghost" onclick="openEditMember('${m.id}')">✏️ تعديل الملف</button>
@@ -1045,7 +1045,7 @@ function instObligation(){
   if(instCtx.kind==='sub'){
     if(!Array.isArray(m.payments)) m.payments = m.paymentDate ? [{amount:(m.paidAmount!=null?Number(m.paidAmount):memberFeeTotal(m)), date:m.paymentDate}] : [];
     if(m.feeTotal==null) m.feeTotal=Number(settings.fee)||0;
-    return { m, payments:m.payments, total:memberFeeTotal(m), title:'تقسيط العضوية', sub:`${m.name} — اشتراك العضوية` };
+    return { m, payments:m.payments, total:memberFeeTotal(m), title:'تفعيل العضوية', sub:`${m.name} — اشتراك العضوية` };
   } else {
     const mq=miqats.find(x=>x.id===instCtx.miqatId); if(!mq) return null;
     const b=(mq.bookings||[]).find(x=>x.memberId===m.id); if(!b) return null;
@@ -1065,6 +1065,16 @@ function renderInstMgr(){
     ? `<div class="inst-row"><input type="number" class="ir-ea" id="irEditAmt" value="${p.amount}" step="0.001" min="0"><input type="text" class="ir-en" id="irEditNote" value="${(p.note||'').replace(/"/g,'&quot;')}" placeholder="ملاحظة"><button class="ir-btn ir-edit" onclick="instEditSave(${i})" title="حفظ">✓</button><button class="ir-btn ir-del" onclick="instEditCancel()" title="إلغاء">×</button></div>`
     : `<div class="inst-row"><span class="ir-amt">${fmtMoney(p.amount)}</span><span class="ir-meta">${p.date?fmtDate(p.date):''}${p.note?' · '+escapeHtml(p.note):''}</span><button class="ir-btn ir-edit" onclick="instEditStart(${i})" title="تعديل">✎</button><button class="ir-btn ir-del" onclick="instDelete(${i})" title="حذف">🗑</button></div>`
   ).join('') : `<div class="inst-empty">لا توجد دفعات بعد</div>`;
+  const pf=$('#instPayFullBtn'); if(pf) pf.style.display = (instCtx.kind==='sub' && rem>0) ? 'inline-flex' : 'none';
+}
+/* دفع كامل المتبقّي للعضوية دفعةً واحدة → تفعيل فوري */
+async function instPayFull(){
+  const o=instObligation(); if(!o||instCtx.kind!=='sub') return;
+  const paid=o.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); const rem=Math.max(0,o.total-paid);
+  if(rem<=0){ toast('العضوية مفعّلة بالكامل'); return; }
+  o.payments.push({amount:rem, date:today(), note:'دفع كامل'});
+  await instCommit(o); renderInstMgr();
+  toast('تم دفع كامل الاشتراك — العضوية مفعّلة');
 }
 function instEditStart(i){ instEditIdx=i; renderInstMgr(); }
 function instEditCancel(){ instEditIdx=-1; renderInstMgr(); }
