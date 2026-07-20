@@ -1399,7 +1399,7 @@
     <div class="edit-miqat-add">
       <select id="editMiqatSelect"></select>
     </div>
-    <div id="editMiqatItems" class="contrib-editor" style="margin-top:10px"></div>
+    <div id="editMiqatItems" class="contrib-editor" data-ctx="edit" style="margin-top:10px"></div>
     <div class="edit-miqat-hint">اختر الميقات وأضف بنود المساهمة (نقدي/عيني)، ثم اضغط «حفظ التعديلات».</div>
   </div>
 
@@ -1459,7 +1459,7 @@
   <input type="hidden" id="bookingMiqatId" />
   <div class="field"><label>العضو</label><select id="bookingMember"></select></div>
   <div class="field" style="margin-top:10px;"><label>المساهمة <span class="opt">نقدي أو عيني — أضف بنداً لكل نوع</span></label>
-    <div id="bookingItems" class="contrib-editor"></div></div>
+    <div id="bookingItems" class="contrib-editor" data-ctx="booking"></div></div>
   <div class="actions-row"><button class="btn btn-primary" onclick="saveBooking()">إضافة الحجز</button></div>
 </div></div>
 
@@ -1658,8 +1658,9 @@
 <div class="toast" id="toast"></div>
 
 <!-- Add photo modal -->
-<div class="modal" id="addPhotoModal"><div class="modal-card">
-  <div class="modal-head"><h2>➕ إضافة صورة</h2><button class="modal-x" onclick="closeModal('addPhotoModal')">✕</button></div>
+<div class="modal-backdrop" id="addPhotoModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('addPhotoModal')">×</button>
+  <h3>➕ إضافة صورة</h3>
   <div class="field full"><label>الصورة</label>
     <div class="photo-row">
       <div class="photo-preview" id="albumPhotoPreview">🖼️</div>
@@ -1680,8 +1681,8 @@
 </div></div>
 
 <!-- Photo lightbox -->
-<div class="modal" id="photoLightbox"><div class="modal-card lightbox-card">
-  <button class="modal-x" onclick="closeModal('photoLightbox')">✕</button>
+<div class="modal-backdrop" id="photoLightbox"><div class="modal lightbox-card">
+  <button class="modal-close" onclick="closeModal('photoLightbox')">×</button>
   <div class="lightbox-img" id="lightboxImg"></div>
   <div class="lightbox-info">
     <h2 id="lightboxOccasion"></h2>

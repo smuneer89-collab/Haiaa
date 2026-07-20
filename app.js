@@ -636,32 +636,34 @@ $('#hasMiqatToggle').addEventListener('change',e=>{
     }
     c.classList.add('open'); if(!c.querySelector('.miqat-entry')) addMiqatEntry();
   }
-  else { c.classList.remove('open'); c.querySelectorAll('.miqat-entry').forEach(el=>el.remove()); }
+  else { c.classList.remove('open'); c.querySelectorAll('.miqat-entry').forEach(el=>{ delete contribState[el.getAttribute('data-ctx')]; el.remove(); }); }
 });
-function miqatEntryHTML(){
+let regCtxCounter=0;
+function miqatEntryHTML(ctx){
   const opts=miqatsByNearest().map(mq=>{
     const st=miqatStatus(mq);
     return `<option value="${mq.id}">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)} (${STATUS_LABEL[st]})</option>`;
   }).join('');
-  return `<div class="miqat-entry">
+  return `<div class="miqat-entry" data-ctx="${ctx}">
     <div class="field"><label>اختر الميقات</label>
       <select class="miqat-select" onchange="updateMiqatInfo(this)">
         <option value="">— اختر من قائمة المواقيت —</option>
         ${opts}
       </select></div>
     <div class="miqat-info" style="display:none"></div>
-    <div class="field"><label>مساهمة العضو (د.ب)</label>
-      <input type="number" class="miqat-amount" min="0" step="0.001" placeholder="0" oninput="updateMiqatPreview(this)" /></div>
+    <div class="field"><label>مساهمة العضو <span class="opt">نقدي أو عيني — أضف بنداً لكل نوع</span></label>
+      <div class="contrib-editor" data-ctx="${ctx}"></div></div>
     <div class="miqat-preview" style="display:none"></div>
-    <button type="button" class="remove-btn" onclick="this.closest('.miqat-entry').remove()">× إزالة</button>
+    <button type="button" class="remove-btn" onclick="removeMiqatEntry(this)">× إزالة</button>
   </div>`;
 }
+function removeMiqatEntry(btn){ const entry=btn.closest('.miqat-entry'); const ctx=entry.getAttribute('data-ctx'); delete contribState[ctx]; entry.remove(); }
 /* عرض بيانات الميقات المختار */
 function updateMiqatInfo(sel){
-  const entry=sel.closest('.miqat-entry');
+  const entry=sel.closest('.miqat-entry'); const ctx=entry.getAttribute('data-ctx');
   const info=entry.querySelector('.miqat-info');
   const mq=miqats.find(x=>x.id===sel.value);
-  if(!mq){ info.style.display='none'; updateMiqatPreview(entry.querySelector('.miqat-amount')); return; }
+  if(!mq){ info.style.display='none'; regPreviewUpdate(ctx); return; }
   const req=Number(mq.requiredAmount)||0, paid=miqatPaid(mq), rem=Math.max(0,req-paid);
   const st=miqatStatus(mq);
   info.style.display='block';
@@ -673,14 +675,14 @@ function updateMiqatInfo(sel){
       <div class="mq-info-row"><span>المتبقّي</span><b>${fmtMoney(rem)}</b></div>
       <div class="mq-info-row"><span>الحالة الحالية</span><span class="mc-status st-${st}">${STATUS_LABEL[st]}</span></div>
     </div>`;
-  updateMiqatPreview(entry.querySelector('.miqat-amount'));
+  regPreviewUpdate(ctx);
 }
-/* معاينة الحالة بعد مساهمة العضو */
-function updateMiqatPreview(input){
-  const entry=input.closest('.miqat-entry');
+/* معاينة الحالة بعد مساهمة العضو (تُحسب من مجموع البنود) */
+function regPreviewUpdate(ctx){
+  const entry=document.querySelector('.miqat-entry[data-ctx="'+ctx+'"]'); if(!entry) return;
   const prev=entry.querySelector('.miqat-preview');
   const mq=miqats.find(x=>x.id===entry.querySelector('.miqat-select').value);
-  const amt=parseFloat(input.value)||0;
+  const amt=contribTotal(ctx);
   if(!mq||amt<=0){ prev.style.display='none'; return; }
   const req=Number(mq.requiredAmount)||0;
   const total=miqatPaid(mq)+amt;
@@ -692,17 +694,20 @@ function updateMiqatPreview(input){
   prev.innerHTML=`<div class="mq-preview-box st-${newSt}">${msg}</div>`;
 }
 function addMiqatEntry(){ const c=$('#miqatsContainer'); const btn=c.querySelector('.add-miqat-btn');
-  const d=document.createElement('div'); d.innerHTML=miqatEntryHTML(); c.insertBefore(d.firstElementChild,btn); }
+  const ctx='reg_'+(++regCtxCounter);
+  const d=document.createElement('div'); d.innerHTML=miqatEntryHTML(ctx); c.insertBefore(d.firstElementChild,btn);
+  contribInit(ctx); }
 function collectFormMiqats(){
   const list=[]; $$('#miqatsContainer .miqat-entry').forEach(el=>{
     const miqatId=el.querySelector('.miqat-select').value;
-    const amount=parseFloat(el.querySelector('.miqat-amount').value)||0;
-    if(miqatId) list.push({miqatId, amount});
+    const ctx=el.getAttribute('data-ctx');
+    const items=contribItems(ctx); const amount=items.reduce((s,i)=>s+i.value,0);
+    if(miqatId) list.push({miqatId, amount, items});
   }); return list;
 }
 function resetForm(){ $('#isAdminToggle').checked=false; $('#adminCommWrap').style.display='none'; $('#adminCommInput').value='';
   $('#hasMiqatToggle').checked=false; const c=$('#miqatsContainer'); c.classList.remove('open');
-  c.querySelectorAll('.miqat-entry').forEach(el=>el.remove()); currentPhoto=null; $('#photoPreview').innerHTML='👤';
+  c.querySelectorAll('.miqat-entry').forEach(el=>{ delete contribState[el.getAttribute('data-ctx')]; el.remove(); }); currentPhoto=null; $('#photoPreview').innerHTML='👤';
   const pi=$('#photoInput'); if(pi) pi.value='';
   const ad=$('#isAdultToggle'); if(ad){ ad.checked=true; $('#minorBirthWrap').style.display='none'; $('#minorBirthdate').value=''; } }
 
@@ -741,8 +746,8 @@ $('#addForm').addEventListener('submit',async e=>{
     const mq=miqats.find(x=>x.id===fm.miqatId); if(!mq) return;
     mq.bookings=mq.bookings||[];
     const ex=mq.bookings.find(b=>b.memberId===newMember.id);
-    if(ex) ex.amount=(Number(ex.amount)||0)+fm.amount;
-    else mq.bookings.push({memberId:newMember.id, amount:fm.amount});
+    if(ex){ ex.items=[...bookingItems(ex).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...(fm.items||[])]; ex.amount=(Number(ex.amount)||0)+fm.amount; }
+    else mq.bookings.push({memberId:newMember.id, amount:fm.amount, items:fm.items||[]});
     const st=miqatStatus(mq);
     if(st==='green') completed++; else if(st==='yellow') needsBoost++;
   });
@@ -1118,18 +1123,19 @@ function contribAdd(ctx){ contribState[ctx].push({kind:'نقدي', other:'', val
 function contribRemove(ctx,i){ contribState[ctx].splice(i,1); if(!contribState[ctx].length) contribState[ctx].push({kind:'نقدي',other:'',value:''}); contribRender(ctx); }
 function contribSetKind(ctx,i,v){ contribState[ctx][i].kind=v; contribRender(ctx); }
 function contribSetOther(ctx,i,v){ contribState[ctx][i].other=v; }
-function contribSetValue(ctx,i,v){ contribState[ctx][i].value=v; contribTotalUpdate(ctx); }
+function contribSetValue(ctx,i,v){ contribState[ctx][i].value=v; contribTotalUpdate(ctx); if(String(ctx).startsWith('reg_')) regPreviewUpdate(ctx); }
 function contribItems(ctx){
-  return contribState[ctx].map(it=>{
+  return (contribState[ctx]||[]).map(it=>{
     let kind = it.kind==='أخرى' ? (it.other||'').trim()||'أخرى' : it.kind;
     return { kind, value: parseFloat(it.value)||0 };
   }).filter(it=> it.value>0 || (it.kind && it.kind!=='نقدي'));
 }
-function contribTotal(ctx){ return contribState[ctx].reduce((s,it)=>s+(parseFloat(it.value)||0),0); }
-function contribTotalUpdate(ctx){ const el=document.getElementById(ctx==='booking'?'bookingTotal':'editMiqatTotal'); if(el) el.textContent=fmtMoney(contribTotal(ctx)); }
+function contribTotal(ctx){ return (contribState[ctx]||[]).reduce((s,it)=>s+(parseFloat(it.value)||0),0); }
+function contribBox(ctx){ return document.querySelector('.contrib-editor[data-ctx="'+ctx+'"]'); }
+function contribTotalUpdate(ctx){ const el=document.querySelector('[data-total="'+ctx+'"]'); if(el) el.textContent=fmtMoney(contribTotal(ctx)); }
 function contribRender(ctx){
-  const box=document.getElementById(ctx==='booking'?'bookingItems':'editMiqatItems'); if(!box) return;
-  const rows=contribState[ctx].map((it,i)=>`
+  const box=contribBox(ctx); if(!box) return;
+  const rows=(contribState[ctx]||[]).map((it,i)=>`
     <div class="contrib-row">
       <select onchange="contribSetKind('${ctx}',${i},this.value)">${contribKindOptions(it.kind)}</select>
       ${it.kind==='أخرى'?`<input type="text" class="contrib-other" placeholder="النوع" value="${(it.other||'').replace(/"/g,'&quot;')}" oninput="contribSetOther('${ctx}',${i},this.value)">`:''}
@@ -1139,7 +1145,7 @@ function contribRender(ctx){
   box.innerHTML = `${rows}
     <div class="contrib-foot">
       <button type="button" class="btn btn-ghost btn-sm" onclick="contribAdd('${ctx}')">➕ بند آخر</button>
-      <span class="contrib-total">الإجمالي: <b id="${ctx==='booking'?'bookingTotal':'editMiqatTotal'}">${fmtMoney(contribTotal(ctx))}</b></span>
+      <span class="contrib-total">الإجمالي: <b data-total="${ctx}">${fmtMoney(contribTotal(ctx))}</b></span>
     </div>`;
 }
 
