@@ -611,6 +611,7 @@ function openAddMember(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function backToMembers(){
+  if(formMode==='edit'){ const f=$('#addForm'); if(f) f.reset(); resetForm(); }
   $$('.tab-content').forEach(c=>c.style.display='none');
   $('#tab-members').style.display='block';
   renderMembers();
@@ -724,9 +725,15 @@ function collectFormMiqats(){
 }
 function resetForm(){ $('#isAdminToggle').checked=false; $('#adminCommWrap').style.display='none'; $('#adminCommInput').value='';
   $('#hasMiqatToggle').checked=false; const c=$('#miqatsContainer'); c.classList.remove('open');
-  c.querySelectorAll('.miqat-entry').forEach(el=>{ delete contribState[el.getAttribute('data-ctx')]; el.remove(); }); currentPhoto=null; $('#photoPreview').innerHTML='👤';
+  c.querySelectorAll('.miqat-entry,.miqat-existing,.form-existing-title').forEach(el=>{ const cx=el.getAttribute&&el.getAttribute('data-ctx'); if(cx) delete contribState[cx]; el.remove(); }); currentPhoto=null; $('#photoPreview').innerHTML='👤';
   const pi=$('#photoInput'); if(pi) pi.value='';
-  const ad=$('#isAdultToggle'); if(ad){ ad.checked=true; $('#minorBirthWrap').style.display='none'; $('#minorBirthdate').value=''; } }
+  const ad=$('#isAdultToggle'); if(ad){ ad.checked=true; $('#minorBirthWrap').style.display='none'; $('#minorBirthdate').value=''; }
+  // العودة لوضع الإضافة
+  formMode='add'; editingId=null; editRemovedBookings=new Set();
+  const t=$('#addFormTitle'); if(t) t.textContent='➕ تسجيل عضو جديد';
+  const s=$('#addFormSub'); if(s) s.textContent='رقم العضوية يُنشأ تلقائياً حسب نوع العضوية (مثال: A0001)';
+  const sb=$('#addSubmitBtn'); if(sb) sb.textContent='حفظ العضو';
+  const rb=$('#addResetBtn'); if(rb) rb.style.display=''; }
 
 $('#addForm').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -743,6 +750,29 @@ $('#addForm').addEventListener('submit',async e=>{
     birthdate=$('#minorBirthdate').value;
     if(!birthdate){ toast('أدخل تاريخ ميلاد العضو'); return; }
     age=ageFromBirthdate(birthdate);
+  }
+
+  // ═══ وضع التعديل ═══
+  if(formMode==='edit'){
+    const m=members.find(x=>x.id===editingId); if(!m){ toast('تعذّر إيجاد العضو'); return; }
+    m.name=fd.get('name').trim(); m.type=type; m.isMinor=isMinor; m.age=age; m.birthdate=birthdate;
+    m.phone='+'+(fd.get('countryCode')||'973')+toEnglishDigits(fd.get('phone')).replace(/\D/g,'');
+    m.area=(fd.get('area')||'').trim(); m.email=(fd.get('email')||'').trim(); m.address=(fd.get('address')||'').trim();
+    m.photo=currentPhoto||null; m.isAdmin=isAdmin; m.committee=isAdmin?($('#adminCommInput').value.trim()):'';
+    // إزالة المواقيت المحذوفة (مع دفعاتها)
+    editRemovedBookings.forEach(mid=>{ const mq=miqats.find(x=>x.id===mid); if(mq) mq.bookings=(mq.bookings||[]).filter(b=>b.memberId!==m.id); });
+    // إضافة المواقيت الجديدة (بدون المساس بالحجوزات الحالية ودفعاتها)
+    (hasMiqat?formMiqats:[]).forEach(fm=>{ const mq=miqats.find(x=>x.id===fm.miqatId); if(!mq) return; mq.bookings=mq.bookings||[];
+      const ex=mq.bookings.find(b=>b.memberId===m.id);
+      if(ex){ ex.items=[...bookingItems(ex).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...(fm.items||[])]; ex.amount=(Number(ex.amount)||0)+fm.amount; if(Array.isArray(ex.payments)&&fm.amount>0) ex.payments.push({amount:fm.amount,date:today()}); }
+      else mq.bookings.push({memberId:m.id, amount:fm.amount, items:fm.items||[]});
+    });
+    await saveMembers(); await saveMiqats();
+    e.target.reset(); resetForm();
+    toast('تم حفظ التعديلات');
+    renderMembers(); renderMiqats(); renderDashboard();
+    backToMembers(); showDetail(m.id);
+    return;
   }
 
   const newMember={
@@ -874,29 +904,48 @@ function showDetail(id){
 
 /* ═══════════ تعديل ملف العضو ═══════════ */
 let editingMemberId=null;
+let formMode='add', editingId=null, editRemovedBookings=new Set();
 function openEditMember(id){
   const m=members.find(x=>x.id===id); if(!m) return;
-  editingMemberId=id;
-  $('#editName').value=m.name||'';
-  const sp=splitPhone(m.phone); $('#editCountryCode').value=sp.code||'973'; $('#editPhone').value=sp.local;
-  $('#editType').value=m.type||'عادي';
-  $('#editArea').value=m.area||'';
-  $('#editEmail').value=m.email||'';
-  $('#editAddress').value=m.address||'';
-  $('#editIsMinor').checked=!!m.isMinor;
-  $('#editBirthWrap').style.display=m.isMinor?'block':'none';
-  $('#editBirthdate').value=m.birthdate||'';
-  $('#editIsAdmin').checked=!!m.isAdmin;
-  $('#editCommWrap').style.display=m.isAdmin?'block':'none';
-  $('#editComm').value=m.committee||'';
-  editPhoto=m.photo||null;
-  $('#editPhotoPreview').innerHTML=editPhoto?`<img src="${editPhoto}" alt="" />`:'👤';
-  populateEditMiqatSelect();
+  formMode='edit'; editingId=id; editingMemberId=id;
+  switchTab('add');
+  const F=sel=>document.querySelector('#addForm '+sel);
+  F('[name=name]').value=m.name||'';
+  const sp=splitPhone(m.phone); const cc=document.getElementById('addCountryCode'); if(cc) cc.value=sp.code||'973'; F('[name=phone]').value=sp.local||'';
+  F('[name=type]').value=m.type||'عادي';
+  F('[name=area]').value=m.area||''; F('[name=email]').value=m.email||''; F('[name=address]').value=m.address||'';
+  $('#isAdultToggle').checked=!m.isMinor; $('#minorBirthWrap').style.display=m.isMinor?'block':'none'; if($('#minorBirthdate')) $('#minorBirthdate').value=m.birthdate||'';
+  $('#isAdminToggle').checked=!!m.isAdmin; $('#adminCommWrap').style.display=m.isAdmin?'block':'none'; if($('#adminCommInput')) $('#adminCommInput').value=m.committee||'';
+  currentPhoto=m.photo||null; $('#photoPreview').innerHTML=currentPhoto?`<img src="${currentPhoto}" alt="" />`:'👤';
+  // المواقيت: أظهر الحالية كبطاقات + إمكانية إضافة جديد
+  const c=$('#miqatsContainer'); c.querySelectorAll('.miqat-entry,.miqat-existing,.form-existing-title').forEach(el=>{ const cx=el.getAttribute&&el.getAttribute('data-ctx'); if(cx) delete contribState[cx]; el.remove(); });
+  editRemovedBookings=new Set();
+  const mine=memberMiqats(m);
+  $('#hasMiqatToggle').checked = mine.length>0;
+  c.classList.toggle('open', mine.length>0);
+  if(mine.length){
+    const btn=c.querySelector('.add-miqat-btn');
+    const title=document.createElement('div'); title.className='form-existing-title'; title.textContent='مواقيته الحالية:'; c.insertBefore(title,btn);
+    mine.forEach(mq=>{ const b=mq.bookings.find(x=>x.memberId===m.id); c.insertBefore(makeExistingMiqatCard(mq,b),btn); });
+  }
+  $('#addFormTitle').textContent='✏️ تعديل بيانات العضو';
+  $('#addFormSub').textContent=`رقم العضوية: ${memberCode(m)} — عدّل ما تشاء ثم احفظ`;
+  $('#addSubmitBtn').textContent='حفظ التعديلات';
+  const rb=$('#addResetBtn'); if(rb) rb.style.display='none';
   closeModal('detailModal');
-  $('#editModal').classList.add('open');
+  window.scrollTo(0,0);
 }
+function makeExistingMiqatCard(mq,b){
+  const rem=bookingRemaining(b);
+  const d=document.createElement('div'); d.className='miqat-existing'; d.setAttribute('data-miqat',mq.id);
+  d.innerHTML=`<div class="me-mid"><div class="me-name">${escapeHtml(mq.name)} <span style="color:var(--muted);font-weight:400">${fmtMiqatDate(mq)}</span></div>
+     <div class="me-sub">${fmtBooking(b)} · ${rem>0?`<span class="rem">متبقّي ${fmtMoney(rem)}</span>`:`<span class="ok">مكتمل ✓</span>`}</div></div>
+   <button type="button" class="me-del" title="إزالة الميقات" onclick="removeExistingMiqat(this,'${mq.id}')">×</button>`;
+  return d;
+}
+function removeExistingMiqat(btn,miqatId){ if(!confirm('إزالة هذا الميقات من العضو؟ ستُحذف مساهمته ودفعاته.')) return; editRemovedBookings.add(miqatId); btn.closest('.miqat-existing').remove(); }
 
-/* قائمة المواقيت المتاحة للإضافة في نافذة التعديل (التي لم يُحجز فيها العضو بعد) */
+/* (النافذة القديمة لم تعد مستخدمة) قائمة المواقيت المتاحة للإضافة */
 function populateEditMiqatSelect(){
   const m=members.find(x=>x.id===editingMemberId); if(!m) return;
   const sel=$('#editMiqatSelect'); if(!sel) return;
