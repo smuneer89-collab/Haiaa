@@ -124,10 +124,12 @@ function fmtBooking(b){
   return `${parts.join(' + ')} = ${fmtMoney(total)}`;
 }
 function contribKindOptions(sel){ return CONTRIB_KINDS.map(k=>`<option value="${k}"${k===sel?' selected':''}>${k}</option>`).join(''); }
+function miqatReceived(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingReceived(b),0); }
+function bookingReceived(b){ if(b && Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); return Number(b&&b.amount)||0; }
 function miqatStatus(mq){
-  const paid = miqatPaid(mq); const req = Number(mq.requiredAmount)||0;
-  if (paid <= 0) return 'red';
-  if (req > 0 && paid < req) return 'yellow';
+  const agreed = miqatAgreed(mq); const req = Number(mq.requiredAmount)||0;
+  if (agreed <= 0) return 'red';
+  if (req > 0 && agreed < req) return 'yellow';
   return 'green';
 }
 const STATUS_LABEL = { green:'محجوز', yellow:'يحتاج تعزيز', red:'غير محجوز' };
@@ -395,6 +397,7 @@ function renderRecentMembers(){
         </div>
         <div class="mq-bar"><span style="width:${pct}%"></span></div>
         <div class="mq-foot"><span>${whenTxt}</span><b>${leftTxt}</b></div>
+        ${receiptRowHTML(mq,b)}
       </div>`;
     }
     const m=row.m;
@@ -411,8 +414,23 @@ function renderRecentMembers(){
       </div>
       <div class="mq-bar"><span style="width:${pct}%"></span></div>
       <div class="mq-foot"><span>${whenTxt}</span><b>${leftTxt}</b></div>
+      ${receiptRowHTML(mq,row.b)}
     </div>`;
   }).join('');
+}
+/* صف «تم استلام المبلغ» داخل بطاقة مواقيت تقترب */
+function receiptRowHTML(mq,b){
+  const ag=bookingAgreed(b), rec=bookingReceived(b);
+  if(rec<=0){
+    return `<div class="mq-receipt" onclick="openBookingPayment('${mq.id}','${b.memberId}')">
+      <span class="mq-chk">☐</span><span class="mq-rl">تم استلام المبلغ</span></div>`;
+  }
+  const diff=rec-ag; let badge;
+  if(Math.abs(diff)<0.0005) badge=`<span class="mq-diff eq">مطابق</span>`;
+  else if(diff>0) badge=`<span class="mq-diff up">زائد +${fmtMoney(diff)}</span>`;
+  else badge=`<span class="mq-diff dn">ناقص −${fmtMoney(-diff)}</span>`;
+  return `<div class="mq-receipt on" onclick="openBookingPayment('${mq.id}','${b.memberId}')">
+    <span class="mq-chk">✅</span><span class="mq-rl">استُلم ${fmtMoney(rec)}</span>${badge}</div>`;
 }
 
 /* إرسال تذكير الميقات عبر واتساب بالرسالة الجاهزة */
@@ -1673,7 +1691,7 @@ function printMiqats(status){
     : '<tr><th>المناسبة</th></tr>';
   const rows = list.map(mq=>{
     if(!needsAmount) return `<tr><td>${escapeHtml(mq.name)}</td></tr>`;
-    const rem=Math.max(0, (Number(mq.requiredAmount)||0) - miqatPaid(mq));
+    const rem=Math.max(0, (Number(mq.requiredAmount)||0) - miqatAgreed(mq));
     return `<tr><td>${escapeHtml(mq.name)}</td><td class="amt">${fmtMoney(rem)}</td></tr>`;
   }).join('');
   const cols = needsAmount?2:1;
