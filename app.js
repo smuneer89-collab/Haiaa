@@ -383,6 +383,7 @@ function renderRecentMembers(){
     const leftTxt = daysLeft<=0 ? 'اليوم' : (daysLeft===1 ? 'باقٍ يوم' : `باقٍ ${daysLeft} يوماً`);
     if(kind==='family'){
       const b=row.b;
+      const reminded = b.remindKey===miqatRemindKey(mq);
       return `<div class="mq-card ${cls}">
         <div class="mq-top">
           <div class="mq-av">👪</div>
@@ -390,7 +391,7 @@ function renderRecentMembers(){
             <div class="mq-name">${escapeHtml(b.familyName)} <span class="code">عائلة</span></div>
             <div class="mq-line">${escapeHtml(mq.name)} <span class="dt">· ${fmtMiqatDate(mq)}</span></div>
           </div>
-          <button class="mq-wa" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">✆ تذكير</button>
+          <button class="mq-wa ${reminded?'done':''}" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">${reminded?'✓ ذُكّر الممثّل':'✆ تذكير'}</button>
         </div>
         <div class="mq-bar"><span style="width:${pct}%"></span></div>
         <div class="mq-foot"><span>${whenTxt}</span><b>${leftTxt}</b></div>
@@ -451,7 +452,9 @@ function sendFamilyMiqatReminder(miqatId, memberId){
   const gregText=greg.toLocaleDateString('ar',{day:'numeric',month:'long',year:'numeric'});
   const hijriText=`${mq.day} ${HIJRI_MONTHS[mq.month]} ${ty}هـ`;
   const msg=`السلام عليكم\n\nبصفتكم ممثل ${b.familyName}\nنذكّركم في المساهمة بميقات \n\n*${mq.name}* (${hijriText})\nالموافق ${gregText}\n\n\nجزاكم الله خيراً — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
+  b.remindKey=miqatRemindKey(mq); saveMiqats();
   window.open(whatsappLink(bookingPhone(b), msg), '_blank');
+  setTimeout(renderRecentMembers, 400);
 }
 
 /* ═══ كاروسيل متحرك تلقائياً + قابل للإيقاف والسحب باللمس/الماوس ═══ */
@@ -815,7 +818,7 @@ $('#addForm').addEventListener('submit',async e=>{
   const fd=new FormData(e.target); const type=fd.get('type'); const num=settings.counters[type]||1;
   const isAdmin=$('#isAdminToggle').checked;
   const hasMiqat=$('#hasMiqatToggle').checked; const formMiqats=hasMiqat?collectFormMiqats():[];
-  if(hasMiqat&&formMiqats.length===0){ toast('أضف بيانات ميقات واحد على الأقل أو أطفئ الخيار'); return; }
+  if(formMode!=='edit' && hasMiqat && formMiqats.length===0){ toast('أضف بيانات ميقات واحد على الأقل أو أطفئ الخيار'); return; }
 
   // العمر: سؤال بنعم/لا. البالغ (18+) لا يحتاج عمراً ولا تاريخ ميلاد.
   const isAdult=$('#isAdultToggle').checked;
@@ -1106,16 +1109,17 @@ function openAddSubPayment(id){ openInstMgr({kind:'sub', memberId:id}); }
 function openBookingPayment(miqatId, memberId){ openInstMgr({kind:'miqat', memberId, miqatId}); }
 function instObligation(){
   if(!instCtx) return null;
-  const m=members.find(x=>x.id===instCtx.memberId); if(!m) return null;
   if(instCtx.kind==='sub'){
+    const m=members.find(x=>x.id===instCtx.memberId); if(!m) return null;
     if(!Array.isArray(m.payments)) m.payments = m.paymentDate ? [{amount:(m.paidAmount!=null?Number(m.paidAmount):memberFeeTotal(m)), date:m.paymentDate}] : [];
     if(m.feeTotal==null) m.feeTotal=Number(settings.fee)||0;
     return { m, payments:m.payments, total:memberFeeTotal(m), title:'تفعيل العضوية', sub:`${m.name} — اشتراك العضوية` };
   } else {
     const mq=miqats.find(x=>x.id===instCtx.miqatId); if(!mq) return null;
-    const b=(mq.bookings||[]).find(x=>x.memberId===m.id); if(!b) return null;
+    const b=(mq.bookings||[]).find(x=>x.memberId===instCtx.memberId); if(!b) return null;
     if(!Array.isArray(b.payments)) b.payments=[{amount:bookingAgreed(b), date:b.date||'', note:'مدفوع بالكامل'}];
-    return { m, mq, b, payments:b.payments, total:bookingAgreed(b), title:'تقسيط المساهمة', sub:`${m.name} · ${mq.name}` };
+    const who = b.familyName ? `${b.familyName}` : (members.find(x=>x.id===b.memberId)?.name || '');
+    return { m:members.find(x=>x.id===b.memberId)||null, mq, b, payments:b.payments, total:bookingAgreed(b), title:'تقسيط المساهمة', sub:`${who} · ${mq.name}` };
   }
 }
 function openInstMgr(ctx){ instCtx=ctx; instEditIdx=-1; if(!instObligation()){ toast('تعذّر فتح الأقساط'); return; }
