@@ -217,37 +217,59 @@ function renderPhotoCarousel(){
   if(!panel||!box) return;
   if(!photos.length){ panel.style.display='none'; if(box.__marqStop){box.__marqStop();box.__marqStop=null;} return; }
   panel.style.display='block';
-  const itemsHTML=shuffle(photos).map(p=>`<div class="pc-item" onclick="openLightbox('${p.id}')">
-    <img src="${p.img}" alt="${escapeHtml(p.occasion||'')}" loading="lazy">
-    <div class="pc-cap"><div class="t">${escapeHtml(p.occasion||'')}</div>${p.photographer?`<div class="b">📷 ${escapeHtml(p.photographer)}</div>`:''}</div>
-  </div>`).join('');
-  buildPhotoMarquee(box, itemsHTML);
+  buildPhotoSlider(box, shuffle(photos));
 }
-function buildPhotoMarquee(container, itemsHTML){
+/* عارض انزلاق جانبي بنقاط + تحكّم لمسي (سحب) + تقدّم آلي */
+function buildPhotoSlider(container, list){
   if(container.__marqStop){ container.__marqStop(); container.__marqStop=null; }
-  container.innerHTML=`<div class="pc-track">${itemsHTML}</div>`;
-  const track=container.querySelector('.pc-track'); if(!track) return;
+  const n=list.length;
+  const slide=p=>`<div class="ps-slide" data-id="${p.id}">
+      <img src="${p.img}" alt="${escapeHtml(p.occasion||'')}" loading="lazy">
+      <div class="pc-cap"><div class="t">${escapeHtml(p.occasion||'')}</div>${p.photographer?`<div class="b">📷 ${escapeHtml(p.photographer)}</div>`:''}</div>
+    </div>`;
+  // نسخة من الأولى في النهاية لالتفاف سلس
+  const slidesHTML = list.map(slide).join('') + (n>1?slide(list[0]):'');
+  const dotsHTML = n>1 ? `<div class="ps-dots">${list.map((_,i)=>`<i class="${i===0?'on':''}" data-i="${i}"></i>`).join('')}</div>` : '';
+  container.innerHTML=`<div class="pc-slider"><div class="ps-viewport"><div class="ps-track">${slidesHTML}</div></div>${dotsHTML}</div>`;
+  const track=container.querySelector('.ps-track');
+  const dots=[...container.querySelectorAll('.ps-dots i')];
   const reduce=window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  requestAnimationFrame(()=>{
-    let one=track.scrollWidth; if(one<=0) return;
-    const avail=container.clientWidth||300;
-    let reps=Math.min(30, Math.max(2, Math.ceil((avail*2)/one)+1));
-    track.innerHTML=new Array(reps).fill(itemsHTML).join('');
-    one=track.scrollWidth/reps;
-    let pos=0,paused=false,dragging=false,moved=false,startX=0,startPos=0,lastT=0,raf=0;
-    const apply=()=>track.style.transform=`translateX(${-pos}px)`;
-    const wrap=()=>{ pos=((pos%one)+one)%one; };
-    const frame=(t)=>{ if(!lastT)lastT=t; const dt=(t-lastT)/1000; lastT=t; if(!paused&&!dragging&&!reduce){ pos+=35*dt; wrap(); apply(); } raf=requestAnimationFrame(frame); };
-    raf=requestAnimationFrame(frame);
-    track.addEventListener('mouseenter',()=>{paused=true;});
-    track.addEventListener('mouseleave',()=>{ if(!dragging)paused=false; });
-    track.addEventListener('pointerdown',e=>{ dragging=true;moved=false;paused=true;startX=e.clientX;startPos=pos; try{track.setPointerCapture(e.pointerId);}catch(_){} track.style.cursor='grabbing'; });
-    track.addEventListener('pointermove',e=>{ if(!dragging)return; const d=e.clientX-startX; if(Math.abs(d)>4)moved=true; pos=startPos-d; wrap(); apply(); });
-    const up=()=>{ if(!dragging)return; dragging=false; track.style.cursor='grab'; setTimeout(()=>{paused=false;},1000); };
-    track.addEventListener('pointerup',up); track.addEventListener('pointercancel',up);
-    track.addEventListener('click',e=>{ if(moved){ e.preventDefault(); e.stopPropagation(); moved=false; } }, true);
-    container.__marqStop=()=>cancelAnimationFrame(raf);
+  let i=0, timer=null, dragging=false, moved=false, startX=0, w=1;
+
+  const setDots=()=>{ const a=((i%n)+n)%n; dots.forEach((d,k)=>d.classList.toggle('on',k===a)); };
+  const place=(anim)=>{ track.style.transition=anim?'transform .55s cubic-bezier(.55,.02,.2,1)':'none'; track.style.transform=`translateX(${-i*w}px)`; };
+  const measure=()=>{ w=container.querySelector('.ps-viewport').clientWidth||container.clientWidth||300; place(false); };
+
+  track.addEventListener('transitionend',()=>{ // التفاف بعد النسخة
+    if(i>=n){ i=0; place(false); } setDots();
   });
+  const go=(to,anim=true)=>{ i=to; place(anim); setDots(); };
+  const next=()=>{ if(n<2) return; go(i+1); };
+
+  const start=()=>{ if(n<2||reduce) return; stop(); timer=setInterval(()=>{ if(!dragging) next(); }, 3000); };
+  const stop=()=>{ if(timer){ clearInterval(timer); timer=null; } };
+
+  // تحكّم بالسحب (لمس/ماوس)
+  const vp=container.querySelector('.ps-viewport');
+  vp.addEventListener('pointerdown',e=>{ dragging=true; moved=false; startX=e.clientX; stop();
+    if(i>=n){ i=0; place(false); } track.style.transition='none'; try{vp.setPointerCapture(e.pointerId);}catch(_){} });
+  vp.addEventListener('pointermove',e=>{ if(!dragging) return; const dx=e.clientX-startX; if(Math.abs(dx)>4) moved=true;
+    track.style.transform=`translateX(${-i*w+dx}px)`; });
+  const release=e=>{ if(!dragging) return; dragging=false; const dx=(e.clientX||startX)-startX;
+    const th=Math.max(40,w*0.18);
+    if(dx<=-th) go(Math.min(i+1,n)); else if(dx>=th) go(i-1<0?0:i-1); else place(true);
+    if(i<0){ i=0; place(true); }
+    setTimeout(start,1500); };
+  vp.addEventListener('pointerup',release); vp.addEventListener('pointercancel',release);
+  // نقرة (بدون سحب) تفتح الصورة المعروضة حالياً
+  vp.addEventListener('click',e=>{ if(moved){ e.preventDefault(); e.stopPropagation(); moved=false; return; }
+    const cur=list[((i%n)+n)%n]; if(cur&&cur.id) openLightbox(cur.id); });
+  // نقاط
+  dots.forEach(d=>d.addEventListener('click',()=>{ stop(); go(+d.dataset.i); setTimeout(start,1500); }));
+
+  requestAnimationFrame(()=>{ measure(); setDots(); start(); });
+  const onResize=()=>measure(); window.addEventListener('resize',onResize);
+  container.__marqStop=()=>{ stop(); window.removeEventListener('resize',onResize); };
 }
 
 /* ─── WhatsApp ─── */

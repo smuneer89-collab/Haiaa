@@ -367,18 +367,23 @@
   .lightbox-info .lightbox-by { font-size:12.5px; color:var(--gold); margin-bottom:8px; }
   .lightbox-info p { font-size:13.5px; color:var(--ink-2); line-height:1.7; margin:0 0 14px; }
 
-  /* كاروسيل الصور في الرئيسية */
-  .photo-carousel { overflow:hidden; padding:2px; }
-  .pc-track { display:flex; gap:12px; width:max-content; cursor:grab; user-select:none; -webkit-user-select:none; will-change:transform; touch-action:pan-y; }
-  .pc-track:active { cursor:grabbing; }
-  .pc-item { flex:0 0 auto; width:240px; height:170px; border-radius:14px; overflow:hidden; position:relative; cursor:pointer;
-    border:1px solid rgba(232,198,106,.25); box-shadow:0 8px 20px -10px rgba(18,48,40,.4); }
-  .pc-item img { width:100%; height:100%; object-fit:cover; display:block; }
-  .pc-cap { position:absolute; inset:auto 0 0 0; padding:22px 12px 10px; color:#fff;
-    background:linear-gradient(to top, rgba(9,26,20,.92), transparent); }
-  .pc-cap .t { font-family:var(--font-display); font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pc-cap .b { font-size:11px; color:#e8c66a; margin-top:2px; }
-  @media (prefers-reduced-motion: reduce) { .pc-track { transform:none !important; } }
+  /* عارض الصور بالانزلاق في الرئيسية */
+  .photo-carousel { padding:2px; }
+  .pc-slider { position:relative; }
+  .ps-viewport { position:relative; width:100%; aspect-ratio:4/3; max-height:360px; overflow:hidden;
+    border-radius:16px; border:1px solid rgba(232,198,106,.28); box-shadow:0 10px 24px -10px rgba(18,48,40,.4);
+    background:#0d211b; cursor:grab; touch-action:pan-y; }
+  .ps-viewport:active { cursor:grabbing; }
+  .ps-track { display:flex; direction:ltr; height:100%; will-change:transform; }
+  .ps-slide { position:relative; min-width:100%; height:100%; user-select:none; -webkit-user-select:none; }
+  .ps-slide img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+  .pc-cap { position:absolute; inset:auto 0 0 0; padding:26px 14px 12px; color:#fff; direction:rtl;
+    background:linear-gradient(to top, rgba(9,26,20,.94), transparent); }
+  .pc-cap .t { font-family:var(--font-display); font-size:14.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pc-cap .b { font-size:11.5px; color:#e8c66a; margin-top:2px; }
+  .ps-dots { position:absolute; inset:auto 0 10px 0; display:flex; gap:6px; justify-content:center; z-index:4; }
+  .ps-dots i { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.5); cursor:pointer; transition:.25s; }
+  .ps-dots i.on { background:#e8c66a; width:20px; border-radius:4px; }
 
   /* Upcoming occasions (vertical auto + سحب) */
   .occ-viewport { overflow:hidden; position:relative; }
