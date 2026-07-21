@@ -227,16 +227,12 @@
   .mq-bar span { display:block; height:100%; border-radius:6px; background:linear-gradient(90deg,#e8c66a,var(--mqc,#e0705a)); }
   .mq-foot { display:flex; justify-content:space-between; margin-top:7px; font-size:11px; color:#bcd0c1; }
   .mq-foot b { color:#e8c66a; font-family:var(--font-display); font-weight:500; }
-  /* صف الاستلام داخل البطاقة */
-  .mq-receipt { display:flex; align-items:center; gap:8px; margin-top:11px; padding-top:10px;
-    border-top:1px dashed rgba(232,198,106,.28); cursor:pointer; }
-  .mq-receipt .mq-chk { font-size:17px; line-height:1; flex:none; }
-  .mq-receipt .mq-rl { font-size:12.5px; color:#eef4ea; font-weight:500; }
-  .mq-receipt.on .mq-rl { color:#bfe8cd; }
-  .mq-receipt .mq-diff { margin-right:auto; font-size:11px; font-family:var(--font-display); padding:3px 9px; border-radius:20px; }
-  .mq-receipt .mq-diff.eq { background:rgba(255,255,255,.14); color:#dfeae1; }
-  .mq-receipt .mq-diff.up { background:rgba(47,143,91,.28); color:#bfe8cd; }
-  .mq-receipt .mq-diff.dn { background:rgba(224,112,90,.28); color:#f3c9bf; }
+  .mq-actions { display:flex; gap:8px; margin-top:11px; padding-top:10px; border-top:1px dashed rgba(232,198,106,.28); }
+  .mq-actions .mq-wa, .mq-actions .mq-rcv { flex:1; justify-content:center; }
+  .mq-rcv { background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); color:#fff; border-radius:10px;
+    font-family:var(--font-display); font-size:12px; padding:8px 10px; display:inline-flex; align-items:center; gap:6px; cursor:pointer; transition:.15s; }
+  .mq-rcv:hover { background:rgba(232,198,106,.28); border-color:#c19a3e; }
+  .mq-rcv.on { background:rgba(47,143,91,.28); border-color:rgba(47,143,91,.5); color:#bfe8cd; }
   .mq-card.near { --mqc:#e0705a; } .mq-card.soon { --mqc:#e0b45a; } .mq-card.far { --mqc:#3f9e78; }
 
   /* إضافة ميقات داخل نافذة التعديل */
@@ -353,6 +349,8 @@
   .inst-add { margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
   .inst-add-row { display:flex; gap:8px; margin-bottom:10px; }
   .inst-add-row #instAddAmount { width:130px; flex:none; } .inst-add-row #instAddNote { flex:1; min-width:0; }
+  .rcpt-agreed { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 13px; margin:10px 0 14px; font-size:13px; color:var(--muted); }
+  .rcpt-agreed b { color:var(--accent); font-family:var(--font-display); }
 
   /* ═══ ألبوم الصور (اللجنة الإعلامية) ═══ */
   .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
@@ -1864,6 +1862,23 @@
     </div>
     <button class="btn btn-primary" onclick="instAdd()">➕ إضافة دفعة</button>
     <button class="btn btn-accent" id="instPayFullBtn" style="display:none" onclick="instPayFull()">✅ دفع كامل للعضوية</button>
+  </div>
+</div></div>
+
+<!-- Receipt modal (استلام المبلغ) -->
+<div class="modal-backdrop" id="receiptModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('receiptModal')">×</button>
+  <h3>💵 استلام المبلغ</h3>
+  <div class="subtitle" id="receiptSub"></div>
+  <div class="rcpt-agreed" id="receiptAgreed"></div>
+  <div class="field"><label>المبلغ المستلَم فعلاً (د.ب)</label>
+    <input type="number" id="receiptAmount" min="0" step="0.001" placeholder="0" /></div>
+  <div class="field" style="margin-top:8px"><label>ملاحظة <span class="opt">اختياري</span></label>
+    <input type="text" id="receiptNote" placeholder="مثال: استُلم نقداً" /></div>
+  <div class="actions-row">
+    <button class="btn btn-primary" onclick="saveReceipt()">✅ تم الاستلام</button>
+    <button class="btn btn-ghost" id="receiptClearBtn" onclick="clearReceipt()" style="display:none">إلغاء الاستلام</button>
+    <button class="btn btn-ghost" onclick="closeModal('receiptModal')">إغلاق</button>
   </div>
 </div></div>
 

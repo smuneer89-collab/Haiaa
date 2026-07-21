@@ -126,10 +126,14 @@ function fmtBooking(b){
 function contribKindOptions(sel){ return CONTRIB_KINDS.map(k=>`<option value="${k}"${k===sel?' selected':''}>${k}</option>`).join(''); }
 function miqatReceived(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingReceived(b),0); }
 function bookingReceived(b){ if(b && Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); return Number(b&&b.amount)||0; }
+/* المبلغ الفعّال للمساهمة: المستلَم إن سُجِّل، وإلا المتّفق عليه */
+function bookingHasReceipt(b){ return b && b.received!=null && b.received!==''; }
+function bookingEffective(b){ return bookingHasReceipt(b) ? (Number(b.received)||0) : bookingAgreed(b); }
+function miqatEffective(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingEffective(b),0); }
 function miqatStatus(mq){
-  const agreed = miqatAgreed(mq); const req = Number(mq.requiredAmount)||0;
-  if (agreed <= 0) return 'red';
-  if (req > 0 && agreed < req) return 'yellow';
+  const eff = miqatEffective(mq); const req = Number(mq.requiredAmount)||0;
+  if (eff <= 0) return 'red';
+  if (req > 0 && eff < req) return 'yellow';
   return 'green';
 }
 const STATUS_LABEL = { green:'محجوز', yellow:'يحتاج تعزيز', red:'غير محجوز' };
@@ -386,6 +390,7 @@ function renderRecentMembers(){
     if(kind==='family'){
       const b=row.b;
       const reminded = b.remindKey===miqatRemindKey(mq);
+      const rc = bookingHasReceipt(b)?'on':'';
       return `<div class="mq-card ${cls}">
         <div class="mq-top">
           <div class="mq-av">👪</div>
@@ -393,16 +398,19 @@ function renderRecentMembers(){
             <div class="mq-name">${escapeHtml(b.familyName)} <span class="code">عائلة</span></div>
             <div class="mq-line">${escapeHtml(mq.name)} <span class="dt">· ${fmtMiqatDate(mq)}</span></div>
           </div>
-          <button class="mq-wa ${reminded?'done':''}" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">${reminded?'✓ ذُكّر الممثّل':'✆ تذكير'}</button>
         </div>
         <div class="mq-bar"><span style="width:${pct}%"></span></div>
         <div class="mq-foot"><span>${whenTxt}</span><b>${leftTxt}</b></div>
-        ${receiptRowHTML(mq,b)}
+        <div class="mq-actions">
+          <button class="mq-wa ${reminded?'done':''}" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">${reminded?'✓ ذُكّر الممثّل':'✆ تذكير'}</button>
+          <button class="mq-rcv ${rc}" onclick="openReceipt('${mq.id}','${b.memberId}')">${receiptBtnLabel(b)}</button>
+        </div>
       </div>`;
     }
     const m=row.m;
     const reminded = isMiqatReminded(m,mq);
     const av = m.photo ? `<img src="${m.photo}" alt="">` : escapeHtml((m.name||'؟').trim().charAt(0));
+    const rc = bookingHasReceipt(row.b)?'on':'';
     return `<div class="mq-card ${cls}">
       <div class="mq-top">
         <div class="mq-av" onclick="showDetail('${m.id}')">${av}</div>
@@ -410,27 +418,54 @@ function renderRecentMembers(){
           <div class="mq-name">${escapeHtml(m.name)} <span class="code">${memberCode(m)}</span></div>
           <div class="mq-line">${escapeHtml(mq.name)} <span class="dt">· ${fmtMiqatDate(mq)}</span></div>
         </div>
-        <button class="mq-wa ${reminded?'done':''}" onclick="sendMiqatReminder('${m.id}','${mq.id}')">${reminded?'✓ ذُكّر':'✆ تذكير'}</button>
       </div>
       <div class="mq-bar"><span style="width:${pct}%"></span></div>
       <div class="mq-foot"><span>${whenTxt}</span><b>${leftTxt}</b></div>
-      ${receiptRowHTML(mq,row.b)}
+      <div class="mq-actions">
+        <button class="mq-wa ${reminded?'done':''}" onclick="sendMiqatReminder('${m.id}','${mq.id}')">${reminded?'✓ ذُكّر':'✆ تذكير'}</button>
+        <button class="mq-rcv ${rc}" onclick="openReceipt('${mq.id}','${row.b.memberId}')">${receiptBtnLabel(row.b)}</button>
+      </div>
     </div>`;
   }).join('');
 }
-/* صف «تم استلام المبلغ» داخل بطاقة مواقيت تقترب */
-function receiptRowHTML(mq,b){
-  const ag=bookingAgreed(b), rec=bookingReceived(b);
-  if(rec<=0){
-    return `<div class="mq-receipt" onclick="openBookingPayment('${mq.id}','${b.memberId}')">
-      <span class="mq-chk">☐</span><span class="mq-rl">تم استلام المبلغ</span></div>`;
-  }
-  const diff=rec-ag; let badge;
-  if(Math.abs(diff)<0.0005) badge=`<span class="mq-diff eq">مطابق</span>`;
-  else if(diff>0) badge=`<span class="mq-diff up">زائد +${fmtMoney(diff)}</span>`;
-  else badge=`<span class="mq-diff dn">ناقص −${fmtMoney(-diff)}</span>`;
-  return `<div class="mq-receipt on" onclick="openBookingPayment('${mq.id}','${b.memberId}')">
-    <span class="mq-chk">✅</span><span class="mq-rl">استُلم ${fmtMoney(rec)}</span>${badge}</div>`;
+function receiptBtnLabel(b){ return bookingHasReceipt(b) ? `✓ استُلم ${fmtMoney(Number(b.received)||0)}` : '💵 استلام المبلغ'; }
+
+/* ═══ نافذة استلام المبلغ (مستقلة عن الأقساط) ═══ */
+let receiptCtx=null;
+function openReceipt(miqatId, memberId){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  receiptCtx={miqatId, memberId};
+  const who = b.familyName ? `${b.familyName}${b.repName?` (ممثّلها ${b.repName})`:''}` : (members.find(x=>x.id===memberId)?.name||'');
+  $('#receiptSub').textContent = `${who} · ${mq.name}`;
+  $('#receiptAgreed').innerHTML = `المتّفق عليه: <b>${fmtMoney(bookingAgreed(b))}</b>` + (mq.requiredAmount?` · سعر الميقات: <b>${fmtMoney(mq.requiredAmount)}</b>`:'');
+  $('#receiptAmount').value = bookingHasReceipt(b) ? (Number(b.received)||0) : '';
+  $('#receiptNote').value = b.receivedNote||'';
+  $('#receiptClearBtn').style.display = bookingHasReceipt(b) ? 'inline-flex' : 'none';
+  $('#receiptModal').classList.add('open');
+}
+async function saveReceipt(){
+  if(!receiptCtx) return; const {miqatId, memberId}=receiptCtx;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  const amt=parseFloat($('#receiptAmount').value);
+  if(isNaN(amt)||amt<0){ toast('أدخل المبلغ المستلَم'); return; }
+  b.received=amt; b.receivedNote=($('#receiptNote').value||'').trim(); b.receivedDate=today();
+  await saveMiqats(); closeModal('receiptModal');
+  toast('تم تسجيل الاستلام');
+  renderMiqats(); renderDashboard();
+  if($('#familyListModal')&&$('#familyListModal').classList.contains('open')) renderFamilyList();
+  if($('#detailModal').classList.contains('open')) showDetail(memberId);
+}
+async function clearReceipt(){
+  if(!receiptCtx) return; const {miqatId, memberId}=receiptCtx;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  if(!confirm('إلغاء تسجيل الاستلام؟ سيُحسب المتّفق عليه بدلاً منه.')) return;
+  delete b.received; delete b.receivedNote; delete b.receivedDate;
+  await saveMiqats(); closeModal('receiptModal');
+  toast('أُلغي الاستلام'); renderMiqats(); renderDashboard();
+  if($('#detailModal').classList.contains('open')) showDetail(memberId);
 }
 
 /* إرسال تذكير الميقات عبر واتساب بالرسالة الجاهزة */
@@ -1691,7 +1726,7 @@ function printMiqats(status){
     : '<tr><th>المناسبة</th></tr>';
   const rows = list.map(mq=>{
     if(!needsAmount) return `<tr><td>${escapeHtml(mq.name)}</td></tr>`;
-    const rem=Math.max(0, (Number(mq.requiredAmount)||0) - miqatAgreed(mq));
+    const rem=Math.max(0, (Number(mq.requiredAmount)||0) - miqatEffective(mq));
     return `<tr><td>${escapeHtml(mq.name)}</td><td class="amt">${fmtMoney(rem)}</td></tr>`;
   }).join('');
   const cols = needsAmount?2:1;
