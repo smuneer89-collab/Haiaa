@@ -556,13 +556,14 @@ function showMiqatDetail(id){
   const mq=miqats.find(x=>x.id===id); if(!mq) return;
   const st=miqatStatus(mq), paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
   const pct=req>0?Math.min(100,Math.round(paid/req*100)):(paid>0?100:0);
-  const bookers=(mq.bookings||[]).map(b=>{ const m=members.find(x=>x.id===b.memberId);
+  const bookers=(mq.bookings||[]).map(b=>{
     const ag=bookingAgreed(b), pd=bookingPaid(b), rem=bookingRemaining(b);
+    const fam=b.familyName?' 👪':'';
     const payLine = rem>0
       ? `<div class="bk-pay">مدفوع ${fmtMoney(pd)} من ${fmtMoney(ag)} · <span class="bk-rem">متبقّي ${fmtMoney(rem)}</span>
            <button class="bk-add" onclick="openBookingPayment('${mq.id}','${b.memberId}')">➕ دفعة</button></div>`
       : (ag>0?`<div class="bk-pay" style="color:var(--ok)">مدفوع بالكامل ✓</div>`:'');
-    return `<li><span class="name">${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span><br><span style="font-size:12px;color:var(--muted)">${fmtBooking(b)}</span>${payLine}</span></li>`;
+    return `<li><span class="name">${escapeHtml(bookingName(b))}${fam} <span style="color:var(--muted)">${escapeHtml(bookingSubtitle(b))}</span><br><span style="font-size:12px;color:var(--muted)">${fmtBooking(b)}</span>${payLine}</span></li>`;
   }).join('');
   $('#miqatDetailTitle').textContent=mq.name;
   $('#miqatDetailSub').innerHTML=`${fmtMiqatDate(mq)} · <span class="badge mc-status st-${st}">${STATUS_LABEL[st]}</span>`;
@@ -1120,7 +1121,7 @@ function renderDues(){
   const subDue=members.filter(m=>memberSubStatus(m)==='partial')
     .map(m=>({m, rem:memberRemaining(m)})).sort((a,b)=>b.rem-a.rem);
   let miqatDue=[];
-  miqats.forEach(mq=>(mq.bookings||[]).forEach(b=>{ const rem=bookingRemaining(b); if(rem>0){ const m=members.find(x=>x.id===b.memberId); if(m) miqatDue.push({m,mq,rem}); } }));
+  miqats.forEach(mq=>(mq.bookings||[]).forEach(b=>{ const rem=bookingRemaining(b); if(rem>0){ miqatDue.push({b,mq,rem}); } }));
   miqatDue.sort((a,b)=>b.rem-a.rem);
   if(!subDue.length && !miqatDue.length){ if(panel) panel.style.display='none'; box.innerHTML=''; return; }
   if(panel) panel.style.display='block';
@@ -1128,7 +1129,7 @@ function renderDues(){
   if(subDue.length){ html+=`<div class="due-sec-title">اشتراكات مقسّطة (${subDue.length})</div>`;
     html+=subDue.map(({m,rem})=>`<div class="due-item"><div class="di-mid"><div class="di-name">${escapeHtml(m.name)}</div><div class="di-sub">${memberCode(m)} · مدفوع ${fmtMoney(memberPaid(m))} من ${fmtMoney(memberFeeTotal(m))}</div></div><div class="di-rem">${fmtMoney(rem)}</div><button class="di-wa" onclick="remindSubDue('${m.id}')" title="تذكير واتساب">💬</button><button class="bk-add" onclick="openAddSubPayment('${m.id}')">➕ دفعة</button></div>`).join(''); }
   if(miqatDue.length){ html+=`<div class="due-sec-title">مساهمات مواقيت مقسّطة (${miqatDue.length})</div>`;
-    html+=miqatDue.map(({m,mq,rem})=>`<div class="due-item"><div class="di-mid"><div class="di-name">${escapeHtml(m.name)}</div><div class="di-sub">${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div></div><div class="di-rem">${fmtMoney(rem)}</div><button class="di-wa" onclick="remindMiqatDue('${m.id}','${mq.id}')" title="تذكير واتساب">💬</button><button class="bk-add" onclick="openBookingPayment('${mq.id}','${m.id}')">➕ دفعة</button></div>`).join(''); }
+    html+=miqatDue.map(({b,mq,rem})=>`<div class="due-item"><div class="di-mid"><div class="di-name">${escapeHtml(bookingName(b))}${b.familyName?' 👪':''}</div><div class="di-sub">${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div></div><div class="di-rem">${fmtMoney(rem)}</div><button class="di-wa" onclick="remindMiqatDue('${b.memberId}','${mq.id}')" title="تذكير واتساب">💬</button><button class="bk-add" onclick="openBookingPayment('${mq.id}','${b.memberId}')">➕ دفعة</button></div>`).join(''); }
   box.innerHTML=html;
 }
 /* تذكير قسط العضوية عبر واتساب */
@@ -1139,11 +1140,12 @@ function remindSubDue(id){
 }
 /* تذكير قسط مساهمة ميقات عبر واتساب */
 function remindMiqatDue(memberId, miqatId){
-  const m=members.find(x=>x.id===memberId); const mq=miqats.find(x=>x.id===miqatId); if(!m||!mq) return;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
-  const rem=bookingRemaining(b);
-  const msg=`السلام عليكم\n\nالعضو ${m.name}،\nنذكّركم بسداد المتبقّي من مساهمتكم في:\n\n*${mq.name}* (${fmtMiqatDate(mq)})\n\nالمتّفق عليه: ${fmtMoney(bookingAgreed(b))}\nالمدفوع: ${fmtMoney(bookingPaid(b))}\n*المتبقّي: ${fmtMoney(rem)}*\n\nجزاكم الله خيراً — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
-  window.open(whatsappLink(m.phone, msg), '_blank');
+  const rem=bookingRemaining(b); const phone=bookingPhone(b);
+  const who = b.familyName ? `${b.familyName}${b.repName?` (ممثّلها ${b.repName})`:''}` : bookingName(b);
+  const msg=`السلام عليكم\n\n${who}،\nنذكّركم بسداد المتبقّي من المساهمة في:\n\n*${mq.name}* (${fmtMiqatDate(mq)})\n\nالمتّفق عليه: ${fmtMoney(bookingAgreed(b))}\nالمدفوع: ${fmtMoney(bookingPaid(b))}\n*المتبقّي: ${fmtMoney(rem)}*\n\nجزاكم الله خيراً — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
+  window.open(whatsappLink(phone, msg), '_blank');
 }
 
 /* ─── تقرير أقساط العضو الشامل PDF (العضوية + المواقيت) ─── */
@@ -1333,8 +1335,8 @@ function renderMiqats(){
     const st=miqatStatus(mq), paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
     const open=openMiqatRows.has(mq.id);
     const pct=req>0?Math.min(100,Math.round(paid/req*100)):(paid>0?100:0);
-    const bookers=(mq.bookings||[]).map(b=>{ const m=members.find(x=>x.id===b.memberId);
-      return `<div class="booker-line"><span>${m?escapeHtml(m.name):'—'} <span style="color:var(--muted)">${m?memberCode(m):''}</span></span>
+    const bookers=(mq.bookings||[]).map(b=>{ const fam=b.familyName?' 👪':'';
+      return `<div class="booker-line"><span>${escapeHtml(bookingName(b))}${fam} <span style="color:var(--muted)">${escapeHtml(bookingSubtitle(b))}</span></span>
         <span><span class="bl-amt">${fmtBooking(b)}</span> <button class="bl-del" onclick="removeBooking('${mq.id}','${b.memberId}')">×</button></span></div>`; }).join('');
     const details = open ? `
       <div class="mc-details">
@@ -1426,6 +1428,42 @@ async function saveBooking(){
 }
 async function removeBooking(miqatId,memberId){ const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   if(!confirm('إزالة حجز هذا العضو؟')) return; mq.bookings=mq.bookings.filter(b=>b.memberId!==memberId); await saveMiqats(); renderMiqats(); }
+
+/* ═══ الميقات العائلي ═══ */
+function bookingName(b){ if(b&&b.familyName) return b.familyName; const m=members.find(x=>x.id===b.memberId); return m?m.name:'—'; }
+function bookingSubtitle(b){ if(b&&b.familyName) return b.repName?('ممثّلها: '+b.repName):'عائلة'; const m=members.find(x=>x.id===b.memberId); return m?memberCode(m):''; }
+function bookingPhone(b){ if(b&&b.phone) return b.phone; const m=members.find(x=>x.id===b.memberId); return m?m.phone:''; }
+function openFamilyBooking(){
+  if(!miqats.length){ toast('أضف مواقيت أولاً'); return; }
+  $('#famName').value=''; $('#famRep').value=''; $('#famPhone').value=''; $('#famInitPaid').value=''; $('#famInitPaid').style.display='none';
+  const r=document.querySelector('input[name="pm_family"][value="full"]'); if(r) r.checked=true;
+  const cc=$('#famCountryCode'); if(cc&&!cc.value) cc.value='973';
+  $('#famMiqat').innerHTML=miqatsByNearest().map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)}</option>`).join('');
+  contribInit('family');
+  $('#familyModal').classList.add('open');
+}
+function famPayMode(mode){ const inp=$('#famInitPaid'); if(inp){ inp.style.display=mode==='inst'?'block':'none'; if(mode==='full') inp.value=''; } }
+async function saveFamilyBooking(){
+  const familyName=$('#famName').value.trim();
+  const miqatId=$('#famMiqat').value;
+  const repName=$('#famRep').value.trim();
+  const phoneLocal=toEnglishDigits($('#famPhone').value).replace(/\D/g,'');
+  const cc=$('#famCountryCode').value||'973';
+  if(!familyName){ toast('أدخل اسم العائلة'); return; }
+  if(!miqatId){ toast('اختر الميقات'); return; }
+  if(!repName){ toast('أدخل اسم ممثّل العائلة'); return; }
+  if(!phoneLocal){ toast('أدخل رقم هاتف الممثّل'); return; }
+  const items=contribItems('family'); const amount=items.reduce((s,i)=>s+i.value,0);
+  if(!items.length){ toast('أدخل بند مساهمة واحداً على الأقل'); return; }
+  const pmSel=document.querySelector('input[name="pm_family"]:checked'); const payMode=pmSel?pmSel.value:'full';
+  const initPaid = payMode==='inst' ? Math.max(0, Math.min(amount, parseFloat($('#famInitPaid').value)||0)) : amount;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  mq.bookings=mq.bookings||[];
+  mq.bookings.push({ memberId:'fam_'+Date.now(), onBehalf:'family', familyName, repName,
+    phone:'+'+cc+phoneLocal, amount, items, payments: initPaid>0?[{amount:initPaid, date:today()}]:[] });
+  await saveMiqats(); closeModal('familyModal'); renderMiqats(); renderDashboard();
+  toast('تم حفظ الميقات العائلي');
+}
 
 /* شريط أزرار داخل نافذة الطباعة (لا يظهر في الـ PDF) */
 const PRINT_BAR = `
@@ -2484,6 +2522,7 @@ function fillCountrySelects(){
   const opts=countryOptions('');
   const add=$('#addCountryCode'); if(add) add.innerHTML=`<option value="" disabled selected>اختر الدولة</option>`+opts;
   const edit=$('#editCountryCode'); if(edit) edit.innerHTML=opts;
+  const fam=$('#famCountryCode'); if(fam){ fam.innerHTML=opts; fam.value='973'; }
 }
 (async ()=>{
   await loadData();

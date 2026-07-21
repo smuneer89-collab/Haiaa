@@ -294,6 +294,8 @@
     border-radius:10px; padding:8px 14px; cursor:pointer; flex:1; justify-content:center; }
   .pm-opt input { accent-color:var(--accent); }
   .pm-init { width:100%; }
+  .mq-head-btns { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  @media (max-width:520px){ .mq-head-btns { width:100%; } .mq-head-btns .btn { width:100%; } }
 
   /* مدير الأقساط */
   .inst-summary { display:flex; justify-content:space-between; gap:8px; background:var(--surface); border:1px solid var(--line);
@@ -1088,7 +1090,8 @@
       <div class="panel-header">
         <div><h2 class="panel-title">🕯️ المواقيت</h2>
           <div class="panel-sub" id="miqatsPanelSub">قائمة المواقيت وحالة حجزها</div></div>
-        <button class="btn btn-primary btn-sm" onclick="openMiqatModal()">+ إضافة ميقات</button>
+        <div class="mq-head-btns"><button class="btn btn-primary btn-sm" onclick="openMiqatModal()">+ إضافة ميقات</button>
+          <button class="btn btn-ghost btn-sm" onclick="openFamilyBooking()">👪 ميقات عائلي</button></div>
       </div>
       <div class="toolbar">
         <select id="miqatFilter" onchange="renderMiqats()">
@@ -1538,6 +1541,29 @@
   <div class="field" style="margin-top:10px;"><label>المدفوع الآن (د.ب) <span class="opt">اتركه فارغاً إذا دُفع المبلغ كاملاً — أو أدخل الدفعة الأولى للتقسيط</span></label>
     <input type="number" id="bookingInitPaid" min="0" step="0.001" placeholder="مدفوع بالكامل" /></div>
   <div class="actions-row"><button class="btn btn-primary" onclick="saveBooking()">إضافة الحجز</button></div>
+</div></div>
+
+<!-- Family Booking Modal -->
+<div class="modal-backdrop" id="familyModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('familyModal')">×</button>
+  <h3>👪 ميقات عائلي</h3>
+  <div class="subtitle">حجز باسم عائلة يمثّلها شخص واحد</div>
+  <div class="field"><label>اسم العائلة</label><input type="text" id="famName" placeholder="مثلاً: عائلة آل فلان" /></div>
+  <div class="field" style="margin-top:10px;"><label>اختر الميقات</label><select id="famMiqat"></select></div>
+  <div class="field" style="margin-top:10px;"><label>اسم ممثّل العائلة</label><input type="text" id="famRep" placeholder="اسم الممثّل" /></div>
+  <div class="field" style="margin-top:10px;"><label>رقم الهاتف</label>
+    <div class="phone-wrap"><select id="famCountryCode" class="country-select"></select><input id="famPhone" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="رقم الهاتف" /></div></div>
+  <div class="field" style="margin-top:10px;"><label>مساهمة العائلة <span class="opt">نقدي أو عيني — أضف بنداً لكل نوع</span></label>
+    <div id="famItems" class="contrib-editor" data-ctx="family"></div></div>
+  <div class="field paymode-field" style="margin-top:10px;"><label>طريقة الدفع</label>
+    <div class="paymode">
+      <label class="pm-opt"><input type="radio" name="pm_family" value="full" checked onchange="famPayMode('full')"> دفع كامل</label>
+      <label class="pm-opt"><input type="radio" name="pm_family" value="inst" onchange="famPayMode('inst')"> تقسيط</label>
+    </div>
+    <input type="number" class="pm-init" id="famInitPaid" style="display:none;margin-top:8px" placeholder="المدفوع الآن (الدفعة الأولى)" min="0" step="0.001" />
+  </div>
+  <div class="actions-row"><button class="btn btn-primary" onclick="saveFamilyBooking()">حفظ الميقات العائلي</button>
+    <button class="btn btn-ghost" onclick="closeModal('familyModal')">إلغاء</button></div>
 </div></div>
 
 <!-- Bulk Message Modal -->
