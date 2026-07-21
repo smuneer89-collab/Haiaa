@@ -297,6 +297,30 @@
   .mq-head-btns { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
   @media (max-width:520px){ .mq-head-btns { width:100%; } .mq-head-btns .btn { width:100%; } }
 
+  /* قائمة الحجوزات العائلية */
+  .fam-summary { display:flex; flex-wrap:wrap; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:11px 13px; margin:10px 0; font-size:12.5px; }
+  .fam-summary .fs-item { flex:1; min-width:90px; text-align:center; }
+  .fam-summary .fs-item b { display:block; font-family:var(--font-display); font-size:15px; color:var(--ink); }
+  .fam-summary .fs-item.paid b { color:var(--ok); } .fam-summary .fs-item.rem b { color:var(--warn); }
+  .fam-search { width:100%; margin-bottom:12px; }
+  .fam-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 15px; margin-bottom:10px; }
+  .fam-card .fc-head { display:flex; align-items:center; gap:8px; }
+  .fam-card .fc-name { font-family:var(--font-display); font-weight:600; font-size:15px; flex:1; min-width:0; }
+  .fam-card .fc-rep { font-size:12px; color:var(--muted); margin-top:2px; }
+  .fam-card .fc-miqat { font-size:12.5px; color:var(--accent); margin-top:6px; }
+  .fam-card .fc-contrib { font-size:12px; color:var(--muted); margin-top:4px; }
+  .fam-card .fc-bar { height:6px; border-radius:6px; background:var(--line); overflow:hidden; margin-top:8px; }
+  .fam-card .fc-bar span { display:block; height:100%; background:linear-gradient(90deg,var(--gold),var(--accent)); }
+  .fam-card .fc-nums { display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); margin-top:6px; }
+  .fam-card .fc-nums .paid { color:var(--ok); font-weight:600; } .fam-card .fc-nums .rem { color:var(--warn); font-weight:600; }
+  .fam-card .fc-btns { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .fam-card .fc-btns button { flex:1; min-width:70px; border:0; border-radius:8px; padding:8px 6px; font-size:12px; cursor:pointer; font-family:var(--font-display); }
+  .fc-btns .fb-edit { background:var(--accent-soft); color:var(--accent); }
+  .fc-btns .fb-pay { background:var(--gold-soft,#f6edd6); color:var(--warn); }
+  .fc-btns .fb-wa { background:#e6f5ec; color:#1a9c54; }
+  .fc-btns .fb-del { background:var(--danger-soft); color:var(--danger); }
+  .fam-empty { text-align:center; color:var(--muted); font-size:13px; padding:24px 10px; }
+
   /* مدير الأقساط */
   .inst-summary { display:flex; justify-content:space-between; gap:8px; background:var(--surface); border:1px solid var(--line);
     border-radius:10px; padding:11px 13px; margin:10px 0 14px; font-size:13px; }
@@ -1091,7 +1115,8 @@
         <div><h2 class="panel-title">🕯️ المواقيت</h2>
           <div class="panel-sub" id="miqatsPanelSub">قائمة المواقيت وحالة حجزها</div></div>
         <div class="mq-head-btns"><button class="btn btn-primary btn-sm" onclick="openMiqatModal()">+ إضافة ميقات</button>
-          <button class="btn btn-ghost btn-sm" onclick="openFamilyBooking()">👪 ميقات عائلي</button></div>
+          <button class="btn btn-ghost btn-sm" onclick="openFamilyBooking()">👪 ميقات عائلي</button>
+          <button class="btn btn-ghost btn-sm" onclick="openFamilyList()">📋 قائمة العائلات</button></div>
       </div>
       <div class="toolbar">
         <select id="miqatFilter" onchange="renderMiqats()">
@@ -1564,6 +1589,15 @@
   </div>
   <div class="actions-row"><button class="btn btn-primary" onclick="saveFamilyBooking()">حفظ الميقات العائلي</button>
     <button class="btn btn-ghost" onclick="closeModal('familyModal')">إلغاء</button></div>
+</div></div>
+
+<!-- Family List Modal -->
+<div class="modal-backdrop" id="familyListModal"><div class="modal" style="max-width:600px;">
+  <button class="modal-close" onclick="closeModal('familyListModal')">×</button>
+  <h3>📋 الحجوزات العائلية</h3>
+  <div class="fam-summary" id="famListSummary"></div>
+  <input type="text" id="famSearch" class="fam-search" placeholder="🔍 بحث باسم العائلة أو الممثّل…" oninput="renderFamilyList()" />
+  <div id="famListBody"></div>
 </div></div>
 
 <!-- Bulk Message Modal -->
