@@ -336,19 +336,16 @@ function renderRecentMembers(){
   const panel=$('#recentMembersPanel'); const box=$('#recentMembersCarousel');
   if(!panel||!box) return;
   const h=hijriParts(); const cur=h.month; const curYear=parseInt(h.year,10)||0;
-  // اجمع صفاً لكل (عضو + ميقات) قريب خلال الشهرين القادمين
+  // اجمع صفاً لكل حجز (عضو أو عائلة) قريب خلال الشهرين القادمين
   let rows=[];
-  members.forEach(m=>{
-    (miqats||[]).forEach(mq=>{
-      const booked=(mq.bookings||[]).some(b=>b.memberId===m.id);
-      if(!booked) return;
-      let diff=(mq.month-cur+12)%12;              // فرق الأشهر
-      if(diff===0 && mq.day < h.day) return;      // مضى هذا الشهر
-      if(diff>2) return;                          // أبعد من شهرين
-      // الأيام المتبقية التقريبية (شهر هجري ≈ 29.5 يوم)
-      let daysLeft = Math.round(diff*29.5 + (mq.day - h.day));
-      if(daysLeft<0) daysLeft=0;
-      rows.push({m, mq, diff, daysLeft});
+  (miqats||[]).forEach(mq=>{
+    let diff=(mq.month-cur+12)%12;
+    if(diff===0 && mq.day < h.day) return;
+    if(diff>2) return;
+    let daysLeft = Math.round(diff*29.5 + (mq.day - h.day)); if(daysLeft<0) daysLeft=0;
+    (mq.bookings||[]).forEach(b=>{
+      if(b.familyName){ rows.push({kind:'family', b, mq, diff, daysLeft}); }
+      else { const m=members.find(x=>x.id===b.memberId); if(m) rows.push({kind:'member', m, b, mq, diff, daysLeft}); }
     });
   });
   if(!rows.length){ panel.style.display='none'; return; }
@@ -356,11 +353,28 @@ function renderRecentMembers(){
   rows.sort((a,b)=> a.daysLeft - b.daysLeft);
 
   const MAXD=60; // مدى شريط التقدّم (شهران)
-  box.innerHTML = rows.map(({m,mq,diff,daysLeft})=>{
+  box.innerHTML = rows.map((row)=>{
+    const {mq,diff,daysLeft,kind}=row;
     const cls = daysLeft<=7 ? 'near' : (diff===0 ? 'soon' : (diff===1 ? 'soon' : 'far'));
     const pct = Math.max(6, Math.min(100, Math.round((MAXD-daysLeft)/MAXD*100)));
     const whenTxt = diff===0 ? 'هذا الشهر' : (diff===1 ? 'الشهر القادم' : 'بعد شهرين');
     const leftTxt = daysLeft<=0 ? 'اليوم' : (daysLeft===1 ? 'باقٍ يوم' : `باقٍ ${daysLeft} يوماً`);
+    if(kind==='family'){
+      const b=row.b;
+      return `<div class="mq-card ${cls}">
+        <div class="mq-top">
+          <div class="mq-av">👪</div>
+          <div class="mq-mid" onclick="openFamilyList()">
+            <div class="mq-name">${escapeHtml(b.familyName)} <span class="code">عائلة</span></div>
+            <div class="mq-line">${escapeHtml(mq.name)} <span class="dt">· ${fmtMiqatDate(mq)}</span></div>
+          </div>
+          <button class="mq-wa" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">✆ تذكير</button>
+        </div>
+        <div class="mq-bar"><span style="width:${pct}%"></span></div>
+        <div class="mq-foot"><span>${whenTxt}</span><b>${leftTxt}</b></div>
+      </div>`;
+    }
+    const m=row.m;
     const reminded = isMiqatReminded(m,mq);
     const av = m.photo ? `<img src="${m.photo}" alt="">` : escapeHtml((m.name||'؟').trim().charAt(0));
     return `<div class="mq-card ${cls}">
@@ -388,6 +402,34 @@ function sendMiqatReminder(memberId, miqatId){
   markReminded(memberId, miqatId);
   window.open(whatsappLink(m.phone, msg), '_blank');
   setTimeout(renderRecentMembers, 400);
+}
+
+/* تحويل تاريخ الميقات الهجري (يوم/شهر) إلى ميلادي حسب تقويم أم القرى */
+function hijriToGregorian(hDay, hMonth0, hYear){
+  const fmt=new Intl.DateTimeFormat('en-u-ca-islamic-umalqura',{day:'numeric',month:'numeric',year:'numeric'});
+  const h=hijriParts(); const curY=parseInt(h.year,10)||hYear;
+  const approxDays=(hYear-curY)*354.367 + (hMonth0-h.month)*29.53 + (hDay-h.day);
+  const base=new Date(Date.now()+Math.round(approxDays)*86400000);
+  for(let off=-5; off<=5; off++){
+    const cand=new Date(base.getTime()+off*86400000);
+    const p=fmt.formatToParts(cand);
+    const d=+p.find(x=>x.type==='day').value, mo=+p.find(x=>x.type==='month').value-1, y=+p.find(x=>x.type==='year').value.replace(/\D/g,'');
+    if(d===hDay && mo===hMonth0 && y===hYear) return cand;
+  }
+  return base;
+}
+function miqatTargetHijriYear(mq){ const h=hijriParts(); const curY=parseInt(h.year,10)||1448;
+  return (mq.month < h.month || (mq.month===h.month && mq.day < h.day)) ? curY+1 : curY; }
+/* تذكير العائلة بالمساهمة في ميقات (نص مخصّص + تاريخ ميلادي) */
+function sendFamilyMiqatReminder(miqatId, memberId){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  const ty=miqatTargetHijriYear(mq);
+  const greg=hijriToGregorian(mq.day, mq.month, ty);
+  const gregText=greg.toLocaleDateString('ar',{day:'numeric',month:'long',year:'numeric'});
+  const hijriText=`${mq.day} ${HIJRI_MONTHS[mq.month]} ${ty}هـ`;
+  const msg=`السلام عليكم\n\nبصفتكم ممثل ${b.familyName}\nنذكّركم في المساهمة بميقات \n\n*${mq.name}* (${hijriText})\nالموافق ${gregText}\n\n\nجزاكم الله خيراً — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
+  window.open(whatsappLink(bookingPhone(b), msg), '_blank');
 }
 
 /* ═══ كاروسيل متحرك تلقائياً + قابل للإيقاف والسحب باللمس/الماوس ═══ */
@@ -730,7 +772,7 @@ function collectFormMiqats(){
     const ctx=el.getAttribute('data-ctx');
     const items=contribItems(ctx); const amount=items.reduce((s,i)=>s+i.value,0);
     const pmSel=el.querySelector(`input[name="pm_${ctx}"]:checked`); const payMode=pmSel?pmSel.value:'full';
-    const initEl=document.getElementById('pmInit_'+ctx); const initPaid=(payMode==='inst'&&initEl)?(parseFloat(initEl.value)||0):amount;
+    const initEl=document.getElementById('pmInit_'+ctx); const initPaid=(payMode==='inst'&&initEl)?(parseFloat(initEl.value)||0):0;
     if(miqatId) list.push({miqatId, amount, items, payMode, initPaid});
   }); return list;
 }
@@ -774,10 +816,10 @@ $('#addForm').addEventListener('submit',async e=>{
     editRemovedBookings.forEach(mid=>{ const mq=miqats.find(x=>x.id===mid); if(mq) mq.bookings=(mq.bookings||[]).filter(b=>b.memberId!==m.id); });
     // إضافة المواقيت الجديدة (بدون المساس بالحجوزات الحالية ودفعاتها)
     (hasMiqat?formMiqats:[]).forEach(fm=>{ const mq=miqats.find(x=>x.id===fm.miqatId); if(!mq) return; mq.bookings=mq.bookings||[];
-      const initPaid = (fm.payMode==='inst') ? Math.max(0, Math.min(fm.amount, fm.initPaid||0)) : fm.amount;
+      const initPaid = (fm.payMode==='inst') ? Math.max(0, Math.min(fm.amount, fm.initPaid||0)) : 0;
       const ex=mq.bookings.find(b=>b.memberId===m.id);
       if(ex){ ex.items=[...bookingItems(ex).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...(fm.items||[])]; ex.amount=(Number(ex.amount)||0)+fm.amount; if(Array.isArray(ex.payments)&&initPaid>0) ex.payments.push({amount:initPaid,date:today()}); }
-      else mq.bookings.push({memberId:m.id, amount:fm.amount, items:fm.items||[], payments: initPaid>0?[{amount:initPaid, date:today()}]:[]});
+      else mq.bookings.push({memberId:m.id, amount:fm.amount, items:fm.items||[], payMode:fm.payMode||'full', payments: initPaid>0?[{amount:initPaid, date:today()}]:[]});
     });
     await saveMembers(); await saveMiqats();
     e.target.reset(); resetForm();
@@ -804,10 +846,10 @@ $('#addForm').addEventListener('submit',async e=>{
   formMiqats.forEach(fm=>{
     const mq=miqats.find(x=>x.id===fm.miqatId); if(!mq) return;
     mq.bookings=mq.bookings||[];
-    const initPaid = (fm.payMode==='inst') ? Math.max(0, Math.min(fm.amount, fm.initPaid||0)) : fm.amount;
+    const initPaid = (fm.payMode==='inst') ? Math.max(0, Math.min(fm.amount, fm.initPaid||0)) : 0;
     const ex=mq.bookings.find(b=>b.memberId===newMember.id);
     if(ex){ ex.items=[...bookingItems(ex).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...(fm.items||[])]; ex.amount=(Number(ex.amount)||0)+fm.amount; if(!Array.isArray(ex.payments)) ex.payments=[{amount:Number(ex.amount)-fm.amount, date:today()}]; if(initPaid>0) ex.payments.push({amount:initPaid, date:today()}); }
-    else mq.bookings.push({memberId:newMember.id, amount:fm.amount, items:fm.items||[], payments: initPaid>0?[{amount:initPaid, date:today()}]:[]});
+    else mq.bookings.push({memberId:newMember.id, amount:fm.amount, items:fm.items||[], payMode:fm.payMode||'full', payments: initPaid>0?[{amount:initPaid, date:today()}]:[]});
     const st=miqatStatus(mq);
     if(st==='green') completed++; else if(st==='yellow') needsBoost++;
   });
@@ -1066,16 +1108,16 @@ function renderInstMgr(){
     ? `<div class="inst-row"><input type="number" class="ir-ea" id="irEditAmt" value="${p.amount}" step="0.001" min="0"><input type="text" class="ir-en" id="irEditNote" value="${(p.note||'').replace(/"/g,'&quot;')}" placeholder="ملاحظة"><button class="ir-btn ir-edit" onclick="instEditSave(${i})" title="حفظ">✓</button><button class="ir-btn ir-del" onclick="instEditCancel()" title="إلغاء">×</button></div>`
     : `<div class="inst-row"><span class="ir-amt">${fmtMoney(p.amount)}</span><span class="ir-meta">${p.date?fmtDate(p.date):''}${p.note?' · '+escapeHtml(p.note):''}</span><button class="ir-btn ir-edit" onclick="instEditStart(${i})" title="تعديل">✎</button><button class="ir-btn ir-del" onclick="instDelete(${i})" title="حذف">🗑</button></div>`
   ).join('') : `<div class="inst-empty">لا توجد دفعات بعد</div>`;
-  const pf=$('#instPayFullBtn'); if(pf) pf.style.display = (instCtx.kind==='sub' && rem>0) ? 'inline-flex' : 'none';
+  const pf=$('#instPayFullBtn'); if(pf){ pf.style.display = (rem>0)?'inline-flex':'none'; pf.textContent = instCtx.kind==='sub' ? '✅ دفع كامل للعضوية' : '✅ تسجيل الاستلام كاملاً'; }
 }
-/* دفع كامل المتبقّي للعضوية دفعةً واحدة → تفعيل فوري */
+/* تسجيل استلام كامل المتبقّي دفعةً واحدة */
 async function instPayFull(){
-  const o=instObligation(); if(!o||instCtx.kind!=='sub') return;
+  const o=instObligation(); if(!o) return;
   const paid=o.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); const rem=Math.max(0,o.total-paid);
-  if(rem<=0){ toast('العضوية مفعّلة بالكامل'); return; }
-  o.payments.push({amount:rem, date:today(), note:'دفع كامل'});
+  if(rem<=0){ toast('مكتمل'); return; }
+  o.payments.push({amount:rem, date:today(), note: instCtx.kind==='sub'?'دفع كامل':'استلام كامل'});
   await instCommit(o); renderInstMgr();
-  toast('تم دفع كامل الاشتراك — العضوية مفعّلة');
+  toast(instCtx.kind==='sub'?'تم دفع كامل الاشتراك — العضوية مفعّلة':'تم تسجيل الاستلام كاملاً');
 }
 function instEditStart(i){ instEditIdx=i; renderInstMgr(); }
 function instEditCancel(){ instEditIdx=-1; renderInstMgr(); }
@@ -1414,7 +1456,7 @@ async function saveBooking(){
   const miqatId=$('#bookingMiqatId').value; const memberId=$('#bookingMember').value;
   const items=contribItems('booking'); const amount=items.reduce((s,i)=>s+i.value,0);
   if(!items.length){ toast('أدخل بنداً واحداً على الأقل'); return; }
-  const initRaw=$('#bookingInitPaid').value; const initPaid = initRaw==='' ? amount : Math.max(0, Math.min(amount, parseFloat(initRaw)||0));
+  const initRaw=$('#bookingInitPaid').value; const initPaid = initRaw==='' ? 0 : Math.max(0, Math.min(amount, parseFloat(initRaw)||0));
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   mq.bookings=mq.bookings||[]; const existing=mq.bookings.find(b=>b.memberId===memberId);
   if(existing){
@@ -1493,10 +1535,10 @@ async function saveFamilyBooking(){
 
   // ═══ إضافة ═══
   const pmSel=document.querySelector('input[name="pm_family"]:checked'); const payMode=pmSel?pmSel.value:'full';
-  const initPaid = payMode==='inst' ? Math.max(0, Math.min(amount, parseFloat($('#famInitPaid').value)||0)) : amount;
+  const initPaid = payMode==='inst' ? Math.max(0, Math.min(amount, parseFloat($('#famInitPaid').value)||0)) : 0;
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   mq.bookings=mq.bookings||[];
-  mq.bookings.push({ memberId:'fam_'+Date.now(), onBehalf:'family', familyName, repName, phone, amount, items, payments: initPaid>0?[{amount:initPaid, date:today()}]:[] });
+  mq.bookings.push({ memberId:'fam_'+Date.now(), onBehalf:'family', familyName, repName, phone, amount, items, payMode, payments: initPaid>0?[{amount:initPaid, date:today()}]:[] });
   await saveMiqats(); closeModal('familyModal'); renderMiqats(); renderDashboard();
   toast('تم حفظ الميقات العائلي');
 }
@@ -1520,22 +1562,67 @@ function renderFamilyList(){
   list.sort((a,b)=> bookingRemaining(b.b)-bookingRemaining(a.b));
   body.innerHTML=list.map(({mq,b})=>{
     const ag=bookingAgreed(b), pd=bookingPaid(b), rem=bookingRemaining(b);
-    const pct=ag>0?Math.min(100,Math.round(pd/ag*100)):100;
+    const pct=ag>0?Math.min(100,Math.round(pd/ag*100)):(pd>0?100:0);
+    const key=mq.id+'__'+b.memberId; const open=famExpanded.has(key);
     return `<div class="fam-card">
-      <div class="fc-head"><div class="fc-name">👪 ${escapeHtml(b.familyName)}</div></div>
-      <div class="fc-rep">الممثّل: ${escapeHtml(b.repName||'—')} · ${escapeHtml(b.phone||'')}</div>
-      <div class="fc-miqat">🕯️ ${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div>
-      <div class="fc-contrib">${fmtBooking(b)}</div>
-      <div class="fc-bar"><span style="width:${pct}%"></span></div>
-      <div class="fc-nums"><span class="paid">مدفوع ${fmtMoney(pd)}</span><span>${rem>0?`<span class="rem">متبقّي ${fmtMoney(rem)}</span>`:'مكتمل ✓'}</span></div>
-      <div class="fc-btns">
-        <button class="fb-edit" onclick="editFamilyBooking('${mq.id}','${b.memberId}')">✏️ تعديل</button>
-        <button class="fb-pay" onclick="openBookingPayment('${mq.id}','${b.memberId}')">➕ أقساط</button>
-        <button class="fb-wa" onclick="remindMiqatDue('${b.memberId}','${mq.id}')">💬 تذكير</button>
-        <button class="fb-del" onclick="deleteFamilyBooking('${mq.id}','${b.memberId}')">🗑 حذف</button>
+      <div class="fc-head" onclick="toggleFamCard('${key}')">
+        <div class="fc-name">👪 ${escapeHtml(b.familyName)}</div>
+        <span class="fc-chev">${open?'▲':'▼'}</span>
+      </div>
+      <div class="fc-details" style="display:${open?'block':'none'}">
+        <div class="fc-rep">الممثّل: ${escapeHtml(b.repName||'—')} · ${escapeHtml(b.phone||'')}</div>
+        <div class="fc-miqat">🕯️ ${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div>
+        <div class="fc-contrib">${fmtBooking(b)}</div>
+        <div class="fc-bar"><span style="width:${pct}%"></span></div>
+        <div class="fc-nums"><span class="paid">مُحصّل ${fmtMoney(pd)}</span><span>${rem>0?`متّفق ${fmtMoney(ag)} · <span class="rem">متبقّي ${fmtMoney(rem)}</span>`:'مكتمل ✓'}</span></div>
+        <div class="fc-btns">
+          <button class="fb-edit" onclick="editFamilyBooking('${mq.id}','${b.memberId}')">✏️ تعديل</button>
+          <button class="fb-pay" onclick="openBookingPayment('${mq.id}','${b.memberId}')">➕ أقساط</button>
+          <button class="fb-wa" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">💬 تذكير</button>
+          <button class="fb-del" onclick="deleteFamilyBooking('${mq.id}','${b.memberId}')">🗑 حذف</button>
+        </div>
       </div>
     </div>`;
   }).join('');
+}
+let famExpanded=new Set();
+function toggleFamCard(key){ if(famExpanded.has(key)) famExpanded.delete(key); else famExpanded.add(key); renderFamilyList(); }
+
+/* تقرير PDF لكل الحجوزات العائلية */
+function printFamilyReport(){
+  let all=[]; miqats.forEach(mq=>(mq.bookings||[]).forEach(b=>{ if(b.familyName) all.push({mq,b}); }));
+  if(!all.length){ toast('لا توجد حجوزات عائلية'); return; }
+  all.sort((a,b)=> bookingRemaining(b.b)-bookingRemaining(a.b));
+  const totAgreed=all.reduce((s,x)=>s+bookingAgreed(x.b),0), totPaid=all.reduce((s,x)=>s+bookingPaid(x.b),0);
+  const blocks=all.map(({mq,b})=>{
+    const ag=bookingAgreed(b), pd=bookingPaid(b), rem=bookingRemaining(b);
+    const pays=Array.isArray(b.payments)?b.payments:[];
+    const prows=pays.length?pays.map((p,i)=>`<tr><td>${i+1}</td><td>${fmtMoney(p.amount)}</td><td>${p.date?fmtDate(p.date):''}</td><td>${escapeHtml(p.note||'')}</td></tr>`).join(''):`<tr><td colspan="4" class="empty">لا توجد دفعات مستلَمة</td></tr>`;
+    return `<div class="blk"><div class="blk-h">👪 ${escapeHtml(b.familyName)} <span class="st">${rem<=0?'مكتمل':'متبقّي '+fmtMoney(rem)}</span></div>
+      <div class="sm">الممثّل: ${escapeHtml(b.repName||'—')} · ${escapeHtml(b.phone||'')}</div>
+      <div class="sm">الميقات: ${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)} · المساهمة: ${fmtBooking(b)}</div>
+      <div class="sm">المتّفق: <b>${fmtMoney(ag)}</b> · المُحصّل: <b class="paid">${fmtMoney(pd)}</b> · المتبقّي: <b class="rem">${fmtMoney(rem)}</b></div>
+      <table><thead><tr><th>#</th><th>المبلغ المستلَم</th><th>التاريخ</th><th>ملاحظة</th></tr></thead><tbody>${prows}</tbody></table></div>`;
+  }).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير الحجوزات العائلية</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:28px;color:#1a0a0a;}
+    .pdf-logo{display:block;margin:0 auto 8px;max-width:210px;max-height:78px;}
+    .pdf-head{border-bottom:2px solid #c19a3e;padding-bottom:12px;text-align:center;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin:6px 0 16px;}
+    .grand{display:flex;justify-content:space-between;gap:10px;background:#f6f1e6;border:1px solid #e0dccf;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:14px;font-weight:600;}
+    .grand .paid{color:#2f8f5b;} .grand .rem{color:#b5763a;}
+    .blk{margin-bottom:18px;} .blk-h{font-weight:700;color:#1c4536;border-right:3px solid #c19a3e;padding-right:8px;margin-bottom:6px;}
+    .blk-h .st{font-weight:400;color:#94908a;font-size:12px;}
+    .sm{font-size:12.5px;color:#555;margin-bottom:4px;} .sm .paid{color:#2f8f5b;} .sm .rem{color:#b5763a;}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;} th,td{border:1px solid #e0dccf;padding:7px 10px;text-align:right;} th{background:#123028;color:#fff;} td.empty{text-align:center;color:#94908a;}
+    ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+    <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" /><div class="sub">تقرير الحجوزات العائلية — ${hijriToday()}</div></div>
+    <div class="grand"><span>عدد العائلات: ${all.length}</span><span>إجمالي المتّفق: ${fmtMoney(totAgreed)}</span><span class="paid">المُحصّل: ${fmtMoney(totPaid)}</span><span class="rem">المتبقّي: ${fmtMoney(Math.max(0,totAgreed-totPaid))}</span></div>
+    ${blocks}
+    </body></html>`);
+  w.document.close(); w.focus();
 }
 
 /* شريط أزرار داخل نافذة الطباعة (لا يظهر في الـ PDF) */

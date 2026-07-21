@@ -320,6 +320,10 @@
   .fc-btns .fb-wa { background:#e6f5ec; color:#1a9c54; }
   .fc-btns .fb-del { background:var(--danger-soft); color:var(--danger); }
   .fam-empty { text-align:center; color:var(--muted); font-size:13px; padding:24px 10px; }
+  .fam-list-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .fam-card .fc-head { cursor:pointer; }
+  .fam-card .fc-chev { color:var(--muted); font-size:12px; flex:none; }
+  .fam-card .fc-details { margin-top:8px; }
 
   /* مدير الأقساط */
   .inst-summary { display:flex; justify-content:space-between; gap:8px; background:var(--surface); border:1px solid var(--line);
@@ -1563,8 +1567,8 @@
   <div class="field"><label>العضو</label><select id="bookingMember"></select></div>
   <div class="field" style="margin-top:10px;"><label>المساهمة <span class="opt">نقدي أو عيني — أضف بنداً لكل نوع</span></label>
     <div id="bookingItems" class="contrib-editor" data-ctx="booking"></div></div>
-  <div class="field" style="margin-top:10px;"><label>المدفوع الآن (د.ب) <span class="opt">اتركه فارغاً إذا دُفع المبلغ كاملاً — أو أدخل الدفعة الأولى للتقسيط</span></label>
-    <input type="number" id="bookingInitPaid" min="0" step="0.001" placeholder="مدفوع بالكامل" /></div>
+  <div class="field" style="margin-top:10px;"><label>المبلغ المستلَم الآن (د.ب) <span class="opt">اتركه فارغاً إن لم يُستلَم شيء بعد — سجّل الاستلام لاحقاً</span></label>
+    <input type="number" id="bookingInitPaid" min="0" step="0.001" placeholder="0" /></div>
   <div class="actions-row"><button class="btn btn-primary" onclick="saveBooking()">إضافة الحجز</button></div>
 </div></div>
 
@@ -1592,9 +1596,10 @@
 </div></div>
 
 <!-- Family List Modal -->
-<div class="modal-backdrop" id="familyListModal"><div class="modal" style="max-width:600px;">
+<div class="modal-backdrop" id="familyListModal"><div class="modal" style="max-width:720px;">
   <button class="modal-close" onclick="closeModal('familyListModal')">×</button>
-  <h3>📋 الحجوزات العائلية</h3>
+  <div class="fam-list-head"><h3>📋 الحجوزات العائلية</h3>
+    <button class="btn btn-ghost btn-sm" onclick="printFamilyReport()">🧾 تقرير PDF</button></div>
   <div class="fam-summary" id="famListSummary"></div>
   <input type="text" id="famSearch" class="fam-search" placeholder="🔍 بحث باسم العائلة أو الممثّل…" oninput="renderFamilyList()" />
   <div id="famListBody"></div>
