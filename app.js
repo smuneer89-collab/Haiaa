@@ -1821,11 +1821,13 @@ function buildPhoneDirectory(){
 }
 function renderPhoneDirectory(){
   const box=$('#phoneDirList'); if(!box) return;
+  const all=buildPhoneDirectory();
+  const totEl=$('#dirTotal'); if(totEl) totEl.innerHTML=`مجموع الأرقام: <b>${all.length}</b>`;
   const q=($('#dirSearch')?.value||'').trim().toLowerCase();
-  let list=buildPhoneDirectory();
-  if(q) list=list.filter(x=> (x.name||'').toLowerCase().includes(q) || (x.phone||'').includes(q));
-  if(!list.length){ box.innerHTML=`<div class="fam-empty">${buildPhoneDirectory().length?'لا نتائج مطابقة':'لا توجد أرقام بعد'}</div>`; return; }
-  box.innerHTML=`<div class="dir-count">${list.length} رقماً</div>`+list.map(x=>`<div class="dir-row">
+  if(!q){ box.innerHTML=''; return; }  // لا تُعرض القائمة إلا عند البحث
+  const list=all.filter(x=> (x.name||'').toLowerCase().includes(q) || (x.phone||'').includes(q));
+  if(!list.length){ box.innerHTML=`<div class="fam-empty">لا نتائج مطابقة</div>`; return; }
+  box.innerHTML=list.map(x=>`<div class="dir-row">
       <div class="dir-name">${escapeHtml(x.name)} <span class="dir-kind ${x.kind==='عضو'?'k-m':'k-f'}">${x.kind}</span></div>
       <a href="${whatsappLink(x.phone)}" target="_blank" class="dir-phone" dir="ltr">${escapeHtml(x.phone)}</a>
     </div>`).join('');

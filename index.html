@@ -355,6 +355,8 @@
   .rcpt-agreed b { color:var(--accent); font-family:var(--font-display); }
   /* دليل الأرقام */
   .dir-count { font-size:12px; color:var(--muted); margin:10px 0 8px; font-family:var(--font-display); }
+  .dir-total { margin-top:10px; font-size:13.5px; color:var(--muted); background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:11px 14px; }
+  .dir-total b { color:var(--accent); font-family:var(--font-display); font-size:16px; }
   .dir-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 13px;
     background:var(--surface); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; }
   .dir-name { font-size:14px; font-weight:500; }
@@ -1451,8 +1453,9 @@
     </div>
     <div class="panel">
       <div class="panel-header"><div><h2 class="panel-title">📇 دليل الأرقام</h2>
-        <div class="panel-sub">كل الأسماء والأرقام (أعضاء + ممثّلو العوائل) — بلا تكرار</div></div>
+        <div class="panel-sub">أعضاء + ممثّلو العوائل — بلا تكرار</div></div>
         <button class="btn btn-ghost btn-sm" onclick="printPhoneDirectory()">🧾 طباعة PDF</button></div>
+      <div class="dir-total" id="dirTotal"></div>
       <input type="text" id="dirSearch" class="fam-search" placeholder="🔍 بحث بالاسم أو الرقم…" oninput="renderPhoneDirectory()" style="margin-top:10px" />
       <div id="phoneDirList"></div>
     </div>
