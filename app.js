@@ -886,8 +886,11 @@ $('#addForm').addEventListener('submit',async e=>{
   // ═══ وضع التعديل ═══
   if(formMode==='edit'){
     const m=members.find(x=>x.id===editingId); if(!m){ toast('تعذّر إيجاد العضو'); return; }
+    const editPhone='+'+(fd.get('countryCode')||'973')+toEnglishDigits(fd.get('phone')).replace(/\D/g,'');
+    const dupE=members.find(x=>x.id!==editingId && x.phone===editPhone);
+    if(dupE){ toast(`الرقم موجود في ملف العضو: ${dupE.name}`); return; }
     m.name=fd.get('name').trim(); m.type=type; m.isMinor=isMinor; m.age=age; m.birthdate=birthdate;
-    m.phone='+'+(fd.get('countryCode')||'973')+toEnglishDigits(fd.get('phone')).replace(/\D/g,'');
+    m.phone=editPhone;
     m.area=(fd.get('area')||'').trim(); m.email=(fd.get('email')||'').trim(); m.address=(fd.get('address')||'').trim();
     m.photo=currentPhoto||null; m.isAdmin=isAdmin; m.committee=isAdmin?($('#adminCommInput').value.trim()):'';
     // إزالة المواقيت المحذوفة (مع دفعاتها)
@@ -907,11 +910,15 @@ $('#addForm').addEventListener('submit',async e=>{
     return;
   }
 
+  const newPhone='+'+(fd.get('countryCode')||'973')+toEnglishDigits(fd.get('phone')).replace(/\D/g,'');
+  const dup=members.find(x=>x.phone===newPhone);
+  if(dup){ toast(`الرقم موجود في ملف العضو: ${dup.name}`); return; }
+
   const newMember={
     id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
     number:num, type,
     name:fd.get('name').trim(), isMinor, age, birthdate,
-    phone:'+'+(fd.get('countryCode')||'973')+toEnglishDigits(fd.get('phone')).replace(/\D/g,''), area:(fd.get('area')||'').trim(),
+    phone:newPhone, area:(fd.get('area')||'').trim(),
     email:(fd.get('email')||'').trim(), address:(fd.get('address')||'').trim(),
     photo:currentPhoto||null, isAdmin, committee:isAdmin?($('#adminCommInput').value.trim()):'',
     miqats:formMiqats, joinDate:today(), paymentDate:null, expiryDate:null, paidAmount:null
@@ -1660,12 +1667,51 @@ function renderFamilyList(){
           <button class="fb-wa" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">💬 تذكير</button>
           <button class="fb-del" onclick="deleteFamilyBooking('${mq.id}','${b.memberId}')">🗑 حذف</button>
         </div>
+        <button class="fb-pdf" onclick="printOneFamilyReport('${mq.id}','${b.memberId}')">🧾 تقرير هذه العائلة (PDF)</button>
       </div>
     </div>`;
   }).join('');
 }
 let famExpanded=new Set();
 function toggleFamCard(key){ if(famExpanded.has(key)) famExpanded.delete(key); else famExpanded.add(key); renderFamilyList(); }
+
+/* تقرير PDF لعائلة واحدة (تفصيلي) */
+function printOneFamilyReport(miqatId, memberId){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  const ag=bookingAgreed(b), rec=(bookingHasReceipt(b)?Number(b.received)||0:null);
+  const diff = rec!=null ? rec-ag : null;
+  const itemsRows = bookingItems(b).map((it,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(it.kind||'نقدي')}</td><td>${fmtMoney(it.value)}</td></tr>`).join('');
+  const recLine = rec!=null
+    ? `<div class="sm">المستلَم فعلاً: <b class="paid">${fmtMoney(rec)}</b> · الفرق: <b class="${diff>=0?'paid':'rem'}">${diff>0?'+':''}${fmtMoney(diff)}</b>${b.receivedDate?` · بتاريخ ${fmtDate(b.receivedDate)}`:''}${b.receivedNote?` · ${escapeHtml(b.receivedNote)}`:''}</div>`
+    : `<div class="sm">لم يُسجَّل استلام بعد (يُحسب المتّفق عليه)</div>`;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير عائلة — ${escapeHtml(b.familyName)}</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px;color:#1a0a0a;}
+    .pdf-logo{display:block;margin:0 auto 8px;max-width:210px;max-height:78px;}
+    .pdf-head{border-bottom:2px solid #c19a3e;padding-bottom:12px;text-align:center;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin:6px 0 16px;}
+    .card{border:1px solid #e0dccf;border-radius:12px;padding:16px 18px;}
+    .fname{font-family:'Amiri',serif;font-size:20px;color:#1c4536;margin-bottom:4px;}
+    .row{font-size:14px;margin:5px 0;} .row b{color:#1c4536;}
+    .sm{font-size:13px;color:#555;margin:6px 0;} .sm .paid{color:#2f8f5b;} .sm .rem{color:#b5763a;}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;} th,td{border:1px solid #e0dccf;padding:8px 10px;text-align:right;} th{background:#123028;color:#fff;}
+    .totrow{margin-top:12px;font-size:15px;font-weight:600;display:flex;justify-content:space-between;border-top:2px solid #c19a3e;padding-top:10px;}
+    ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+    <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" /><div class="sub">تقرير حجز عائلي — ${hijriToday()}</div></div>
+    <div class="card">
+      <div class="fname">👪 ${escapeHtml(b.familyName)}</div>
+      <div class="row">ممثّل العائلة: <b>${escapeHtml(b.repName||'—')}</b></div>
+      <div class="row">رقم الهاتف: <b>${escapeHtml(b.phone||'—')}</b></div>
+      <div class="row">الميقات: <b>${escapeHtml(mq.name)}</b> — ${fmtMiqatDate(mq)}${mq.requiredAmount?` · سعر الميقات: ${fmtMoney(mq.requiredAmount)}`:''}</div>
+      <table><thead><tr><th>#</th><th>نوع البند</th><th>القيمة</th></tr></thead><tbody>${itemsRows}</tbody></table>
+      <div class="totrow"><span>المتّفق عليه</span><span>${fmtMoney(ag)}</span></div>
+      ${recLine}
+    </div>
+    </body></html>`);
+  w.document.close(); w.focus();
+}
 
 /* تقرير PDF لكل الحجوزات العائلية */
 function printFamilyReport(){
@@ -1764,6 +1810,44 @@ function fillSettings(){
   $('#setFee').value=settings.fee; $('#setYear').value=settings.year;
   $('#tplReminder').value=settings.templates.reminder; $('#tplMeeting').value=settings.templates.meeting;
   $('#tplOccasion').value=settings.templates.occasion; $('#tplAdminMeeting').value=settings.templates.adminMeeting;
+  renderPhoneDirectory();
+}
+/* ═══ دليل الأرقام (أعضاء + ممثّلو العوائل) بلا تكرار — يُفضَّل رقم العضو ═══ */
+function buildPhoneDirectory(){
+  const map=new Map();
+  members.forEach(m=>{ if(m.phone && !map.has(m.phone)) map.set(m.phone,{name:m.name||'—', phone:m.phone, kind:'عضو'}); });
+  miqats.forEach(mq=>(mq.bookings||[]).forEach(b=>{ if(b.familyName && b.phone && !map.has(b.phone)) map.set(b.phone,{name:b.repName||b.familyName, phone:b.phone, kind:'ممثّل عائلة'}); }));
+  return [...map.values()].sort((a,b)=> (a.name||'').localeCompare(b.name||'','ar'));
+}
+function renderPhoneDirectory(){
+  const box=$('#phoneDirList'); if(!box) return;
+  const q=($('#dirSearch')?.value||'').trim().toLowerCase();
+  let list=buildPhoneDirectory();
+  if(q) list=list.filter(x=> (x.name||'').toLowerCase().includes(q) || (x.phone||'').includes(q));
+  if(!list.length){ box.innerHTML=`<div class="fam-empty">${buildPhoneDirectory().length?'لا نتائج مطابقة':'لا توجد أرقام بعد'}</div>`; return; }
+  box.innerHTML=`<div class="dir-count">${list.length} رقماً</div>`+list.map(x=>`<div class="dir-row">
+      <div class="dir-name">${escapeHtml(x.name)} <span class="dir-kind ${x.kind==='عضو'?'k-m':'k-f'}">${x.kind}</span></div>
+      <a href="${whatsappLink(x.phone)}" target="_blank" class="dir-phone" dir="ltr">${escapeHtml(x.phone)}</a>
+    </div>`).join('');
+}
+function printPhoneDirectory(){
+  const list=buildPhoneDirectory();
+  if(!list.length){ toast('لا توجد أرقام'); return; }
+  const rows=list.map((x,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(x.name)}</td><td>${escapeHtml(x.kind)}</td><td dir="ltr" style="text-align:left">${escapeHtml(x.phone)}</td></tr>`).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>دليل الأرقام</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:28px;color:#1a0a0a;}
+    .pdf-logo{display:block;margin:0 auto 8px;max-width:210px;max-height:78px;}
+    .pdf-head{border-bottom:2px solid #c19a3e;padding-bottom:12px;text-align:center;}
+    .sub{text-align:center;color:#94908a;font-size:13px;margin:6px 0 16px;}
+    table{width:100%;border-collapse:collapse;font-size:13.5px;} th,td{border:1px solid #e0dccf;padding:8px 11px;text-align:right;} th{background:#123028;color:#fff;}
+    tr:nth-child(even){background:#faf7f0;}
+    ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+    <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" /><div class="sub">دليل الأرقام — ${list.length} رقماً · ${hijriToday()}</div></div>
+    <table><thead><tr><th>#</th><th>الاسم</th><th>الصفة</th><th>رقم الهاتف</th></tr></thead><tbody>${rows}</tbody></table>
+    </body></html>`);
+  w.document.close(); w.focus();
 }
 async function saveSettings(){
   const fee=parseFloat($('#setFee').value); const year=parseInt($('#setYear').value);

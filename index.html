@@ -326,6 +326,8 @@
   .fc-btns .fb-wa { background:#e6f5ec; color:#1a9c54; }
   .fc-btns .fb-del { background:var(--danger-soft); color:var(--danger); }
   .fam-empty { text-align:center; color:var(--muted); font-size:13px; padding:24px 10px; }
+  .fb-pdf { width:100%; margin-top:8px; border:0; border-radius:8px; padding:9px; font-size:12.5px; cursor:pointer;
+    font-family:var(--font-display); background:var(--green,#123028); color:var(--gold2,#e8c66a); }
   .fam-list-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .fam-card .fc-head { cursor:pointer; }
   .fam-card .fc-chev { color:var(--muted); font-size:12px; flex:none; }
@@ -351,6 +353,15 @@
   .inst-add-row #instAddAmount { width:130px; flex:none; } .inst-add-row #instAddNote { flex:1; min-width:0; }
   .rcpt-agreed { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 13px; margin:10px 0 14px; font-size:13px; color:var(--muted); }
   .rcpt-agreed b { color:var(--accent); font-family:var(--font-display); }
+  /* دليل الأرقام */
+  .dir-count { font-size:12px; color:var(--muted); margin:10px 0 8px; font-family:var(--font-display); }
+  .dir-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 13px;
+    background:var(--surface); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; }
+  .dir-name { font-size:14px; font-weight:500; }
+  .dir-kind { font-size:10.5px; padding:2px 8px; border-radius:20px; margin-right:6px; }
+  .dir-kind.k-m { background:var(--accent-soft); color:var(--accent); }
+  .dir-kind.k-f { background:var(--gold-soft,#f6edd6); color:var(--warn); }
+  .dir-phone { font-family:var(--font-display); color:var(--accent); text-decoration:none; font-size:13.5px; white-space:nowrap; }
 
   /* ═══ ألبوم الصور (اللجنة الإعلامية) ═══ */
   .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
@@ -1437,6 +1448,13 @@
       <div class="note" style="margin-top:14px;">
         <strong>النسخة الاحتياطية</strong> تحفظ كل شيء (أعضاء + صور + مواقيت وحجوزاتها + إدارة + أخبار + قوالب + إعدادات) في ملف واحد. احتفظ به على جوالك أو ارفعه للسحابة. لو ضاع شيء، استعده ليرجع كل شيء كما كان.
       </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><div><h2 class="panel-title">📇 دليل الأرقام</h2>
+        <div class="panel-sub">كل الأسماء والأرقام (أعضاء + ممثّلو العوائل) — بلا تكرار</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="printPhoneDirectory()">🧾 طباعة PDF</button></div>
+      <input type="text" id="dirSearch" class="fam-search" placeholder="🔍 بحث بالاسم أو الرقم…" oninput="renderPhoneDirectory()" style="margin-top:10px" />
+      <div id="phoneDirList"></div>
     </div>
   </section>
 </div>
