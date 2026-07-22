@@ -234,6 +234,19 @@
   .mq-rcv:hover { background:rgba(232,198,106,.28); border-color:#c19a3e; }
   .mq-rcv.on { background:rgba(47,143,91,.28); border-color:rgba(47,143,91,.5); color:#bfe8cd; }
   .mq-card.near { --mqc:#e0705a; } .mq-card.soon { --mqc:#e0b45a; } .mq-card.far { --mqc:#3f9e78; }
+  /* قسم الأقساط — نفس تصميم مواقيت تقترب بلون بنّي دافئ */
+  .dues-list { display:flex; flex-direction:column; gap:12px; max-height:440px; overflow-y:auto; padding:2px; }
+  .dues-list .mq-card { background:linear-gradient(125deg,#3a2a17,#5a4326); }
+  .dues-list .mq-card::before { background:#d9a95b; }
+  .dues-list .mq-bar span { background:linear-gradient(90deg,#f4e0b0,#d9a95b); }
+  .dues-list .mq-line { color:#f4e0b0; }
+  .dues-list .mq-name .code { color:#e4d5bd; }
+  .dues-list .mq-av { border-color:#e8c66a; }
+  .dues-list .mq-foot { color:#e4d5bd; } .dues-list .mq-foot b { color:#f4e0b0; }
+  .dues-list .mq-wa:hover { background:#8a6a3a; border-color:#c19a3e; }
+  .dues-list .mq-rcv.rcv { background:#c19a3e; border-color:#c19a3e; color:#20160a; font-weight:600; }
+  .dues-list .mq-rcv.rcv:hover { background:#e8c66a; border-color:#e8c66a; }
+  .dues-sec { font-family:var(--font-display); font-size:12.5px; color:#8a6a3a; margin:6px 2px 2px; }
 
   /* إضافة ميقات داخل نافذة التعديل */
   .edit-miqat-add { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -1887,6 +1900,7 @@
     </div>
     <button class="btn btn-primary" onclick="instAdd()">➕ إضافة دفعة</button>
     <button class="btn btn-accent" id="instPayFullBtn" style="display:none" onclick="instPayFull()">✅ دفع كامل للعضوية</button>
+    <button class="btn btn-ghost" id="instPdfBtn" style="display:none" onclick="instPrintStatement()">🧾 كشف PDF</button>
   </div>
 </div></div>
 

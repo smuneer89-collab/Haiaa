@@ -1195,7 +1195,9 @@ function renderInstMgr(){
     : `<div class="inst-row"><span class="ir-amt">${fmtMoney(p.amount)}</span><span class="ir-meta">${p.date?fmtDate(p.date):''}${p.note?' · '+escapeHtml(p.note):''}</span><button class="ir-btn ir-edit" onclick="instEditStart(${i})" title="تعديل">✎</button><button class="ir-btn ir-del" onclick="instDelete(${i})" title="حذف">🗑</button></div>`
   ).join('') : `<div class="inst-empty">لا توجد دفعات بعد</div>`;
   const pf=$('#instPayFullBtn'); if(pf){ pf.style.display = (rem>0)?'inline-flex':'none'; pf.textContent = instCtx.kind==='sub' ? '✅ دفع كامل للعضوية' : '✅ تسجيل الاستلام كاملاً'; }
+  const pdf=$('#instPdfBtn'); if(pdf){ pdf.style.display = instCtx.kind==='sub' ? 'inline-flex' : 'none'; }
 }
+function instPrintStatement(){ if(instCtx&&instCtx.kind==='sub') printSubReceipt(instCtx.memberId); }
 /* تسجيل استلام كامل المتبقّي دفعةً واحدة */
 async function instPayFull(){
   const o=instObligation(); if(!o) return;
@@ -1250,21 +1252,61 @@ function renderDues(){
   const subDue=members.filter(m=>memberSubStatus(m)==='partial')
     .map(m=>({m, rem:memberRemaining(m)})).sort((a,b)=>b.rem-a.rem);
   let miqatDue=[];
-  miqats.forEach(mq=>(mq.bookings||[]).forEach(b=>{ const rem=bookingRemaining(b); if(rem>0){ miqatDue.push({b,mq,rem}); } }));
+  miqats.forEach(mq=>(mq.bookings||[]).forEach(b=>{ if(b.payMode==='inst'){ const rem=bookingRemaining(b); if(rem>0) miqatDue.push({b,mq,rem}); } }));
   miqatDue.sort((a,b)=>b.rem-a.rem);
   if(!subDue.length && !miqatDue.length){ if(panel) panel.style.display='none'; box.innerHTML=''; return; }
   if(panel) panel.style.display='block';
-  let html='';
-  if(subDue.length){ html+=`<div class="due-sec-title">اشتراكات مقسّطة (${subDue.length})</div>`;
-    html+=subDue.map(({m,rem})=>`<div class="due-item"><div class="di-mid"><div class="di-name">${escapeHtml(m.name)}</div><div class="di-sub">${memberCode(m)} · مدفوع ${fmtMoney(memberPaid(m))} من ${fmtMoney(memberFeeTotal(m))}</div></div><div class="di-rem">${fmtMoney(rem)}</div><button class="di-wa" onclick="remindSubDue('${m.id}')" title="تذكير واتساب">💬</button><button class="bk-add" onclick="openAddSubPayment('${m.id}')">➕ دفعة</button></div>`).join(''); }
-  if(miqatDue.length){ html+=`<div class="due-sec-title">مساهمات مواقيت مقسّطة (${miqatDue.length})</div>`;
-    html+=miqatDue.map(({b,mq,rem})=>`<div class="due-item"><div class="di-mid"><div class="di-name">${escapeHtml(bookingName(b))}${b.familyName?' 👪':''}</div><div class="di-sub">${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div></div><div class="di-rem">${fmtMoney(rem)}</div><button class="di-wa" onclick="remindMiqatDue('${b.memberId}','${mq.id}')" title="تذكير واتساب">💬</button><button class="bk-add" onclick="openBookingPayment('${mq.id}','${b.memberId}')">➕ دفعة</button></div>`).join(''); }
-  box.innerHTML=html;
+  let cards='';
+  // اشتراكات العضوية المقسّطة
+  subDue.forEach(({m,rem})=>{
+    const tot=memberFeeTotal(m), paid=memberPaid(m); const pct=tot>0?Math.min(100,Math.round(paid/tot*100)):0;
+    const av = m.photo ? `<img src="${m.photo}" alt="">` : escapeHtml((m.name||'؟').trim().charAt(0));
+    cards+=`<div class="mq-card">
+      <div class="mq-top">
+        <div class="mq-av" onclick="showDetail('${m.id}')">${av}</div>
+        <div class="mq-mid" onclick="showDetail('${m.id}')">
+          <div class="mq-name">${escapeHtml(m.name)} <span class="code">${memberCode(m)}</span></div>
+          <div class="mq-line">قسط العضوية · مدفوع ${fmtMoney(paid)} من ${fmtMoney(tot)}</div>
+        </div>
+      </div>
+      <div class="mq-bar"><span style="width:${pct}%"></span></div>
+      <div class="mq-foot"><span>مقسّط</span><b>متبقّي ${fmtMoney(rem)}</b></div>
+      <div class="mq-actions">
+        <button class="mq-wa" onclick="remindSubDue('${m.id}')">✆ تذكير بالقسط</button>
+        <button class="mq-rcv rcv" onclick="openAddSubPayment('${m.id}')">💵 استلم المبلغ</button>
+      </div>
+    </div>`;
+  });
+  // مساهمات مواقيت مقسّطة
+  miqatDue.forEach(({b,mq,rem})=>{
+    const ag=bookingAgreed(b), paid=bookingPaid(b); const pct=ag>0?Math.min(100,Math.round(paid/ag*100)):0;
+    const fam=!!b.familyName;
+    const av = fam ? '👪' : escapeHtml((bookingName(b)||'؟').trim().charAt(0));
+    const clickMid = fam ? `openFamilyList()` : `showDetail('${b.memberId}')`;
+    const remindFn = fam ? `sendFamilyMiqatReminder('${mq.id}','${b.memberId}')` : `remindMiqatDue('${b.memberId}','${mq.id}')`;
+    cards+=`<div class="mq-card">
+      <div class="mq-top">
+        <div class="mq-av" onclick="${clickMid}">${av}</div>
+        <div class="mq-mid" onclick="${clickMid}">
+          <div class="mq-name">${escapeHtml(bookingName(b))} <span class="code">${fam?'عائلة':memberCode(members.find(x=>x.id===b.memberId)||{})}</span></div>
+          <div class="mq-line">${escapeHtml(mq.name)} · مدفوع ${fmtMoney(paid)} من ${fmtMoney(ag)}</div>
+        </div>
+      </div>
+      <div class="mq-bar"><span style="width:${pct}%"></span></div>
+      <div class="mq-foot"><span>مقسّط</span><b>متبقّي ${fmtMoney(rem)}</b></div>
+      <div class="mq-actions">
+        <button class="mq-wa" onclick="${remindFn}">✆ تذكير بالقسط</button>
+        <button class="mq-rcv rcv" onclick="openBookingPayment('${mq.id}','${b.memberId}')">💵 استلم المبلغ</button>
+      </div>
+    </div>`;
+  });
+  box.className='dues-list';
+  box.innerHTML=cards;
 }
-/* تذكير قسط العضوية عبر واتساب */
+/* تذكير قسط العضوية عبر واتساب (النص المعتمد) */
 function remindSubDue(id){
-  const m=members.find(x=>x.id===id); if(!m) return; const rem=memberRemaining(m);
-  const msg=`السلام عليكم\n\nالعضو ${m.name}،\nنذكّركم بسداد المتبقّي من اشتراك العضوية في هيئة محبي الحسين.\n\nالإجمالي: ${fmtMoney(memberFeeTotal(m))}\nالمدفوع: ${fmtMoney(memberPaid(m))}\n*المتبقّي: ${fmtMoney(rem)}*\n\nجزاكم الله خيراً — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
+  const m=members.find(x=>x.id===id); if(!m) return;
+  const msg=`السلام عليكم\n\nالأخ الكريم ${m.name}،\n\nنود تذكيركم  باستحقاق قسط اشتراك العضوية في هيئة محبي الحسين.\n\nنسأل الله أن يجعل مساهمتكم في ميزان حسناتكم، وأن يبارك لكم فيما تقدمونه من دعمٍ لخدمة الإمام الحسين (ع).\n\nوللتنسيق بشأن السداد، يرجى التواصل مع أمانة السر\n*صادق الغسرة:* +97336496449\n\nكما نود الإشارة إلى أن من حق كل عضو طلب كشفٍ تفصيلي بجميع الأقساط والمدفوعات الخاصة به في أي وقت، وذلك تعزيزًا للشفافية وحفظًا لحقوق الأعضاء.\n\nنسعد بحضوركم ودعمكم المستمر.\nبارك الله فيكم.\n\n— هيئة محبي الحسين\n\n⭕️ ملاحظة:\nتم توليد هذه الرسالة بالذكاء الاصطناعي.`;
   window.open(whatsappLink(m.phone, msg), '_blank');
 }
 /* تذكير قسط مساهمة ميقات عبر واتساب */
