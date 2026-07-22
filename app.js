@@ -1195,9 +1195,16 @@ function renderInstMgr(){
     : `<div class="inst-row"><span class="ir-amt">${fmtMoney(p.amount)}</span><span class="ir-meta">${p.date?fmtDate(p.date):''}${p.note?' · '+escapeHtml(p.note):''}</span><button class="ir-btn ir-edit" onclick="instEditStart(${i})" title="تعديل">✎</button><button class="ir-btn ir-del" onclick="instDelete(${i})" title="حذف">🗑</button></div>`
   ).join('') : `<div class="inst-empty">لا توجد دفعات بعد</div>`;
   const pf=$('#instPayFullBtn'); if(pf){ pf.style.display = (rem>0)?'inline-flex':'none'; pf.textContent = instCtx.kind==='sub' ? '✅ دفع كامل للعضوية' : '✅ تسجيل الاستلام كاملاً'; }
-  const pdf=$('#instPdfBtn'); if(pdf){ pdf.style.display = instCtx.kind==='sub' ? 'inline-flex' : 'none'; }
+  const pdf=$('#instPdfBtn'); if(pdf){ pdf.style.display='inline-flex'; }
 }
-function instPrintStatement(){ if(instCtx&&instCtx.kind==='sub') printSubReceipt(instCtx.memberId); }
+function instPrintStatement(){
+  if(!instCtx) return;
+  if(instCtx.kind==='sub'){ printSubReceipt(instCtx.memberId); return; }
+  // ميقات: عائلة → تقرير العائلة، عضو → كشف العضو الشامل (يتضمّن الميقات)
+  const mq=miqats.find(x=>x.id===instCtx.miqatId); const b=mq&&(mq.bookings||[]).find(x=>x.memberId===instCtx.memberId);
+  if(b&&b.familyName) printOneFamilyReport(instCtx.miqatId, instCtx.memberId);
+  else printSubReceipt(instCtx.memberId);
+}
 /* تسجيل استلام كامل المتبقّي دفعةً واحدة */
 async function instPayFull(){
   const o=instObligation(); if(!o) return;
@@ -1283,7 +1290,7 @@ function renderDues(){
     const fam=!!b.familyName;
     const av = fam ? '👪' : escapeHtml((bookingName(b)||'؟').trim().charAt(0));
     const clickMid = fam ? `openFamilyList()` : `showDetail('${b.memberId}')`;
-    const remindFn = fam ? `sendFamilyMiqatReminder('${mq.id}','${b.memberId}')` : `remindMiqatDue('${b.memberId}','${mq.id}')`;
+    const remindFn = `remindMiqatDue('${b.memberId}','${mq.id}')`;
     cards+=`<div class="mq-card">
       <div class="mq-top">
         <div class="mq-av" onclick="${clickMid}">${av}</div>
@@ -1313,9 +1320,9 @@ function remindSubDue(id){
 function remindMiqatDue(memberId, miqatId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
-  const rem=bookingRemaining(b); const phone=bookingPhone(b);
+  const phone=bookingPhone(b);
   const who = b.familyName ? `${b.familyName}${b.repName?` (ممثّلها ${b.repName})`:''}` : bookingName(b);
-  const msg=`السلام عليكم\n\n${who}،\nنذكّركم بسداد المتبقّي من المساهمة في:\n\n*${mq.name}* (${fmtMiqatDate(mq)})\n\nالمتّفق عليه: ${fmtMoney(bookingAgreed(b))}\nالمدفوع: ${fmtMoney(bookingPaid(b))}\n*المتبقّي: ${fmtMoney(rem)}*\n\nجزاكم الله خيراً — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
+  const msg=`السلام عليكم\n\nالأخ الكريم ${who}،\n\nنود تذكيركم باستحقاق قسط مساهمتكم في *${mq.name}* ضمن مواقيت هيئة محبي الحسين.\n\nنسأل الله أن يجعل مساهمتكم في ميزان حسناتكم، وأن يبارك لكم فيما تقدمونه من دعمٍ لخدمة الإمام الحسين (ع).\n\nوللتنسيق بشأن السداد، يرجى التواصل مع أمانة السر\n*صادق الغسرة:* +97336496449\n\nكما نود الإشارة إلى أن من حق كل عضو طلب كشفٍ تفصيلي بجميع الأقساط والمدفوعات الخاصة به في أي وقت، وذلك تعزيزًا للشفافية وحفظًا لحقوق الأعضاء.\n\nنسعد بحضوركم ودعمكم المستمر.\nبارك الله فيكم.\n\n— هيئة محبي الحسين\n\n⭕️ ملاحظة:\nتم توليد هذه الرسالة بالذكاء الاصطناعي.`;
   window.open(whatsappLink(phone, msg), '_blank');
 }
 
