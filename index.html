@@ -138,6 +138,29 @@
   .date-strip .cell .val { color: var(--ink); font-weight: 600; }
   .date-strip .sep { color: var(--line-2); }
 
+  /* Notification bell */
+  .date-strip { position: relative; }
+  .notif-bell { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--accent); padding: 6px; display: flex; align-items: center; justify-content: center; }
+  .notif-bell svg { width: 22px; height: 22px; }
+  .notif-badge { position: absolute; top: -2px; left: -2px; background: #d13438; color: #fff; font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 1.5px solid var(--surface); }
+
+  /* Notifications tab */
+  .notif-group { margin-bottom: 20px; }
+  .notif-group-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .notif-item { display: flex; align-items: flex-start; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: transform .15s, box-shadow .15s; border-right: 4px solid var(--muted-2); }
+  .notif-item:active { transform: scale(.99); }
+  .notif-item.urgent { border-right-color: #d13438; background: #fdecec; }
+  .notif-item.warn { border-right-color: var(--warn); background: var(--warn-soft); }
+  .notif-item.info { border-right-color: var(--accent); background: var(--accent-soft); }
+  .notif-item.ok { border-right-color: var(--ok); background: var(--ok-soft); }
+  .notif-ic { font-size: 22px; flex-shrink: 0; line-height: 1.2; }
+  .notif-body { flex: 1; }
+  .notif-title { font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 3px; }
+  .notif-desc { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .notif-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .notif-empty { text-align: center; padding: 50px 20px; color: var(--muted); }
+  .notif-empty .big { font-size: 40px; margin-bottom: 12px; }
+
   .container { max-width: 1100px; margin: 0 auto; padding: 18px 16px 90px; }
 
   /* Tabs */
@@ -364,6 +387,21 @@
   .inst-add { margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
   .inst-add-row { display:flex; gap:8px; margin-bottom:10px; }
   .inst-add-row #instAddAmount { width:130px; flex:none; } .inst-add-row #instAddNote { flex:1; min-width:0; }
+  .inst-schedule { margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+  .sched-hint { font-size:11.5px; color:var(--muted-2); margin-bottom:10px; line-height:1.6; }
+  .sched-add { background:var(--bg); border-radius:10px; padding:12px; margin-top:8px; }
+  .sched-row { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
+  .sched-row input, .sched-row select { padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-family:var(--font-sans); font-size:13px; background:var(--surface); color:var(--ink); }
+  .sched-row #schedDay { width:70px; } .sched-row #schedYear { width:80px; } .sched-row #schedMonth { flex:1; }
+  .sched-row #schedAmount { flex:1; }
+  .sched-greg { font-size:12px; color:var(--ok); font-weight:600; white-space:nowrap; }
+  .sched-item { display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--line); border-right:3px solid var(--warn); border-radius:8px; padding:9px 12px; margin-bottom:6px; font-size:13px; }
+  .sched-item.done { border-right-color:var(--ok); opacity:.7; }
+  .sched-item .si-info .si-hij { font-weight:600; color:var(--ink); }
+  .sched-item .si-info .si-greg { font-size:11px; color:var(--muted); }
+  .sched-item .si-actions { display:flex; gap:6px; align-items:center; }
+  .sched-item .si-btn { background:none; border:none; cursor:pointer; font-size:15px; padding:2px 4px; }
+  .sched-item .si-amt { color:var(--accent); font-weight:600; font-size:12px; margin-left:6px; }
   .rcpt-agreed { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 13px; margin:10px 0 14px; font-size:13px; color:var(--muted); }
   .rcpt-agreed b { color:var(--accent); font-family:var(--font-display); }
   /* دليل الأرقام */
@@ -973,6 +1011,10 @@
   <div class="cell"><span class="lbl">الميلادي</span><span class="val" id="dateGregorian">—</span></div>
   <span class="sep">|</span>
   <div class="cell"><span class="lbl">الهجري</span><span class="val" id="dateHijri">—</span></div>
+  <button class="notif-bell" onclick="openNotifications()" aria-label="الإشعارات">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+    <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+  </button>
 </div>
 
 <div class="container">
@@ -1041,6 +1083,18 @@
         <a href="https://wa.me/973" target="_blank" class="social-ic-11" aria-label="واتساب"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35zM12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.07L2 22l5.05-1.33A9.94 9.94 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg></a>
       </div>
     </div>
+  </section>
+
+  <!-- Notifications -->
+  <section id="tab-notifications" class="tab-content">
+    <div class="panel-header" style="margin-bottom:14px;">
+      <div>
+        <div class="panel-title">🔔 الإشعارات والتنبيهات</div>
+        <div class="panel-sub" id="notifSub">كل ما يحتاج انتباهك</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="switchTab('dashboard')">← الرئيسية</button>
+    </div>
+    <div id="notifList"></div>
   </section>
 
   <!-- Members -->
@@ -1893,6 +1947,25 @@
   <div class="subtitle" id="instMgrSub"></div>
   <div class="inst-summary" id="instMgrSummary"></div>
   <div class="inst-listwrap"><div class="inst-lbl">الدفعات المسجّلة</div><div id="instMgrList"></div></div>
+
+  <div class="inst-schedule">
+    <div class="inst-lbl">📅 مواعيد الاستحقاق المجدولة <span class="opt">اختياري</span></div>
+    <div class="sched-hint">حدّد تاريخ استحقاق القسط بالهجري، ويُنبّهك الجرس قبله بـ 10 أيام.</div>
+    <div id="instSchedList"></div>
+    <div class="sched-add">
+      <div class="sched-row">
+        <input type="number" id="schedDay" min="1" max="30" placeholder="اليوم" />
+        <select id="schedMonth"></select>
+        <input type="number" id="schedYear" min="1440" max="1500" placeholder="السنة" />
+      </div>
+      <div class="sched-row">
+        <input type="number" id="schedAmount" min="0" step="0.001" placeholder="مبلغ القسط (اختياري)" />
+        <span class="sched-greg" id="schedGreg">—</span>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="schedAdd()">➕ إضافة موعد استحقاق</button>
+    </div>
+  </div>
+
   <div class="inst-add">
     <div class="inst-add-row">
       <input type="number" id="instAddAmount" min="0" step="0.001" placeholder="مبلغ الدفعة" />

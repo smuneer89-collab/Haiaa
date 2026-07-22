@@ -352,11 +352,154 @@ $$('.tab[data-tab]').forEach(t=>{
 });
 function switchTab(name){ const b=document.querySelector(`.tab[data-tab="${name}"]`); if(b) b.click(); }
 
+/* ═══════════ Notifications ═══════════ */
+function openNotifications(){
+  $$('.tab[data-tab]').forEach(x=>x.classList.remove('active'));
+  $$('.tab-content').forEach(c=>c.style.display='none');
+  $('#tab-notifications').style.display='block';
+  renderNotifications();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* حساب كل الإشعارات - ترجع مصفوفة مصنّفة */
+function computeNotifications(){
+  const list=[]; const h=hijriParts(); const curM=h.month; const curD=h.day; const curY=parseInt(h.year,10)||1448;
+  const todayG=new Date(); todayG.setHours(0,0,0,0);
+
+  // 1) تجديد العضويات - قبل محرم بشهرين (ذو القعدة/ذو الحجة = شهر 10 و 11)
+  if(curM===10||curM===11){
+    const needRenew=members.filter(m=>m.paymentDate && memberEndYear(m)<=curY+ (curM>=10?1:0));
+    const activeCount=members.filter(m=>isActive(m)).length;
+    list.push({ cat:'تجديد العضويات', type:'warn', ic:'⏳',
+      title:'موسم تجديد العضويات قريب',
+      desc:`تبدأ العضويات الجديدة في محرم ${curY+1}. راجع الأعضاء الذين يحتاجون تجديد اشتراكهم.`,
+      meta:`${activeCount} عضو نشط حالياً`, action:()=>switchTab('members') });
+  }
+
+  // 2) الاجتماعات القادمة - قبل يومين + يوم الاجتماع
+  (meetings||[]).forEach(mt=>{
+    if(!mt.datetime) return;
+    const dt=new Date(mt.datetime); if(isNaN(dt)) return;
+    const dOnly=new Date(dt); dOnly.setHours(0,0,0,0);
+    const days=Math.round((dOnly-todayG)/86400000);
+    if(days===0){ list.push({ cat:'الاجتماعات', type:'urgent', ic:'📋', title:'اجتماع اليوم', desc:`لديك اجتماع «${escapeHtml(mt.title||'مجلس الإدارة')}» اليوم${mt.committee?' — '+escapeHtml(mt.committee):''}.`, meta:fmtMeetingDT(mt.datetime), action:()=>switchTab('meetings') }); }
+    else if(days>0 && days<=2){ list.push({ cat:'الاجتماعات', type:'info', ic:'📋', title:`اجتماع بعد ${days===1?'يوم واحد':'يومين'}`, desc:`«${escapeHtml(mt.title||'مجلس الإدارة')}»${mt.committee?' — '+escapeHtml(mt.committee):''}.`, meta:fmtMeetingDT(mt.datetime), action:()=>switchTab('meetings') }); }
+  });
+
+  // 3) الأقساط المستحقة - قبل موعدها بـ 10 أيام
+  members.forEach(m=>{
+    // أقساط العضوية
+    collectDueInstallments(m).forEach(due=>{
+      list.push({ cat:'الأقساط المستحقة', type: due.days<=0?'urgent':'warn', ic:'💰',
+        title: due.days<=0?`قسط مستحق الآن — ${escapeHtml(m.name)}`:`قسط بعد ${due.days} يوم — ${escapeHtml(m.name)}`,
+        desc: due.label,
+        meta: `${due.hijriText} · الموافق ${due.gregText}`,
+        action:()=>showDetail(m.id) });
+    });
+  });
+
+  // 4) مواقيت اليوم - في نفس يوم الميقات
+  miqats.forEach(mq=>{
+    if(mq.month===curM && mq.day===curD){
+      list.push({ cat:'مواقيت اليوم', type:'info', ic:'🗓️',
+        title:`اليوم مناسبة: ${mq.day} ${HIJRI_MONTHS[mq.month]}`,
+        desc:`«${escapeHtml(mq.name)}» — تُقام اليوم.`,
+        meta: `${(mq.bookings||[]).length} مساهمة`, action:()=>switchTab('miqats') });
+    }
+  });
+
+  // 5) أعضاء لم يُذكّروا بمواقيتهم القريبة
+  const notReminded=[];
+  members.forEach(m=>{
+    upcomingMemberMiqats(m).forEach(mq=>{
+      if(!isMiqatReminded(m,mq)) notReminded.push({m,mq});
+    });
+  });
+  if(notReminded.length){
+    // نجمّعها حسب الميقات
+    const byMiqat={};
+    notReminded.forEach(({m,mq})=>{ (byMiqat[mq.id]=byMiqat[mq.id]||{mq,members:[]}).members.push(m); });
+    Object.values(byMiqat).forEach(g=>{
+      list.push({ cat:'تذكيرات لم تُرسل', type:'warn', ic:'🔔',
+        title:`${g.members.length} عضو لم تُذكّرهم بـ «${escapeHtml(g.mq.name)}»`,
+        desc:`الميقات قريب. ادخل ملف كل عضو لإرسال التذكير عبر واتساب.`,
+        meta:`${fmtMiqatDate(g.mq)}`, action:()=>switchTab('members') });
+    });
+  }
+
+  return list;
+}
+
+/* جمع أقساط العضو المستحقة (لها تاريخ استحقاق مجدول ضمن 10 أيام أو فات) */
+function collectDueInstallments(m){
+  const out=[]; const todayG=new Date(); todayG.setHours(0,0,0,0);
+  // العضوية
+  if(memberRemaining(m)>0 && Array.isArray(m.dueSchedule)){
+    m.dueSchedule.forEach(d=>{
+      if(d.paid) return;
+      const g=hijriToGregorian(d.day,d.month,d.year); if(!g) return;
+      const gd=new Date(g); gd.setHours(0,0,0,0);
+      const days=Math.round((gd-todayG)/86400000);
+      if(days<=10){ out.push({ days, label:`قسط عضوية مجدول${d.amount?` بمبلغ ${fmtMoney(d.amount)}`:''}`, hijriText:`${d.day} ${HIJRI_MONTHS[d.month]} ${d.year} هـ`, gregText:fmtDate(g) }); }
+    });
+  }
+  // مساهمات المواقيت
+  miqats.forEach(mq=>{
+    (mq.bookings||[]).forEach(b=>{
+      if(b.memberId!==m.id) return;
+      if(!Array.isArray(b.dueSchedule)) return;
+      if(bookingRemaining(b)<=0) return;
+      b.dueSchedule.forEach(d=>{
+        if(d.paid) return;
+        const g=hijriToGregorian(d.day,d.month,d.year); if(!g) return;
+        const gd=new Date(g); gd.setHours(0,0,0,0);
+        const days=Math.round((gd-todayG)/86400000);
+        if(days<=10){ out.push({ days, label:`قسط مساهمة «${escapeHtml(mq.name)}»${d.amount?` بمبلغ ${fmtMoney(d.amount)}`:''}`, hijriText:`${d.day} ${HIJRI_MONTHS[d.month]} ${d.year} هـ`, gregText:fmtDate(g) }); }
+      });
+    });
+  });
+  return out;
+}
+
+/* عرض قائمة الإشعارات في التبويب */
+function renderNotifications(){
+  const list=computeNotifications();
+  const el=$('#notifList'); const sub=$('#notifSub');
+  if(sub) sub.textContent = list.length?`لديك ${list.length} تنبيه`:'كل شيء تحت السيطرة';
+  if(!list.length){ el.innerHTML=`<div class="notif-empty"><div class="big">✅</div><div>لا توجد تنبيهات حالياً</div></div>`; return; }
+  // ترتيب: urgent أولاً ثم warn ثم info
+  const order={urgent:0,warn:1,info:2,ok:3};
+  list.sort((a,b)=>(order[a.type]??9)-(order[b.type]??9));
+  // تجميع حسب الفئة
+  const groups={};
+  list.forEach((n,i)=>{ (groups[n.cat]=groups[n.cat]||[]).push({...n,_i:i}); });
+  window.__notifActions=list.map(n=>n.action);
+  el.innerHTML=Object.entries(groups).map(([cat,items])=>`
+    <div class="notif-group">
+      <div class="notif-group-title">${cat} <span style="color:var(--muted-2)">(${items.length})</span></div>
+      ${items.map(n=>`<div class="notif-item ${n.type}" onclick="(window.__notifActions[${n._i}]||function(){})()">
+        <div class="notif-ic">${n.ic}</div>
+        <div class="notif-body">
+          <div class="notif-title">${n.title}</div>
+          <div class="notif-desc">${n.desc}</div>
+          ${n.meta?`<div class="notif-meta">${n.meta}</div>`:''}
+        </div>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+/* تحديث عدّاد الجرس */
+function updateNotifBadge(){
+  const n=computeNotifications().length;
+  const b=$('#notifBadge'); if(!b) return;
+  if(n>0){ b.textContent=n>99?'99+':n; b.style.display='flex'; } else b.style.display='none';
+}
+
 /* ═══════════ Dashboard ═══════════ */
 function renderDashboard(){
   const total=members.length, active=members.filter(isActive).length;
   $('#statTotal').textContent=total; $('#statActive').textContent=active; $('#statInactive').textContent=total-active;
-  renderPhotoCarousel(); renderNews(); renderRecentMembers(); renderDues(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
+  renderPhotoCarousel(); renderNews(); renderRecentMembers(); renderDues(); updateNotifBadge(); $('#globalSearch').value=''; $('#searchResults').innerHTML='';
 }
 
 /* آخر 5 عضويات مضافة - كرت متحرك */
@@ -1196,7 +1339,59 @@ function renderInstMgr(){
   ).join('') : `<div class="inst-empty">لا توجد دفعات بعد</div>`;
   const pf=$('#instPayFullBtn'); if(pf){ pf.style.display = (rem>0)?'inline-flex':'none'; pf.textContent = instCtx.kind==='sub' ? '✅ دفع كامل للعضوية' : '✅ تسجيل الاستلام كاملاً'; }
   const pdf=$('#instPdfBtn'); if(pdf){ pdf.style.display='inline-flex'; }
+  renderSchedule();
 }
+
+/* ─── جدولة تواريخ الاستحقاق ─── */
+function schedTarget(){ const o=instObligation(); if(!o) return null; return instCtx.kind==='sub' ? o.m : o.b; }
+function fillSchedMonths(){
+  const sel=$('#schedMonth'); if(!sel||sel.options.length) return;
+  sel.innerHTML=HIJRI_MONTHS.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
+}
+function updateSchedGreg(){
+  const d=parseInt($('#schedDay').value,10), mo=parseInt($('#schedMonth').value,10), y=parseInt($('#schedYear').value,10);
+  const out=$('#schedGreg'); if(!out) return;
+  if(!d||isNaN(mo)||!y){ out.textContent='—'; return; }
+  const g=hijriToGregorian(d,mo,y);
+  out.textContent = g ? 'الموافق: '+fmtDate(g) : '—';
+}
+function renderSchedule(){
+  fillSchedMonths();
+  const t=schedTarget(); const wrap=$('#instSchedList'); if(!wrap) return;
+  const sched=(t&&Array.isArray(t.dueSchedule))?t.dueSchedule:[];
+  if(!sched.length){ wrap.innerHTML=`<div class="inst-empty" style="font-size:12px">لا توجد مواعيد استحقاق مجدولة</div>`; }
+  else {
+    wrap.innerHTML=sched.map((d,i)=>{
+      const g=hijriToGregorian(d.day,d.month,d.year);
+      return `<div class="sched-item ${d.paid?'done':''}">
+        <div class="si-info"><span class="si-hij">${d.day} ${HIJRI_MONTHS[d.month]} ${d.year} هـ</span>${d.amount?`<span class="si-amt">${fmtMoney(d.amount)}</span>`:''}<div class="si-greg">${g?'الموافق '+fmtDate(g):''}</div></div>
+        <div class="si-actions">
+          <button class="si-btn" onclick="schedTogglePaid(${i})" title="${d.paid?'إلغاء':'تم الدفع'}">${d.paid?'↩️':'✅'}</button>
+          <button class="si-btn" onclick="schedRemove(${i})" title="حذف">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  // ربط تحديث الميلادي
+  ['schedDay','schedMonth','schedYear'].forEach(id=>{ const e=$('#'+id); if(e&&!e._bound){ e._bound=true; e.addEventListener('input',updateSchedGreg); e.addEventListener('change',updateSchedGreg); } });
+}
+async function schedAdd(){
+  const t=schedTarget(); if(!t) return;
+  const d=parseInt($('#schedDay').value,10), mo=parseInt($('#schedMonth').value,10), y=parseInt($('#schedYear').value,10);
+  const amt=parseFloat($('#schedAmount').value)||0;
+  if(!d||d<1||d>30){ toast('أدخل يوماً صحيحاً (1-30)'); return; }
+  if(isNaN(mo)){ toast('اختر الشهر'); return; }
+  if(!y||y<1440){ toast('أدخل سنة هجرية صحيحة'); return; }
+  if(!Array.isArray(t.dueSchedule)) t.dueSchedule=[];
+  t.dueSchedule.push({day:d,month:mo,year:y,amount:amt,paid:false});
+  t.dueSchedule.sort((a,b)=>{ const ga=hijriToGregorian(a.day,a.month,a.year), gb=hijriToGregorian(b.day,b.month,b.year); return new Date(ga)-new Date(gb); });
+  await schedSave();
+  $('#schedDay').value=''; $('#schedYear').value=''; $('#schedAmount').value=''; $('#schedGreg').textContent='—';
+  renderSchedule(); toast('تمت إضافة موعد الاستحقاق');
+}
+async function schedRemove(i){ const t=schedTarget(); if(!t||!Array.isArray(t.dueSchedule)) return; t.dueSchedule.splice(i,1); await schedSave(); renderSchedule(); }
+async function schedTogglePaid(i){ const t=schedTarget(); if(!t||!Array.isArray(t.dueSchedule)) return; t.dueSchedule[i].paid=!t.dueSchedule[i].paid; await schedSave(); renderSchedule(); }
+async function schedSave(){ if(instCtx.kind==='sub') await saveMembers(); else await saveMiqats(); updateNotifBadge(); }
 function instPrintStatement(){
   if(!instCtx) return;
   if(instCtx.kind==='sub'){ printSubReceipt(instCtx.memberId); return; }
@@ -2905,6 +3100,7 @@ function fillCountrySelects(){
   renderDashboard();
   renderMembers();
   fillSettings();
+  updateNotifBadge();
 })();
 
 /* Service worker for offline use */
