@@ -454,7 +454,7 @@ async function saveReceipt(){
   await saveMiqats(); closeModal('receiptModal');
   toast('تم تسجيل الاستلام');
   renderMiqats(); renderDashboard();
-  if($('#familyListModal')&&$('#familyListModal').classList.contains('open')) renderFamilyList();
+  if($('#tab-familyList')&&$('#tab-familyList').style.display!=='none') renderFamilyList();
   if($('#detailModal').classList.contains('open')) showDetail(memberId);
 }
 async function clearReceipt(){
@@ -1240,7 +1240,7 @@ async function instCommit(o){
     renderMiqats();
   }
   renderMembers(); renderDashboard();
-  if($('#familyListModal') && $('#familyListModal').classList.contains('open')) renderFamilyList();
+  if($('#tab-familyList')&&$('#tab-familyList').style.display!=='none') renderFamilyList();
   if($('#detailModal').classList.contains('open')) showDetail(instCtx.memberId);
 }
 
@@ -1563,33 +1563,32 @@ function bookingName(b){ if(b&&b.familyName) return b.familyName; const m=member
 function bookingSubtitle(b){ if(b&&b.familyName) return b.repName?('ممثّلها: '+b.repName):'عائلة'; const m=members.find(x=>x.id===b.memberId); return m?memberCode(m):''; }
 function bookingPhone(b){ if(b&&b.phone) return b.phone; const m=members.find(x=>x.id===b.memberId); return m?m.phone:''; }
 let famEditRef=null;
+function showFamilyTab(id){ $$('.tab-content').forEach(c=>c.style.display='none'); $('#'+id).style.display='block'; window.scrollTo({top:0,behavior:'smooth'}); }
+function backFromFamily(){ $$('.tab-content').forEach(c=>c.style.display='none'); $('#tab-miqats').style.display='block'; renderMiqats(); window.scrollTo({top:0}); }
 function openFamilyBooking(){
   famEditRef=null;
   if(!miqats.length){ toast('أضف مواقيت أولاً'); return; }
-  document.querySelector('#familyModal h3').textContent='👪 ميقات عائلي';
+  $('#famFormTitle').textContent='👪 ميقات عائلي';
   $('#famName').value=''; $('#famRep').value=''; $('#famPhone').value=''; $('#famInitPaid').value=''; $('#famInitPaid').style.display='none';
   const r=document.querySelector('input[name="pm_family"][value="full"]'); if(r) r.checked=true;
-  const pmf=document.querySelector('#familyModal .paymode-field'); if(pmf) pmf.style.display='';
+  const pmf=document.querySelector('#tab-family .paymode-field'); if(pmf) pmf.style.display='';
   const cc=$('#famCountryCode'); if(cc&&!cc.value) cc.value='973';
   $('#famMiqat').innerHTML=miqatsByNearest().map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)}</option>`).join('');
   contribInit('family');
-  $('#familyModal').classList.add('open');
+  showFamilyTab('tab-family');
 }
 function editFamilyBooking(miqatId, memberId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
   famEditRef={miqatId, memberId};
-  document.querySelector('#familyModal h3').textContent='✏️ تعديل ميقات عائلي';
+  $('#famFormTitle').textContent='✏️ تعديل ميقات عائلي';
   $('#famName').value=b.familyName||''; $('#famRep').value=b.repName||'';
   const sp=splitPhone(b.phone||''); $('#famCountryCode').value=sp.code||'973'; $('#famPhone').value=sp.local||'';
   $('#famMiqat').innerHTML=miqatsByNearest().map(m=>`<option value="${m.id}"${m.id===miqatId?' selected':''}>${escapeHtml(m.name)} — ${fmtMiqatDate(m)}</option>`).join('');
-  // تعبئة بنود المساهمة
   const its=bookingItems(b).map(it=>({kind:(CONTRIB_KINDS.includes(it.kind)?it.kind:'أخرى'), other:(CONTRIB_KINDS.includes(it.kind)?'':it.kind), value:it.value}));
   contribState['family']=its.length?its:[{kind:'نقدي',other:'',value:''}]; contribRender('family');
-  // في التعديل نُخفي طريقة الدفع (الأقساط تُدار من زر الأقساط)
-  const pmf=document.querySelector('#familyModal .paymode-field'); if(pmf) pmf.style.display='none';
-  closeModal('familyListModal');
-  $('#familyModal').classList.add('open');
+  const pmf=document.querySelector('#tab-family .paymode-field'); if(pmf) pmf.style.display='none';
+  showFamilyTab('tab-family');
 }
 function famPayMode(mode){ const inp=$('#famInitPaid'); if(inp){ inp.style.display=mode==='inst'?'block':'none'; if(mode==='full') inp.value=''; } }
 async function saveFamilyBooking(){
@@ -1615,7 +1614,7 @@ async function saveFamilyBooking(){
       oldMq.bookings=oldMq.bookings.filter(x=>x.memberId!==famEditRef.memberId);
       const newMq=miqats.find(x=>x.id===miqatId); newMq.bookings=newMq.bookings||[]; newMq.bookings.push(b);
     }
-    await saveMiqats(); closeModal('familyModal'); renderMiqats(); renderDashboard();
+    await saveMiqats(); renderMiqats(); renderDashboard();
     toast('تم حفظ التعديل'); openFamilyList(); return;
   }
 
@@ -1625,8 +1624,8 @@ async function saveFamilyBooking(){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   mq.bookings=mq.bookings||[];
   mq.bookings.push({ memberId:'fam_'+Date.now(), onBehalf:'family', familyName, repName, phone, amount, items, payMode, payments: initPaid>0?[{amount:initPaid, date:today()}]:[] });
-  await saveMiqats(); closeModal('familyModal'); renderMiqats(); renderDashboard();
-  toast('تم حفظ الميقات العائلي');
+  await saveMiqats(); renderMiqats(); renderDashboard();
+  toast('تم حفظ الميقات العائلي'); showFamilyTab('tab-familyList'); renderFamilyList();
 }
 async function deleteFamilyBooking(miqatId, memberId){
   if(!confirm('حذف هذا الحجز العائلي وكل دفعاته؟')) return;
@@ -1635,7 +1634,7 @@ async function deleteFamilyBooking(miqatId, memberId){
   await saveMiqats(); renderMiqats(); renderDashboard(); renderFamilyList();
   toast('تم حذف الحجز العائلي');
 }
-function openFamilyList(){ $('#familyListModal').classList.add('open'); const s=$('#famSearch'); if(s) s.value=''; renderFamilyList(); }
+function openFamilyList(){ const s=$('#famSearch'); if(s) s.value=''; showFamilyTab('tab-familyList'); renderFamilyList(); }
 function renderFamilyList(){
   const body=$('#famListBody'); const sum=$('#famListSummary'); if(!body) return;
   const q=($('#famSearch')?$('#famSearch').value:'').trim().toLowerCase();

@@ -1460,6 +1460,42 @@
       <div id="phoneDirList"></div>
     </div>
   </section>
+
+  <section id="tab-family" class="tab-content" style="display:none">
+    <button class="btn btn-ghost btn-sm idara-back" onclick="backFromFamily()">← رجوع للمواقيت</button>
+    <div class="panel">
+      <div class="panel-header"><div><h2 class="panel-title" id="famFormTitle">👪 ميقات عائلي</h2>
+        <div class="panel-sub">حجز باسم عائلة يمثّلها شخص واحد</div></div></div>
+      <div class="field"><label>اسم العائلة</label><input type="text" id="famName" placeholder="مثلاً: عائلة آل فلان" /></div>
+      <div class="field" style="margin-top:10px;"><label>اختر الميقات</label><select id="famMiqat"></select></div>
+      <div class="field" style="margin-top:10px;"><label>اسم ممثّل العائلة</label><input type="text" id="famRep" placeholder="اسم الممثّل" /></div>
+      <div class="field" style="margin-top:10px;"><label>رقم الهاتف</label>
+        <div class="phone-wrap"><select id="famCountryCode" class="country-select"></select><input id="famPhone" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="رقم الهاتف" /></div></div>
+      <div class="field" style="margin-top:10px;"><label>مساهمة العائلة <span class="opt">نقدي أو عيني — أضف بنداً لكل نوع</span></label>
+        <div id="famItems" class="contrib-editor" data-ctx="family"></div></div>
+      <div class="field paymode-field" style="margin-top:10px;"><label>طريقة الدفع</label>
+        <div class="paymode">
+          <label class="pm-opt"><input type="radio" name="pm_family" value="full" checked onchange="famPayMode('full')"> دفع كامل</label>
+          <label class="pm-opt"><input type="radio" name="pm_family" value="inst" onchange="famPayMode('inst')"> تقسيط</label>
+        </div>
+        <input type="number" class="pm-init" id="famInitPaid" style="display:none;margin-top:8px" placeholder="المدفوع الآن (الدفعة الأولى)" min="0" step="0.001" />
+      </div>
+      <div class="actions-row"><button class="btn btn-primary" onclick="saveFamilyBooking()">حفظ الميقات العائلي</button>
+        <button class="btn btn-ghost" onclick="backFromFamily()">إلغاء</button></div>
+    </div>
+  </section>
+
+  <section id="tab-familyList" class="tab-content" style="display:none">
+    <button class="btn btn-ghost btn-sm idara-back" onclick="backFromFamily()">← رجوع للمواقيت</button>
+    <div class="panel">
+      <div class="panel-header"><div><h2 class="panel-title">📋 الحجوزات العائلية</h2>
+        <div class="panel-sub">كل الحجوزات باسم العائلات</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="printFamilyReport()">🧾 تقرير PDF</button></div>
+      <div class="fam-summary" id="famListSummary"></div>
+      <input type="text" id="famSearch" class="fam-search" placeholder="🔍 بحث باسم العائلة أو الممثّل…" oninput="renderFamilyList()" />
+      <div id="famListBody"></div>
+    </div>
+  </section>
 </div>
 
 <!-- Member Detail Modal -->
@@ -1607,38 +1643,6 @@
 </div></div>
 
 <!-- Family Booking Modal -->
-<div class="modal-backdrop" id="familyModal"><div class="modal">
-  <button class="modal-close" onclick="closeModal('familyModal')">×</button>
-  <h3>👪 ميقات عائلي</h3>
-  <div class="subtitle">حجز باسم عائلة يمثّلها شخص واحد</div>
-  <div class="field"><label>اسم العائلة</label><input type="text" id="famName" placeholder="مثلاً: عائلة آل فلان" /></div>
-  <div class="field" style="margin-top:10px;"><label>اختر الميقات</label><select id="famMiqat"></select></div>
-  <div class="field" style="margin-top:10px;"><label>اسم ممثّل العائلة</label><input type="text" id="famRep" placeholder="اسم الممثّل" /></div>
-  <div class="field" style="margin-top:10px;"><label>رقم الهاتف</label>
-    <div class="phone-wrap"><select id="famCountryCode" class="country-select"></select><input id="famPhone" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="رقم الهاتف" /></div></div>
-  <div class="field" style="margin-top:10px;"><label>مساهمة العائلة <span class="opt">نقدي أو عيني — أضف بنداً لكل نوع</span></label>
-    <div id="famItems" class="contrib-editor" data-ctx="family"></div></div>
-  <div class="field paymode-field" style="margin-top:10px;"><label>طريقة الدفع</label>
-    <div class="paymode">
-      <label class="pm-opt"><input type="radio" name="pm_family" value="full" checked onchange="famPayMode('full')"> دفع كامل</label>
-      <label class="pm-opt"><input type="radio" name="pm_family" value="inst" onchange="famPayMode('inst')"> تقسيط</label>
-    </div>
-    <input type="number" class="pm-init" id="famInitPaid" style="display:none;margin-top:8px" placeholder="المدفوع الآن (الدفعة الأولى)" min="0" step="0.001" />
-  </div>
-  <div class="actions-row"><button class="btn btn-primary" onclick="saveFamilyBooking()">حفظ الميقات العائلي</button>
-    <button class="btn btn-ghost" onclick="closeModal('familyModal')">إلغاء</button></div>
-</div></div>
-
-<!-- Family List Modal -->
-<div class="modal-backdrop" id="familyListModal"><div class="modal" style="max-width:720px;">
-  <button class="modal-close" onclick="closeModal('familyListModal')">×</button>
-  <div class="fam-list-head"><h3>📋 الحجوزات العائلية</h3>
-    <button class="btn btn-ghost btn-sm" onclick="printFamilyReport()">🧾 تقرير PDF</button></div>
-  <div class="fam-summary" id="famListSummary"></div>
-  <input type="text" id="famSearch" class="fam-search" placeholder="🔍 بحث باسم العائلة أو الممثّل…" oninput="renderFamilyList()" />
-  <div id="famListBody"></div>
-</div></div>
-
 <!-- Bulk Message Modal -->
 <div class="modal-backdrop" id="bulkModal"><div class="modal" style="max-width:560px;">
   <button class="modal-close" onclick="closeModal('bulkModal')">×</button>
