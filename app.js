@@ -362,6 +362,129 @@ function openNotifications(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
+let currentMemberPageId=null, currentMiqatPageId=null;
+/* فتح صفحة تبويب كاملة (بلا زر في الشريط) */
+function openFullPage(name){
+  $$('.tab[data-tab]').forEach(x=>x.classList.remove('active'));
+  $$('.tab-content').forEach(c=>c.style.display='none');
+  const el=$('#tab-'+name); if(el) el.style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function isFullPageOpen(name){ const e=$('#tab-'+name); return !!(e && e.style.display==='block'); }
+
+/* ── طباعة ملف العضو PDF ── */
+function printMemberProfile(id){
+  const m=members.find(x=>x.id===id); if(!m) return;
+  const active=isActive(m); const mms=memberMiqats(m);
+  const row=(k,v)=>v?`<tr><th>${k}</th><td>${v}</td></tr>`:'';
+  const miq = mms.length ? `<h2>المواقيت والمساهمات</h2><table class="tb"><tr><th>الميقات</th><th>التاريخ</th><th>المساهمة</th></tr>
+    ${mms.map(mq=>{const b=(mq.bookings||[]).find(x=>x.memberId===m.id);
+      return `<tr><td>${escapeHtml(mq.name)}</td><td>${fmtMiqatDate(mq)}</td><td>${b?fmtMoney(bookingAgreed(b)):'—'}</td></tr>`;}).join('')}</table>` : '';
+  const pays = memberPayments(m);
+  const inst = pays.length ? `<h2>دفعات العضوية</h2><table class="tb"><tr><th>#</th><th>التاريخ</th><th>المبلغ</th></tr>
+    ${pays.map((p,i)=>`<tr><td>${i+1}</td><td>${fmtDate(p.date)}</td><td>${fmtMoney(p.amount)}</td></tr>`).join('')}
+    <tr class="sum"><td colspan="2">الإجمالي المدفوع</td><td>${fmtMoney(memberPaid(m))}</td></tr></table>` : '';
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ملف العضو — ${escapeHtml(m.name)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:250px;max-height:88px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:8px;}
+  .doc-title{text-align:center;font-family:'Amiri',serif;font-size:24px;font-weight:700;color:#1c4536;margin:12px 0 2px;}
+  .doc-sub{text-align:center;color:#8a7c6b;font-size:14px;margin-bottom:24px;}
+  h2{font-size:17px;color:#fff;background:#1c4536;display:inline-block;padding:6px 16px 6px 20px;border-radius:0 18px 18px 0;margin:26px 0 12px;}
+  table{width:100%;border-collapse:collapse;font-size:14.5px;}
+  th,td{border:1px solid #e6ddcb;padding:9px 12px;text-align:right;}
+  th{background:#f6f2ea;color:#3a473f;font-weight:600;width:34%;}
+  .tb th{background:#1c4536;color:#fff;width:auto;}
+  .tb tr:nth-child(even){background:#faf7f0;}
+  .tb .sum td{background:#e6f0ea;font-weight:700;}
+  .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:13px;font-weight:700;}
+  .on{background:#e6f3ea;color:#2f8f5b;} .off{background:#f6e6e6;color:#b85c5c;}
+  .foot{margin-top:36px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;}}
+  ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">ملف العضو</div>
+    <div class="doc-sub">${escapeHtml(m.name)} · ${memberCode(m)} · ${hijriToday()}</div></div>
+  <h2>البيانات الأساسية</h2>
+  <table>
+    ${row('الاسم الكامل', escapeHtml(m.name))}
+    ${row('رقم العضوية', memberCode(m))}
+    ${row('نوع العضوية', m.type)}
+    ${row('الحالة', `<span class="badge ${active?'on':'off'}">${active?'مفعّلة':'غير مفعّلة'}</span>`)}
+    ${row('الهاتف', m.phone)}
+    ${m.isMinor&&m.birthdate?row('تاريخ الميلاد', fmtDate(m.birthdate)):''}
+    ${m.isMinor&&m.age!=null?row('العمر', m.age):''}
+    ${row('المنطقة', m.area)}
+    ${row('البريد الإلكتروني', m.email)}
+    ${row('العنوان', m.address)}
+    ${m.isAdmin?row('اللجنة', m.committee||'—'):''}
+    ${row('تاريخ التسجيل', fmtDate(m.joinDate))}
+    ${m.paymentDate?row('بداية العضوية', fmtHijriStart(m)):''}
+    ${m.paymentDate?row('انتهاء العضوية', fmtHijriEnd(m)):''}
+  </table>
+  ${inst}
+  ${miq}
+  <div class="foot">هيئة محبي الحسين (ع) — وثيقة رسمية</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* ── طباعة تفاصيل الميقات PDF ── */
+function printMiqatPDF(id){
+  const mq=miqats.find(x=>x.id===id); if(!mq) return;
+  const st=miqatStatus(mq), paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
+  const rows=(mq.bookings||[]).map((b,i)=>{
+    const ag=bookingAgreed(b), pd=bookingPaid(b), rm=bookingRemaining(b);
+    return `<tr><td>${i+1}</td><td>${escapeHtml(bookingName(b))}${b.familyName?' (عائلة)':''}</td><td>${fmtMoney(ag)}</td><td>${fmtMoney(pd)}</td><td>${rm>0?fmtMoney(rm):'—'}</td></tr>`;
+  }).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تفاصيل الميقات — ${escapeHtml(mq.name)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:250px;max-height:88px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:8px;}
+  .doc-title{text-align:center;font-family:'Amiri',serif;font-size:24px;font-weight:700;color:#1c4536;margin:12px 0 2px;}
+  .doc-sub{text-align:center;color:#8a7c6b;font-size:14px;margin-bottom:24px;}
+  h2{font-size:17px;color:#fff;background:#1c4536;display:inline-block;padding:6px 16px 6px 20px;border-radius:0 18px 18px 0;margin:26px 0 12px;}
+  table{width:100%;border-collapse:collapse;font-size:14.5px;}
+  th,td{border:1px solid #e6ddcb;padding:9px 12px;text-align:right;}
+  th{background:#f6f2ea;color:#3a473f;font-weight:600;width:34%;}
+  .tb th{background:#1c4536;color:#fff;width:auto;}
+  .tb tr:nth-child(even){background:#faf7f0;}
+  .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:13px;font-weight:700;}
+  .g{background:#e6f3ea;color:#2f8f5b;} .y{background:#f6ecdf;color:#b5763a;} .r{background:#f6e6e6;color:#b85c5c;}
+  .foot{margin-top:36px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;}}
+  ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">تفاصيل الميقات</div>
+    <div class="doc-sub">${escapeHtml(mq.name)} · ${hijriToday()}</div></div>
+  <h2>بيانات الميقات</h2>
+  <table>
+    <tr><th>اسم الميقات</th><td>${escapeHtml(mq.name)}</td></tr>
+    <tr><th>التاريخ الهجري</th><td>${fmtMiqatDate(mq)}</td></tr>
+    <tr><th>الموافق ميلادياً</th><td>${miqatGregText(mq)}</td></tr>
+    <tr><th>المبلغ المطلوب</th><td>${fmtMoney(req)}</td></tr>
+    <tr><th>المتّفق عليه</th><td>${fmtMoney(miqatAgreed(mq))}</td></tr>
+    <tr><th>المُحصّل فعلاً</th><td>${fmtMoney(paid)}</td></tr>
+    <tr><th>المتبقّي تحصيله</th><td>${fmtMoney(Math.max(0,req-paid))}</td></tr>
+    <tr><th>عدد المشاركين</th><td>${(mq.bookings||[]).length}</td></tr>
+    <tr><th>الحالة</th><td><span class="badge ${st==='green'?'g':(st==='yellow'?'y':'r')}">${STATUS_LABEL[st]}</span></td></tr>
+  </table>
+  <h2>المشاركون ومساهماتهم</h2>
+  ${rows?`<table class="tb"><tr><th>#</th><th>المساهم</th><th>المتّفق عليه</th><th>المدفوع</th><th>المتبقّي</th></tr>${rows}</table>`
+        :'<p style="color:#8a7c6b">لا يوجد مشاركون بعد.</p>'}
+  <div class="foot">هيئة محبي الحسين (ع) — وثيقة رسمية</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
 /* حساب كل الإشعارات - ترجع مصفوفة مصنّفة */
 function computeNotifications(){
   const list=[]; const h=hijriParts(); const curM=h.month; const curD=h.day; const curY=parseInt(h.year,10)||1448;
@@ -619,7 +742,7 @@ async function saveReceipt(){
   toast('تم تسجيل الاستلام');
   renderMiqats(); renderDashboard();
   if($('#tab-familyList')&&$('#tab-familyList').style.display!=='none') renderFamilyList();
-  if($('#detailModal').classList.contains('open')) showDetail(memberId);
+  if(isFullPageOpen('memberpage')) showDetail(memberId);
 }
 async function clearReceipt(){
   if(!receiptCtx) return; const {miqatId, memberId}=receiptCtx;
@@ -629,7 +752,7 @@ async function clearReceipt(){
   delete b.received; delete b.receivedNote; delete b.receivedDate;
   await saveMiqats(); closeModal('receiptModal');
   toast('أُلغي الاستلام'); renderMiqats(); renderDashboard();
-  if($('#detailModal').classList.contains('open')) showDetail(memberId);
+  if(isFullPageOpen('memberpage')) showDetail(memberId);
 }
 
 /* إرسال تذكير الميقات عبر واتساب بالرسالة الجاهزة */
@@ -870,11 +993,11 @@ function showMiqatDetail(id){
       <ul>${bookers||'<li><span class="name" style="color:var(--muted)">لا يوجد مشاركون بعد</span></li>'}</ul>
     </div>
     <div class="actions-row">
-      <button class="btn btn-primary" onclick="closeModal('miqatDetailModal'); openBooking('${mq.id}')">+ حجز عضو</button>
-      <button class="btn btn-ghost" onclick="closeModal('miqatDetailModal'); openMiqatModal('${mq.id}')">تعديل الميقات</button>
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('miqatDetailModal'); switchTab('miqats');">عرض في قائمة المواقيت</button>
+      <button class="btn btn-primary" onclick="openBooking('${mq.id}')">+ حجز عضو</button>
+      <button class="btn btn-ghost" onclick="openMiqatModal('${mq.id}')">تعديل الميقات</button>
+      <button class="btn btn-ghost btn-sm" onclick="switchTab('miqats');">عرض في قائمة المواقيت</button>
     </div>`;
-  $('#miqatDetailModal').classList.add('open');
+  currentMiqatPageId=id; openFullPage('miqatpage');
 }
 
 /* تفاصيل الخبر */
@@ -1226,7 +1349,7 @@ function showDetail(id){
       <button class="btn btn-ghost btn-sm" onclick="toggleAdmin('${m.id}')">${m.isAdmin?'إزالة من الإدارة':'تعيين كإداري'}</button>
       <button class="btn btn-danger btn-sm" onclick="deleteMember('${m.id}')">حذف</button>
     </div>`;
-  $('#detailModal').classList.add('open');
+  currentMemberPageId=id; openFullPage('memberpage');
 }
 
 /* ═══════════ تعديل ملف العضو ═══════════ */
@@ -1260,7 +1383,6 @@ function openEditMember(id){
   $('#addFormSub').textContent=`رقم العضوية: ${memberCode(m)} — عدّل ما تشاء ثم احفظ`;
   $('#addSubmitBtn').textContent='حفظ التعديلات';
   const rb=$('#addResetBtn'); if(rb) rb.style.display='none';
-  closeModal('detailModal');
   window.scrollTo(0,0);
 }
 function makeExistingMiqatCard(mq,b){
@@ -1484,12 +1606,12 @@ async function instCommit(o){
     await saveMembers();
   } else {
     await saveMiqats();
-    if($('#miqatDetailModal').classList.contains('open')) showMiqatDetail(instCtx.miqatId);
+    if(isFullPageOpen('miqatpage')) showMiqatDetail(instCtx.miqatId);
     renderMiqats();
   }
   renderMembers(); renderDashboard();
   if($('#tab-familyList')&&$('#tab-familyList').style.display!=='none') renderFamilyList();
-  if($('#detailModal').classList.contains('open')) showDetail(instCtx.memberId);
+  if(isFullPageOpen('memberpage')) showDetail(instCtx.memberId);
 }
 
 /* ─── قائمة الأقساط المتبقّية ─── */
@@ -1618,7 +1740,7 @@ async function recordPayment(id){ const m=members.find(x=>x.id===id); if(!m) ret
   m.paymentDate=today(); m.expiryDate=addYear(m.paymentDate); m.paidAmount=settings.fee; m.feeTotal=Number(settings.fee)||0;
   m.payments=[{amount:Number(settings.fee)||0, date:today()}];
   m.hijriStartYear=settings.year||1448; m.hijriEndYear=(settings.year||1448)+1;
-  await saveMembers(); toast('تم تسجيل الاشتراك — العضوية مفعّلة'); closeModal('detailModal'); openCard(id); renderDashboard(); }
+  await saveMembers(); toast('تم تسجيل الاشتراك — العضوية مفعّلة'); openCard(id); renderDashboard(); }
 async function renewPayment(id){ const m=members.find(x=>x.id===id); if(!m) return;
   const start=memberEndYear(m);
   if(!confirm(`تجديد العضوية: محرم ${start} هـ حتى محرم ${start+1} هـ؟`)) return;
@@ -1632,12 +1754,12 @@ async function deleteMember(id){ const m=members.find(x=>x.id===id); if(!m) retu
   if(!confirm(`حذف العضو ${m.name} (${memberCode(m)})؟ لا يمكن التراجع.`)) return;
   members=members.filter(x=>x.id!==id);
   miqats.forEach(mq=>mq.bookings=(mq.bookings||[]).filter(b=>b.memberId!==id));
-  await saveMembers(); await saveMiqats(); closeModal('detailModal'); toast('تم الحذف'); renderMembers(); renderDashboard(); }
+  await saveMembers(); await saveMiqats(); switchTab('members'); toast('تم الحذف'); renderMembers(); renderDashboard(); }
 
 /* ═══════════ Membership card ═══════════ */
 let cardMemberId=null;
 function openCard(id){ const m=members.find(x=>x.id===id); if(!m) return; cardMemberId=id;
-  $('#cardPreviewWrap').innerHTML=cardHTML(m); closeModal('detailModal'); $('#cardModal').classList.add('open'); }
+  $('#cardPreviewWrap').innerHTML=cardHTML(m); $('#cardModal').classList.add('open'); }
 function cardHTML(m){
   const mms=memberMiqats(m);
   const miqatsBlock=mms.length?`<div style="margin-top:16px;background:rgba(255,255,255,.06);border-radius:12px;padding:12px 16px;">
