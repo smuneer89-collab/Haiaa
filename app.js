@@ -995,7 +995,7 @@ function showMiqatDetail(id){
     <div class="actions-row">
       <button class="btn btn-primary" onclick="openBooking('${mq.id}')">+ حجز عضو</button>
       <button class="btn btn-ghost" onclick="openMiqatModal('${mq.id}')">تعديل الميقات</button>
-      <button class="btn btn-ghost btn-sm" onclick="switchTab('miqats');">عرض في قائمة المواقيت</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteMiqat('${mq.id}')">حذف الميقات</button>
     </div>`;
   currentMiqatPageId=id; openFullPage('miqatpage');
 }
@@ -1894,7 +1894,7 @@ function renderMiqats(){
         </div>
       </div>` : '';
     return `<div class="miqat-card st-${st}">
-      <div class="mc-row" onclick="toggleMiqatRow('${mq.id}')">
+      <div class="mc-row" onclick="showMiqatDetail('${mq.id}')">
         <span class="mc-name">${escapeHtml(mq.name)}</span>
         <span class="mc-right">
           <span class="mc-status st-${st}">${STATUS_LABEL[st]}</span>
@@ -1906,7 +1906,7 @@ function renderMiqats(){
   }).join('');
 }
 async function deleteMiqat(id){ const mq=miqats.find(x=>x.id===id); if(!mq) return;
-  if(!confirm(`حذف ميقات «${mq.name}»؟`)) return; miqats=miqats.filter(x=>x.id!==id); await saveMiqats(); renderMiqats(); toast('تم الحذف'); }
+  if(!confirm(`حذف ميقات «${mq.name}»؟`)) return; miqats=miqats.filter(x=>x.id!==id); await saveMiqats(); renderMiqats(); if(isFullPageOpen('miqatpage')) switchTab('miqats'); toast('تم الحذف'); }
 function openBooking(miqatId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   $('#bookingMiqatId').value=miqatId; $('#bookingSub').textContent=`${mq.name} · ${fmtMiqatDate(mq)}`;
