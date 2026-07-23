@@ -136,7 +136,7 @@ function miqatStatus(mq){
   if (req > 0 && eff < req) return 'yellow';
   return 'green';
 }
-const STATUS_LABEL = { green:'محجوز', yellow:'يحتاج تعزيز', red:'غير محجوز' };
+const STATUS_LABEL = { green:'اكتمل الحجز', yellow:'يحتاج تعزيز', red:'غير محجوز' };
 
 /* ─── Storage load/save ─── */
 async function loadData(){
@@ -358,6 +358,7 @@ function openNotifications(){
   $$('.tab-content').forEach(c=>c.style.display='none');
   $('#tab-notifications').style.display='block';
   renderNotifications();
+  requestBadgePermission();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -491,9 +492,29 @@ function renderNotifications(){
 /* تحديث عدّاد الجرس */
 function updateNotifBadge(){
   const n=computeNotifications().length;
-  const b=$('#notifBadge'); if(!b) return;
-  if(n>0){ b.textContent=n>99?'99+':n; b.style.display='flex'; } else b.style.display='none';
+  const b=$('#notifBadge');
+  if(b){ if(n>0){ b.textContent=n>99?'99+':n; b.style.display='flex'; } else b.style.display='none'; }
+  syncAppBadge(n);
 }
+
+/* شارة العدد فوق أيقونة البرنامج على الشاشة الرئيسية (PWA) */
+async function syncAppBadge(count){
+  try{
+    if(!('setAppBadge' in navigator)) return;
+    const n = (typeof count==='number') ? count : computeNotifications().length;
+    if(n>0) await navigator.setAppBadge(n); else await navigator.clearAppBadge();
+  }catch(e){}
+}
+/* طلب إذن الإشعارات (مطلوب لإظهار الشارة على الأيقونة) */
+async function requestBadgePermission(){
+  try{
+    if(!('Notification' in window)) return;
+    if(Notification.permission==='default') await Notification.requestPermission();
+    syncAppBadge();
+  }catch(e){}
+}
+/* تحديث الشارة عند الخروج من التطبيق ليبقى الرقم صحيحاً على الأيقونة */
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) syncAppBadge(); });
 
 /* ═══════════ Dashboard ═══════════ */
 function renderDashboard(){
@@ -617,7 +638,7 @@ function sendMiqatReminder(memberId, miqatId){
   if(!m||!mq) return;
   const h=hijriParts(); let diff=(mq.month-h.month+12)%12;
   const when = diff===0?'هذا الشهر':(diff===1?'الشهر القادم':'خلال شهرين');
-  const msg=`السلام عليكم\n\nالعضو ${m.name}،\nنذكّركم بقرب ميقات \n\n*${mq.name}* \nبتاريخ ${fmtMiqatDate(mq)} ${when} ☝🏼\n\nنسألكم الحضور والمشاركة.\nبارك الله فيكم — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
+  const msg=`السلام عليكم\n\nالعضو ${m.name}،\nنذكّركم بقرب ميقات \n\n*${mq.name}* \nبتاريخ ${miqatHijriFull(mq)} \nالموافق ${miqatGregText(mq)} ${when}☝🏼\n\nنسألكم الحضور والمشاركة.\nبارك الله فيكم — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
   markReminded(memberId, miqatId);
   window.open(whatsappLink(m.phone, msg), '_blank');
   setTimeout(renderRecentMembers, 400);
@@ -639,6 +660,11 @@ function hijriToGregorian(hDay, hMonth0, hYear){
 }
 function miqatTargetHijriYear(mq){ const h=hijriParts(); const curY=parseInt(h.year,10)||1448;
   return (mq.month < h.month || (mq.month===h.month && mq.day < h.day)) ? curY+1 : curY; }
+/* نص التاريخ الميلادي الموافق لتاريخ الميقات */
+function miqatGregText(mq){ const ty=miqatTargetHijriYear(mq); const g=hijriToGregorian(mq.day,mq.month,ty);
+  return g?g.toLocaleDateString('ar',{day:'numeric',month:'long',year:'numeric'}):''; }
+/* نص التاريخ الهجري الكامل للميقات (مع السنة) */
+function miqatHijriFull(mq){ const ty=miqatTargetHijriYear(mq); return `${mq.day} ${HIJRI_MONTHS[mq.month]} ${ty} هـ`; }
 /* تذكير العائلة بالمساهمة في ميقات (نص مخصّص + تاريخ ميلادي) */
 function sendFamilyMiqatReminder(miqatId, memberId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
@@ -937,8 +963,8 @@ function miqatEntryHTML(ctx){
       <div class="contrib-editor" data-ctx="${ctx}"></div></div>
     <div class="field paymode-field"><label>طريقة الدفع</label>
       <div class="paymode">
-        <label class="pm-opt"><input type="radio" name="pm_${ctx}" value="full" checked onchange="regPayMode('${ctx}','full')"> دفع كامل</label>
-        <label class="pm-opt"><input type="radio" name="pm_${ctx}" value="inst" onchange="regPayMode('${ctx}','inst')"> تقسيط</label>
+        <label class="pm-opt"><input type="radio" name="pm_${ctx}" value="full" checked onchange="regPayMode('${ctx}','full')"><span class="pm-dot"></span><span><span class="pm-t">دفع كامل</span><span class="pm-d">تسديد المبلغ مرة واحدة</span></span></label>
+        <label class="pm-opt"><input type="radio" name="pm_${ctx}" value="inst" onchange="regPayMode('${ctx}','inst')"><span class="pm-dot"></span><span><span class="pm-t">تقسيط</span><span class="pm-d">دفعات على مواعيد استحقاق</span></span></label>
       </div>
       <input type="number" class="pm-init" id="pmInit_${ctx}" style="display:none;margin-top:8px" placeholder="المدفوع الآن (الدفعة الأولى)" min="0" step="0.001" />
     </div>
@@ -953,18 +979,34 @@ function updateMiqatInfo(sel){
   const info=entry.querySelector('.miqat-info');
   const mq=miqats.find(x=>x.id===sel.value);
   if(!mq){ info.style.display='none'; regPreviewUpdate(ctx); return; }
-  const req=Number(mq.requiredAmount)||0, paid=miqatPaid(mq), rem=Math.max(0,req-paid);
+  const req=Number(mq.requiredAmount)||0, booked=miqatEffective(mq), rem=Math.max(0,req-booked);
   const st=miqatStatus(mq);
   info.style.display='block';
   info.innerHTML=`
     <div class="mq-info-box">
       <div class="mq-info-row"><span>التاريخ الهجري</span><b>${fmtMiqatDate(mq)}</b></div>
       <div class="mq-info-row"><span>المبلغ المطلوب</span><b>${fmtMoney(req)}</b></div>
-      <div class="mq-info-row"><span>الموصول حالياً</span><b>${fmtMoney(paid)}</b></div>
+      ${bookersBlockHTML(mq)}
       <div class="mq-info-row"><span>المتبقّي</span><b>${fmtMoney(rem)}</b></div>
       <div class="mq-info-row"><span>الحالة الحالية</span><span class="mc-status st-${st}">${STATUS_LABEL[st]}</span></div>
     </div>`;
   regPreviewUpdate(ctx);
+}
+/* كتلة «المحجوز من» — تفصيل المساهمين السابقين (عضو / عائلة) ومبالغهم */
+function bookersBlockHTML(mq){
+  const bs=(mq.bookings||[]).filter(b=>bookingEffective(b)>0);
+  if(!bs.length) return `<div class="mq-bookers empty"><div class="bk-title">المحجوز من</div><div class="bk-none">لا توجد مساهمات محجوزة بعد</div></div>`;
+  const total=bs.reduce((s,b)=>s+bookingEffective(b),0);
+  const rows=bs.map(b=>{
+    const fam=!!b.familyName;
+    const who = fam ? b.familyName : (members.find(x=>x.id===b.memberId)?.name || 'عضو');
+    return `<div class="bk-row"><span class="bk-who"><span class="bk-tag ${fam?'fam':'mem'}">${fam?'عائلة':'عضو'}</span>${escapeHtml(who)}</span><b class="bk-amt">${fmtMoney(bookingEffective(b))}</b></div>`;
+  }).join('');
+  return `<div class="mq-bookers">
+    <div class="bk-title">المحجوز من <span class="bk-count">(${bs.length})</span></div>
+    ${rows}
+    <div class="bk-row bk-total"><span>مجموع المحجوز</span><b>${fmtMoney(total)}</b></div>
+  </div>`;
 }
 /* معاينة الحالة بعد مساهمة العضو (تُحسب من مجموع البنود) */
 function regPreviewUpdate(ctx){
@@ -974,13 +1016,15 @@ function regPreviewUpdate(ctx){
   const amt=contribTotal(ctx);
   if(!mq||amt<=0){ prev.style.display='none'; return; }
   const req=Number(mq.requiredAmount)||0;
-  const total=miqatPaid(mq)+amt;
+  const booked=miqatEffective(mq);
+  const total=booked+amt;
   const newSt = total<=0 ? 'red' : (req>0 && total<req ? 'yellow' : 'green');
+  const calc = booked>0 ? `<div class="pv-calc">المحجوز سابقاً ${fmtMoney(booked)} + مساهمة العضو ${fmtMoney(amt)} = <b>${fmtMoney(total)}</b> من ${fmtMoney(req)}</div>` : '';
   const msg = newSt==='green'
-    ? `✅ سيكتمل المبلغ — يُحجز الميقات باسم العضو`
-    : `⚠️ المساهمة أقل من المطلوب — ينتقل الميقات إلى «يحتاج تعزيز» (المتبقّي ${fmtMoney(Math.max(0,req-total))})`;
+    ? `✅ <b>اكتمل الحجز</b> — يُغطّى المبلغ المطلوب بالكامل`
+    : `⚠️ <b>يحتاج تعزيز</b> — المجموع أقل من المطلوب (ناقص ${fmtMoney(Math.max(0,req-total))})`;
   prev.style.display='block';
-  prev.innerHTML=`<div class="mq-preview-box st-${newSt}">${msg}</div>`;
+  prev.innerHTML=`<div class="mq-preview-box st-${newSt}">${msg}${calc}</div>`;
 }
 function addMiqatEntry(){ const c=$('#miqatsContainer'); const btn=c.querySelector('.add-miqat-btn');
   const ctx='reg_'+(++regCtxCounter);
@@ -1113,7 +1157,7 @@ function miqatRemindersHTML(m){
     const reminded=isMiqatReminded(m,mq);
     const diff=(mq.month-hijriParts().month+12)%12;
     const when = diff===0?'هذا الشهر':(diff===1?'الشهر القادم':'خلال شهرين');
-    const msg=`السلام عليكم\n\nالعضو ${m.name}،\nنذكّركم بقرب ميقات \n\n*${mq.name}* \nبتاريخ ${fmtMiqatDate(mq)} ${when} ☝🏼\n\nنسألكم الحضور والمشاركة.\nبارك الله فيكم — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
+    const msg=`السلام عليكم\n\nالعضو ${m.name}،\nنذكّركم بقرب ميقات \n\n*${mq.name}* \nبتاريخ ${miqatHijriFull(mq)} \nالموافق ${miqatGregText(mq)} ${when}☝🏼\n\nنسألكم الحضور والمشاركة.\nبارك الله فيكم — هيئة محبي الحسين\n\n⭕️ *ملاحظة*\nتم توليد هذه الرسالة بالذكاء الاصطناعي`;
     return `<div class="miqat-reminder ${reminded?'reminded':''}">
       <div class="mr-head">${reminded?'✅ تم تذكير العضو':'🔔 تذكير بميقات قريب'}</div>
       <div class="mr-name">${escapeHtml(mq.name)}</div>
@@ -1517,7 +1561,7 @@ function remindMiqatDue(memberId, miqatId){
   const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
   const phone=bookingPhone(b);
   const who = b.familyName ? `${b.familyName}${b.repName?` (ممثّلها ${b.repName})`:''}` : bookingName(b);
-  const msg=`السلام عليكم\n\nالأخ الكريم ${who}،\n\nنود تذكيركم باستحقاق قسط مساهمتكم في *${mq.name}* ضمن مواقيت هيئة محبي الحسين.\n\nنسأل الله أن يجعل مساهمتكم في ميزان حسناتكم، وأن يبارك لكم فيما تقدمونه من دعمٍ لخدمة الإمام الحسين (ع).\n\nوللتنسيق بشأن السداد، يرجى التواصل مع أمانة السر\n*صادق الغسرة:* +97336496449\n\nكما نود الإشارة إلى أن من حق كل عضو طلب كشفٍ تفصيلي بجميع الأقساط والمدفوعات الخاصة به في أي وقت، وذلك تعزيزًا للشفافية وحفظًا لحقوق الأعضاء.\n\nنسعد بحضوركم ودعمكم المستمر.\nبارك الله فيكم.\n\n— هيئة محبي الحسين\n\n⭕️ ملاحظة:\nتم توليد هذه الرسالة بالذكاء الاصطناعي.`;
+  const msg=`السلام عليكم\n\nالأخ الكريم ${who}،\n\nنود تذكيركم باستحقاق قسط مساهمتكم في *${mq.name}* ضمن مواقيت هيئة محبي الحسين. والذي يصادف ${miqatHijriFull(mq)} الموافق ${miqatGregText(mq)}\n\nنسأل الله أن يجعل مساهمتكم في ميزان حسناتكم، وأن يبارك لكم فيما تقدمونه من دعمٍ لخدمة الإمام الحسين (ع).\n\nوللتنسيق بشأن السداد، يرجى التواصل مع أمانة السر\n*صادق الغسرة:* 36496449\n\n*كما نود الإشارة إلى أن من حق كل عضو طلب كشفٍ تفصيلي بجميع الأقساط والمدفوعات الخاصة به في أي وقت، وذلك تعزيزًا للشفافية وحفظًا لحقوق الأعضاء.*\n\nنسعد بحضوركم ودعمكم المستمر.\nبارك الله فيكم.\n\n— هيئة محبي الحسين\n\n⭕️ ملاحظة:\nتم توليد هذه الرسالة بالذكاء الاصطناعي.`;
   window.open(whatsappLink(phone, msg), '_blank');
 }
 

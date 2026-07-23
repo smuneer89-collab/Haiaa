@@ -331,10 +331,36 @@
   .form-existing-title { font-family:var(--font-display); font-size:13px; color:var(--muted); margin:4px 0 8px; }
 
   /* طريقة الدفع في التسجيل (دفع كامل / تقسيط) */
-  .paymode { display:flex; gap:10px; flex-wrap:wrap; }
-  .pm-opt { display:flex; align-items:center; gap:6px; font-size:13px; background:var(--surface); border:1px solid var(--line);
-    border-radius:10px; padding:8px 14px; cursor:pointer; flex:1; justify-content:center; }
-  .pm-opt input { accent-color:var(--accent); }
+  /* طريقة الدفع — نموذج بطاقات براديو */
+  .paymode { display:flex; flex-direction:column; gap:10px; }
+  .pm-opt { display:flex; align-items:center; gap:12px; background:var(--surface); border:1.5px solid var(--line);
+    border-radius:12px; padding:14px 16px; cursor:pointer; transition:border-color .15s, background .15s; }
+  .pm-opt input { position:absolute; opacity:0; width:0; height:0; }
+  .pm-opt .pm-dot { width:20px; height:20px; border-radius:50%; border:2px solid var(--line-2); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; transition:border-color .15s; }
+  .pm-opt .pm-dot::after { content:''; width:10px; height:10px; border-radius:50%; background:var(--accent); transform:scale(0); transition:transform .15s; }
+  .pm-opt .pm-t { display:block; font-weight:700; font-size:14px; color:var(--ink-2); }
+  .pm-opt .pm-d { display:block; font-size:11.5px; color:var(--muted-2); margin-top:1px; }
+  .pm-opt:has(input:checked) { border-color:var(--gold,#c19a3e); background:#faf6ef; }
+  .pm-opt:has(input:checked) .pm-dot { border-color:var(--accent); }
+  .pm-opt:has(input:checked) .pm-dot::after { transform:scale(1); }
+  .pm-opt:has(input:checked) .pm-t { color:var(--ink); }
+  .pm-opt:has(input:checked) .pm-d { color:var(--muted); }
+
+  /* كتلة «المحجوز من» داخل معلومات الميقات */
+  .mq-bookers { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:8px 0; }
+  .mq-bookers .bk-title { font-size:12px; font-weight:700; color:var(--muted); margin-bottom:8px; }
+  .mq-bookers .bk-count { color:var(--muted-2); font-weight:500; }
+  .mq-bookers .bk-none { font-size:12.5px; color:var(--muted-2); padding:2px 0; }
+  .mq-bookers .bk-row { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px dotted var(--line); font-size:13px; }
+  .mq-bookers .bk-row:last-child { border-bottom:none; }
+  .mq-bookers .bk-who { display:flex; align-items:center; gap:7px; color:var(--ink); font-weight:600; }
+  .mq-bookers .bk-tag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; }
+  .mq-bookers .bk-tag.fam { background:#efe4d2; color:#8a6a1a; }
+  .mq-bookers .bk-tag.mem { background:var(--accent-soft); color:var(--accent); }
+  .mq-bookers .bk-amt { color:var(--accent); font-weight:700; }
+  .mq-bookers .bk-total { border-top:1.5px solid var(--line); margin-top:4px; padding-top:9px; font-weight:700; color:var(--ink); }
+  .pv-calc { font-size:11.5px; font-weight:500; margin-top:6px; opacity:.9; }
   .pm-init { width:100%; }
   .mq-head-btns { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
   @media (max-width:520px){ .mq-head-btns { width:100%; } .mq-head-btns .btn { width:100%; } }
@@ -1028,6 +1054,14 @@
 
   <!-- Dashboard -->
   <section id="tab-dashboard" class="tab-content">
+    <div class="panel global-search-panel">
+      <div class="search-box">
+        <input id="globalSearch" placeholder="ابحث بالاسم / الهاتف / تاريخ الميلاد / ميقات / مناسبة..." />
+        <span class="ico">⌕</span>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+
     <div class="stat-grid">
       <div class="stat-card total clickable" onclick="openMembersFiltered('')"><div class="num" id="statTotal">0</div><div class="lbl">إجمالي الأعضاء</div></div>
       <div class="stat-card active clickable" onclick="openMembersFiltered('active')"><div class="num" id="statActive">0</div><div class="lbl">عضوية مفعّلة</div></div>
@@ -1048,15 +1082,6 @@
         <span class="panel-sub">اشتراكات ومساهمات لم تُسدَّد بالكامل</span>
       </div>
       <div id="duesList"></div>
-    </div>
-
-    <div class="panel">
-      <div class="section-label">🔍 بحث شامل</div>
-      <div class="search-box">
-        <input id="globalSearch" placeholder="ابحث بالاسم / الهاتف / تاريخ الميلاد / ميقات / مناسبة..." />
-        <span class="ico">⌕</span>
-      </div>
-      <div class="search-results" id="searchResults"></div>
     </div>
 
     <div class="panel" id="photoCarouselPanel" style="display:none">
@@ -1542,8 +1567,8 @@
         <div id="famItems" class="contrib-editor" data-ctx="family"></div></div>
       <div class="field paymode-field" style="margin-top:10px;"><label>طريقة الدفع</label>
         <div class="paymode">
-          <label class="pm-opt"><input type="radio" name="pm_family" value="full" checked onchange="famPayMode('full')"> دفع كامل</label>
-          <label class="pm-opt"><input type="radio" name="pm_family" value="inst" onchange="famPayMode('inst')"> تقسيط</label>
+          <label class="pm-opt"><input type="radio" name="pm_family" value="full" checked onchange="famPayMode('full')"><span class="pm-dot"></span><span><span class="pm-t">دفع كامل</span><span class="pm-d">تسديد المبلغ مرة واحدة</span></span></label>
+          <label class="pm-opt"><input type="radio" name="pm_family" value="inst" onchange="famPayMode('inst')"><span class="pm-dot"></span><span><span class="pm-t">تقسيط</span><span class="pm-d">دفعات على مواعيد استحقاق</span></span></label>
         </div>
         <input type="number" class="pm-init" id="famInitPaid" style="display:none;margin-top:8px" placeholder="المدفوع الآن (الدفعة الأولى)" min="0" step="0.001" />
       </div>
