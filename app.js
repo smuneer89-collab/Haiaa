@@ -3261,6 +3261,7 @@ function fillCountrySelects(){
 }
 (async ()=>{
   await loadData();
+  if(window.CloudSync) CloudSync.reapply();   // بيانات السحابة لها الأولوية
   applyDarkMode();
   fillHeaderDates();
   fillCountrySelects();
