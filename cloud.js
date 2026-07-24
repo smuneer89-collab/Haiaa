@@ -29,6 +29,7 @@ const CloudSync = (() => {
   let unsubs = [];
   const writeCache = {};   // { collection: { id: jsonString } }
   let applyingRemote = false;
+  let allowBigDelete = false;
   let pendingPush = {};
 
   /* ── تهيئة ── */
@@ -148,10 +149,19 @@ const CloudSync = (() => {
 
   function detachListeners(){ unsubs.forEach(u=>{ try{ u(); }catch(e){} }); unsubs=[]; }
 
-  function isVisible(id){ const e=document.getElementById(id); return !!(e && e.style.display==='block'); }
+  function isVisible(id){
+    const e=document.getElementById(id); if(!e) return false;
+    if(e.style.display==='none') return false;
+    return e.offsetParent !== null || e.getClientRects().length > 0;
+  }
 
   /* ── تطبيق التغييرات القادمة من السحابة ── */
+  const lastRemote = {};
+  function reapply(){
+    Object.keys(lastRemote).forEach(n => applyRemote(n, lastRemote[n]));
+  }
   function applyRemote(name, arr){
+    lastRemote[name] = arr;
     applyingRemote = true;
     try{
       switch(name){
@@ -175,6 +185,11 @@ const CloudSync = (() => {
         if(isVisible('tab-dashboard') && typeof renderDashboard==='function') renderDashboard();
         if(isVisible('tab-members')   && typeof renderMembers==='function')   renderMembers();
         if(isVisible('tab-miqats')    && typeof renderMiqats==='function')    renderMiqats();
+        // صفحات التفاصيل المفتوحة تُحدَّث أيضاً
+        if(isVisible('tab-memberpage') && typeof currentMemberPageId!=='undefined' && currentMemberPageId
+           && typeof showDetail==='function') showDetail(currentMemberPageId);
+        if(isVisible('tab-miqatpage') && typeof currentMiqatPageId!=='undefined' && currentMiqatPageId
+           && typeof showMiqatDetail==='function') showMiqatDetail(currentMiqatPageId);
         if(typeof updateNotifBadge==='function') updateNotifBadge();
       }catch(e){}
     },250);
@@ -189,6 +204,13 @@ const CloudSync = (() => {
 
   async function doPush(name, arr){
     if(!ready || !db) return;
+    // حماية: لا نسمح بحذف أكثر من نصف السجلات دفعة واحدة (يمنع المسح العرضي)
+    const known = Object.keys(writeCache[name]||{}).length;
+    const incoming = (arr||[]).length;
+    if(known >= 5 && incoming < known/2 && !allowBigDelete){
+      console.warn('cloud: تم منع حذف جماعي في '+name+' ('+known+' → '+incoming+')');
+      return;
+    }
     try{
       const cache = writeCache[name] || (writeCache[name]={});
       const seen = new Set();
@@ -229,6 +251,7 @@ const CloudSync = (() => {
     const btn=document.getElementById('migrateBtn');
     if(btn){ btn.disabled=true; btn.textContent='جارٍ الرفع…'; }
     setStatus('syncing','جارٍ رفع البيانات…');
+    allowBigDelete = true;
     try{
       for(const name of Object.keys(CLOUD_COLLECTIONS)){
         writeCache[name] = {};                       // إجبار كتابة الكل
@@ -242,11 +265,12 @@ const CloudSync = (() => {
       alert('تعذّر الرفع: '+(e && e.message ? e.message : e));
       setStatus('offline','فشل الرفع');
     }finally{
+      allowBigDelete = false;
       if(btn){ btn.disabled=false; btn.textContent='☁️ رفع بياناتي إلى السحابة'; }
     }
   }
 
-  return { init, signIn, signOut, push, pushSettings, migrate,
+  return { init, signIn, signOut, push, pushSettings, migrate, reapply,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };
 })();
