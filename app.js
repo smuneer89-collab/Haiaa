@@ -3272,5 +3272,23 @@ function fillCountrySelects(){
 
 /* Service worker for offline use */
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{ navigator.serviceWorker.register('service-worker.js').catch(()=>{}); });
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('service-worker.js').then(reg=>{
+      // ابحث عن تحديث عند كل فتح للتطبيق
+      reg.update().catch(()=>{});
+      document.addEventListener('visibilitychange',()=>{ if(!document.hidden) reg.update().catch(()=>{}); });
+      // إذا وصلت نسخة جديدة، فعّلها فوراً
+      reg.addEventListener('updatefound',()=>{
+        const sw=reg.installing; if(!sw) return;
+        sw.addEventListener('statechange',()=>{
+          if(sw.state==='installed' && navigator.serviceWorker.controller) sw.postMessage('SKIP_WAITING');
+        });
+      });
+    }).catch(()=>{});
+    // أعد تحميل الصفحة مرة واحدة عند تولّي النسخة الجديدة
+    let reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(reloaded) return; reloaded=true; location.reload();
+    });
+  });
 }
