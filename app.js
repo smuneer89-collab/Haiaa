@@ -151,13 +151,14 @@ async function loadData(){
   try { const ph=await storage.get('photos'); if(ph) photos=JSON.parse(ph); } catch(e){ photos=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
 }
-async function saveMembers(){ try{ await storage.set('members',JSON.stringify(members)); }catch(e){ toast('تعذر الحفظ'); } }
-async function saveMiqats(){ try{ await storage.set('miqats',JSON.stringify(miqats)); }catch(e){ toast('تعذر الحفظ'); } }
-async function saveNews(){ try{ await storage.set('news',JSON.stringify(news)); }catch(e){} }
-async function persistSettings(){ try{ await storage.set('settings',JSON.stringify(settings)); }catch(e){} }
-async function saveMeetings(){ try{ await storage.set('meetings',JSON.stringify(meetings)); }catch(e){ toast('تعذر حفظ الاجتماع'); } }
-async function saveAssemblies(){ try{ await storage.set('assemblies',JSON.stringify(assemblies)); }catch(e){ toast('تعذر حفظ الجمعية'); } }
-async function savePhotos(){ try{ await storage.set('photos',JSON.stringify(photos)); }catch(e){ toast('تعذّر حفظ الصور'); } }
+function cloudPush(k,v){ if(window.CloudSync) CloudSync.push(k,v); }
+async function saveMembers(){ try{ await storage.set('members',JSON.stringify(members)); }catch(e){ toast('تعذر الحفظ'); } cloudPush('members',members); }
+async function saveMiqats(){ try{ await storage.set('miqats',JSON.stringify(miqats)); }catch(e){ toast('تعذر الحفظ'); } cloudPush('miqats',miqats); }
+async function saveNews(){ try{ await storage.set('news',JSON.stringify(news)); }catch(e){} cloudPush('news',news); }
+async function persistSettings(){ try{ await storage.set('settings',JSON.stringify(settings)); }catch(e){} if(window.CloudSync) CloudSync.pushSettings(); }
+async function saveMeetings(){ try{ await storage.set('meetings',JSON.stringify(meetings)); }catch(e){ toast('تعذر حفظ الاجتماع'); } cloudPush('meetings',meetings); }
+async function saveAssemblies(){ try{ await storage.set('assemblies',JSON.stringify(assemblies)); }catch(e){ toast('تعذر حفظ الجمعية'); } cloudPush('assemblies',assemblies); }
+async function savePhotos(){ try{ await storage.set('photos',JSON.stringify(photos)); }catch(e){ toast('تعذّر حفظ الصور'); } cloudPush('photos',photos); }
 
 /* ═══════════ ألبوم الصور (اللجنة الإعلامية) ═══════════ */
 let albumPhotoData=null;
