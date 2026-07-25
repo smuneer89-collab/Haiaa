@@ -21,7 +21,9 @@ const CLOUD_COLLECTIONS = {
   meetings:   () => meetings,
   assemblies: () => assemblies,
   news:       () => news,
-  photos:     () => photos
+  photos:     () => photos,
+  reminders:  () => reminders,
+  financeLog: () => financeLog
 };
 
 const CloudSync = (() => {
@@ -171,6 +173,8 @@ const CloudSync = (() => {
         case 'assemblies': assemblies=arr; storage.set('assemblies',JSON.stringify(arr)); break;
         case 'news':       news=arr;       storage.set('news',JSON.stringify(arr)); break;
         case 'photos':     photos=arr;     storage.set('photos',JSON.stringify(arr)); break;
+        case 'reminders':  reminders=arr;  storage.set('reminders',JSON.stringify(arr)); break;
+        case 'financeLog': financeLog=arr; storage.set('financeLog',JSON.stringify(arr)); break;
       }
       refreshViews();
     } finally { applyingRemote = false; }
@@ -190,6 +194,7 @@ const CloudSync = (() => {
            && typeof showDetail==='function') showDetail(currentMemberPageId);
         if(isVisible('tab-miqatpage') && typeof currentMiqatPageId!=='undefined' && currentMiqatPageId
            && typeof showMiqatDetail==='function') showMiqatDetail(currentMiqatPageId);
+        if(isVisible('tab-calendar') && typeof renderCalReminders==='function'){ renderCalReminders(); if(typeof renderCalendar==='function') renderCalendar(); }
         if(typeof updateNotifBadge==='function') updateNotifBadge();
       }catch(e){}
     },250);

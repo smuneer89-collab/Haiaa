@@ -56,6 +56,8 @@ let news = [];     // {id, title, body, date}
 let meetings = []; // {id, number, datetime, committee, plannedMinutes, attendance:[{memberId,present}], speech, agenda, proceedings, minutes, decisions:[{id,text,owner,due,done}], tasks:[...], attachments:[{id,name,type,data}], startedAt, endedAt}
 let assemblies = []; // الجمعية العمومية: {id, year, attendees:[memberId], projects:[{id,title,committee,category}], report:{adminWord,plan,majalis,events,mawakib,achievements,topProjects,challenges,honoring}}
 let photos = []; // ألبوم الصور: {id, img, occasion, photographer, desc, date}
+let reminders = []; // تذكيرات التقويم: {id, title, note, day, month, year, cal:'greg'|'hijri', done}
+let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
 let uiDark = false;
 let settings = {
   fee: 30, year: 1448,
@@ -149,6 +151,8 @@ async function loadData(){
   try { const mt=await storage.get('meetings'); if(mt) meetings=JSON.parse(mt); } catch(e){ meetings=[]; }
   try { const asm=await storage.get('assemblies'); if(asm) assemblies=JSON.parse(asm); } catch(e){ assemblies=[]; }
   try { const ph=await storage.get('photos'); if(ph) photos=JSON.parse(ph); } catch(e){ photos=[]; }
+  try { const r=await storage.get('reminders'); if(r) reminders=JSON.parse(r); } catch(e){ reminders=[]; }
+  try { const f=await storage.get('financeLog'); if(f) financeLog=JSON.parse(f); } catch(e){ financeLog=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
 }
 function cloudPush(k,v){ if(window.CloudSync) CloudSync.push(k,v); }
@@ -159,6 +163,8 @@ async function persistSettings(){ try{ await storage.set('settings',JSON.stringi
 async function saveMeetings(){ try{ await storage.set('meetings',JSON.stringify(meetings)); }catch(e){ toast('تعذر حفظ الاجتماع'); } cloudPush('meetings',meetings); }
 async function saveAssemblies(){ try{ await storage.set('assemblies',JSON.stringify(assemblies)); }catch(e){ toast('تعذر حفظ الجمعية'); } cloudPush('assemblies',assemblies); }
 async function savePhotos(){ try{ await storage.set('photos',JSON.stringify(photos)); }catch(e){ toast('تعذّر حفظ الصور'); } cloudPush('photos',photos); }
+async function saveReminders(){ try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(e){} cloudPush('reminders',reminders); }
+async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 
 /* ═══════════ ألبوم الصور (اللجنة الإعلامية) ═══════════ */
 let albumPhotoData=null;
@@ -513,6 +519,37 @@ function computeNotifications(){
   const list=[]; const h=hijriParts(); const curM=h.month; const curD=h.day; const curY=parseInt(h.year,10)||1448;
   const todayG=new Date(); todayG.setHours(0,0,0,0);
 
+  // 0) دخول اللجنة المالية — يظهر لأمين السر فقط
+  const myEmail = (window.CloudSync && CloudSync.email) ? CloudSync.email.toLowerCase() : '';
+  if(myEmail==='smuneer89@gmail.com'){
+    (financeLog||[]).slice().reverse().forEach(f=>{
+      const d=new Date(f.at); const days=Math.round((todayG-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000);
+      if(days<=7){
+        list.push({ cat:'اللجنة المالية', type:'info', ic:'🔐',
+          title:'دخول إلى اللجنة المالية',
+          desc:`دخل ${escapeHtml(f.email)} إلى قسم اللجنة المالية.`,
+          meta: d.toLocaleString('ar',{dateStyle:'medium',timeStyle:'short'}),
+          action:()=>{ switchTab('meetings'); } });
+      }
+    });
+  }
+
+  // 0b) تذكيرات التقويم المستحقة اليوم أو الفائتة
+  (reminders||[]).forEach(r=>{
+    if(r.done) return;
+    let g = (r.cal==='hijri') ? hijriToGregorian(r.day,r.month,r.year) : new Date(r.year, r.month, r.day);
+    if(!g) return;
+    const gd=new Date(g); gd.setHours(0,0,0,0);
+    const days=Math.round((gd-todayG)/86400000);
+    if(days<=0){
+      list.push({ cat:'تذكيرات', type: days<0?'warn':'urgent', ic:'⏰',
+        title: r.title || 'تذكير',
+        desc: r.note || (days===0?'موعده اليوم':'موعده فات'),
+        meta: days===0?'اليوم':(days===-1?'أمس':`منذ ${-days} يوم`),
+        action:()=>openCalendar() });
+    }
+  });
+
   // 1) تجديد العضويات - قبل محرم بشهرين (ذو القعدة/ذو الحجة = شهر 10 و 11)
   if(curM===10||curM===11){
     const needRenew=members.filter(m=>m.paymentDate && memberEndYear(m)<=curY+ (curM>=10?1:0));
@@ -661,6 +698,147 @@ async function requestBadgePermission(){
 }
 /* تحديث الشارة عند الخروج من التطبيق ليبقى الرقم صحيحاً على الأيقونة */
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) syncAppBadge(); });
+
+/* ═══════════ التقويم والتذكيرات ═══════════ */
+let calMode='greg';          // 'greg' | 'hijri'
+let calYear, calMonth;       // الشهر المعروض (حسب النمط)
+function openCalendar(){
+  const now=new Date();
+  if(calMode==='hijri'){ const h=hijriParts(); calYear=parseInt(h.year,10)||1448; calMonth=h.month; }
+  else { calYear=now.getFullYear(); calMonth=now.getMonth(); }
+  openFullPage('calendar');
+  renderCalendar(); renderCalReminders();
+}
+function setCalMode(mode){
+  if(calMode===mode) return;
+  calMode=mode;
+  $('#calGregBtn').classList.toggle('active', mode==='greg');
+  $('#calHijriBtn').classList.toggle('active', mode==='hijri');
+  const now=new Date();
+  if(mode==='hijri'){ const h=hijriParts(); calYear=parseInt(h.year,10)||1448; calMonth=h.month; }
+  else { calYear=now.getFullYear(); calMonth=now.getMonth(); }
+  renderCalendar();
+}
+function calShift(dir){
+  calMonth+=dir;
+  if(calMonth>11){ calMonth=0; calYear++; }
+  if(calMonth<0){ calMonth=11; calYear--; }
+  renderCalendar();
+}
+const GREG_MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const DOW=['أحد','اثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
+function reminderOn(cal,d,mo,y){
+  return (reminders||[]).some(r=>!r.done && r.cal===cal && r.day===d && r.month===mo && r.year===y);
+}
+function renderCalendar(){
+  const title=$('#calTitle'), grid=$('#calGrid'); if(!grid) return;
+  const months = calMode==='hijri'?HIJRI_MONTHS:GREG_MONTHS;
+  title.textContent = `${months[calMonth]} ${calYear}${calMode==='hijri'?' هـ':''}`;
+  let html = DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const today=new Date(); today.setHours(0,0,0,0);
+  const hToday=hijriParts();
+
+  if(calMode==='hijri'){
+    // اليوم الميلادي المقابل لأول الشهر الهجري → لتحديد يوم الأسبوع
+    const firstG=hijriToGregorian(1,calMonth,calYear);
+    const startDow = firstG ? new Date(firstG).getDay() : 0;
+    const daysInMonth=30;   // الأشهر الهجرية 29-30؛ نعرض 30 ونخفي غير الصالح
+    for(let i=0;i<startDow;i++) html+=`<div class="cal-cell empty"></div>`;
+    for(let d=1; d<=daysInMonth; d++){
+      const g=hijriToGregorian(d,calMonth,calYear); if(!g) continue;
+      const gd=new Date(g); gd.setHours(0,0,0,0);
+      const isToday = (parseInt(hToday.year,10)===calYear && hToday.month===calMonth && hToday.day===d);
+      const hasRem = reminderOn('hijri',d,calMonth,calYear);
+      const gLabel = `${gd.getDate()}/${gd.getMonth()+1}`;
+      html+=`<div class="cal-cell ${isToday?'today':''} ${hasRem?'has-rem':''}" onclick="quickAddReminder('hijri',${d},${calMonth},${calYear})">${d}<span class="sub">${gLabel}</span></div>`;
+    }
+  } else {
+    const first=new Date(calYear,calMonth,1);
+    const startDow=first.getDay();
+    const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+    for(let i=0;i<startDow;i++) html+=`<div class="cal-cell empty"></div>`;
+    for(let d=1; d<=daysInMonth; d++){
+      const gd=new Date(calYear,calMonth,d); gd.setHours(0,0,0,0);
+      const isToday = gd.getTime()===today.getTime();
+      const hasRem = reminderOn('greg',d,calMonth,calYear);
+      html+=`<div class="cal-cell ${isToday?'today':''} ${hasRem?'has-rem':''}" onclick="quickAddReminder('greg',${d},${calMonth},${calYear})">${d}</div>`;
+    }
+  }
+  grid.innerHTML=html;
+}
+function renderCalReminders(){
+  const el=$('#calReminders'); if(!el) return;
+  const list=(reminders||[]).slice().sort((a,b)=>{
+    const ga=a.cal==='hijri'?hijriToGregorian(a.day,a.month,a.year):new Date(a.year,a.month,a.day);
+    const gb=b.cal==='hijri'?hijriToGregorian(b.day,b.month,b.year):new Date(b.year,b.month,b.day);
+    return new Date(ga)-new Date(gb);
+  });
+  if(!list.length){ el.innerHTML=`<div class="empty" style="padding:20px"><div class="txt">لا توجد تذكيرات</div></div>`; return; }
+  el.innerHTML=list.map(r=>{
+    const g = r.cal==='hijri'?hijriToGregorian(r.day,r.month,r.year):new Date(r.year,r.month,r.day);
+    const gtxt = g?new Date(g).toLocaleDateString('ar',{day:'numeric',month:'long',year:'numeric'}):'';
+    const htxt = r.cal==='hijri'?`${r.day} ${HIJRI_MONTHS[r.month]} ${r.year} هـ`:'';
+    return `<div class="rem-item ${r.done?'done':''}">
+      <button class="ri-btn" onclick="toggleReminder('${r.id}')" title="${r.done?'إلغاء':'تم'}">${r.done?'↩️':'✅'}</button>
+      <div class="ri-body">
+        <div class="ri-title">${escapeHtml(r.title)}</div>
+        <div class="ri-date">${htxt?htxt+' · الموافق ':''}${gtxt}</div>
+        ${r.note?`<div class="ri-note">${escapeHtml(r.note)}</div>`:''}
+      </div>
+      <button class="ri-btn" onclick="deleteReminder('${r.id}')" title="حذف">🗑</button>
+    </div>`;
+  }).join('');
+}
+/* نافذة التذكير */
+let quickPrefill=null;
+function fillRemMonths(){
+  const sel=$('#remMonth'); if(!sel) return;
+  const cal=$('#remCal').value;
+  const months = cal==='hijri'?HIJRI_MONTHS:GREG_MONTHS;
+  sel.innerHTML=months.map((n,i)=>`<option value="${i}">${n}</option>`).join('');
+}
+function fillRemDayOptions(){ fillRemMonths(); updateRemGreg(); }
+function updateRemGreg(){
+  const out=$('#remGreg'); if(!out) return;
+  const cal=$('#remCal').value;
+  const d=parseInt($('#remDay').value,10), mo=parseInt($('#remMonth').value,10), y=parseInt($('#remYear').value,10);
+  if(!d||isNaN(mo)||!y){ out.textContent=''; return; }
+  if(cal==='hijri'){ const g=hijriToGregorian(d,mo,y); out.textContent = g?'الموافق: '+new Date(g).toLocaleDateString('ar',{day:'numeric',month:'long',year:'numeric'}):''; }
+  else { const g=new Date(y,mo,d); out.textContent='📅 '+g.toLocaleDateString('ar',{weekday:'long'}); }
+}
+function openAddReminder(){
+  quickPrefill=null;
+  $('#reminderModalTitle').textContent='إضافة تذكير';
+  $('#remTitle').value=''; $('#remNote').value='';
+  const now=new Date();
+  $('#remCal').value = calMode;
+  fillRemMonths();
+  if(calMode==='hijri'){ const h=hijriParts(); $('#remDay').value=h.day; $('#remMonth').value=h.month; $('#remYear').value=h.year; }
+  else { $('#remDay').value=now.getDate(); $('#remMonth').value=now.getMonth(); $('#remYear').value=now.getFullYear(); }
+  updateRemGreg();
+  $('#reminderModal').classList.add('open');
+}
+function quickAddReminder(cal,d,mo,y){
+  $('#reminderModalTitle').textContent='إضافة تذكير';
+  $('#remTitle').value=''; $('#remNote').value='';
+  $('#remCal').value=cal; fillRemMonths();
+  $('#remDay').value=d; $('#remMonth').value=mo; $('#remYear').value=y;
+  updateRemGreg();
+  $('#reminderModal').classList.add('open');
+}
+async function saveReminder(){
+  const title=$('#remTitle').value.trim();
+  if(!title){ toast('أدخل عنوان التذكير'); return; }
+  const cal=$('#remCal').value;
+  const d=parseInt($('#remDay').value,10), mo=parseInt($('#remMonth').value,10), y=parseInt($('#remYear').value,10);
+  if(!d||isNaN(mo)||!y){ toast('أدخل تاريخاً صحيحاً'); return; }
+  reminders.push({ id:'r_'+Date.now(), title, note:$('#remNote').value.trim(), day:d, month:mo, year:y, cal, done:false });
+  await saveReminders();
+  closeModal('reminderModal'); toast('تمت إضافة التذكير');
+  renderCalendar(); renderCalReminders(); updateNotifBadge();
+}
+async function toggleReminder(id){ const r=reminders.find(x=>x.id===id); if(!r) return; r.done=!r.done; await saveReminders(); renderCalReminders(); renderCalendar(); updateNotifBadge(); }
+async function deleteReminder(id){ if(!confirm('حذف هذا التذكير؟')) return; reminders=reminders.filter(x=>x.id!==id); await saveReminders(); renderCalReminders(); renderCalendar(); updateNotifBadge(); }
 
 /* ═══════════ Dashboard ═══════════ */
 function renderDashboard(){
@@ -2499,12 +2677,31 @@ function renderIdaraHub(){
   const n=members.filter(m=>m.isAdmin).length;
   const el=document.getElementById('idaraAdminsCount'); if(el) el.textContent=`${n} إداري`;
 }
+let financeUnlocked=false;
 function openIdara(which){
   if(which==='sec'){ idaraShow('sec'); renderMeetings(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
-  else if(which==='finance'){ idaraShow('finance'); }
+  else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); }
   window.scrollTo({top:0,behavior:'smooth'});
+}
+async function enterFinance(){
+  if(!financeUnlocked){
+    const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');
+    if(code===null) return;                 // ألغى
+    if(code.trim()!=='1989'){ toast('رقم سري غير صحيح'); return; }
+    financeUnlocked=true;
+    // سجّل الدخول وأرسل إشعاراً لأمين السر
+    await logFinanceEntry();
+  }
+  idaraShow('finance');
+}
+async function logFinanceEntry(){
+  const email = (window.CloudSync && CloudSync.email) ? CloudSync.email : 'مستخدم محلي';
+  financeLog.push({ id:'f_'+Date.now(), email, at:new Date().toISOString() });
+  // احتفظ بآخر 100 سجل فقط
+  if(financeLog.length>100) financeLog=financeLog.slice(-100);
+  await saveFinanceLog();
 }
 function openSecretariatFromHome(){ switchTab('meetings'); openIdara('sec'); }
 

@@ -142,6 +142,34 @@
   .date-strip { position: relative; }
   .notif-bell { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--accent); padding: 6px; display: flex; align-items: center; justify-content: center; }
   .notif-bell svg { width: 22px; height: 22px; }
+
+  /* زر التقويم */
+  .cal-btn { position:absolute; left:52px; top:50%; transform:translateY(-50%); background:transparent; border:none; cursor:pointer; color:var(--accent); padding:6px; display:flex; align-items:center; justify-content:center; }
+  .cal-btn svg { width:21px; height:21px; }
+  /* التقويم */
+  .cal-toggle { display:inline-flex; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px; }
+  .cal-tg { border:none; background:transparent; padding:7px 16px; border-radius:8px; font-family:var(--font-sans); font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .cal-tg.active { background:var(--accent); color:#fff; }
+  .cal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .cal-title { font-family:var(--font-display); font-size:16px; font-weight:700; color:var(--ink); }
+  .cal-nav { width:38px; height:38px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--accent); font-size:20px; cursor:pointer; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-dow { text-align:center; font-size:11px; color:var(--muted-2); font-weight:600; padding:4px 0; }
+  .cal-cell { aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:9px; font-size:14px; color:var(--ink); position:relative; cursor:pointer; }
+  .cal-cell.empty { cursor:default; }
+  .cal-cell.today { background:var(--accent); color:#fff; font-weight:700; }
+  .cal-cell.has-rem::after { content:''; position:absolute; bottom:5px; width:5px; height:5px; border-radius:50%; background:var(--warn); }
+  .cal-cell.today.has-rem::after { background:#fff; }
+  .cal-cell .sub { font-size:9px; color:var(--muted-2); margin-top:1px; }
+  .cal-cell.today .sub { color:rgba(255,255,255,.8); }
+  .rem-item { display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-right:3px solid var(--warn); border-radius:10px; padding:11px 13px; margin-bottom:8px; }
+  .rem-item.done { opacity:.55; border-right-color:var(--ok); }
+  .rem-item .ri-body { flex:1; }
+  .rem-item .ri-title { font-weight:600; font-size:13.5px; color:var(--ink); }
+  .rem-item .ri-date { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .rem-item .ri-note { font-size:12px; color:var(--ink-2); margin-top:3px; }
+  .rem-item .ri-btn { background:none; border:none; cursor:pointer; font-size:16px; padding:3px; }
+  .rem-greg { font-size:12.5px; color:var(--ok); font-weight:600; min-height:18px; margin:2px 0 10px; }
   .notif-badge { position: absolute; top: -2px; left: -2px; background: #d13438; color: #fff; font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 1.5px solid var(--surface); }
 
   /* Notifications tab */
@@ -1081,6 +1109,9 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
     <span class="notif-badge" id="notifBadge" style="display:none">0</span>
   </button>
+  <button class="cal-btn" onclick="openCalendar()" aria-label="التقويم">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+  </button>
 </div>
 
 <div class="container">
@@ -1161,6 +1192,55 @@
     </div>
     <div id="notifList"></div>
   </section>
+
+  <!-- التقويم -->
+  <section id="tab-calendar" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="switchTab('dashboard')">← الرئيسية</button>
+      <div class="cal-toggle">
+        <button id="calGregBtn" class="cal-tg active" onclick="setCalMode('greg')">ميلادي</button>
+        <button id="calHijriBtn" class="cal-tg" onclick="setCalMode('hijri')">هجري</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="cal-head">
+        <button class="cal-nav" onclick="calShift(-1)">‹</button>
+        <div class="cal-title" id="calTitle">—</div>
+        <button class="cal-nav" onclick="calShift(1)">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title" style="margin-bottom:10px;">📌 التذكيرات</div>
+      <div id="calReminders"></div>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openAddReminder()">➕ إضافة تذكير</button>
+    </div>
+  </section>
+
+  <!-- نافذة إضافة تذكير -->
+  <div class="modal-backdrop" id="reminderModal"><div class="modal">
+    <button class="modal-close" onclick="closeModal('reminderModal')">×</button>
+    <h3 id="reminderModalTitle">إضافة تذكير</h3>
+    <div class="field full"><label>عنوان التذكير <span class="req">مطلوب</span></label>
+      <input id="remTitle" type="text" placeholder="مثال: اجتماع اللجنة / تسليم تقرير" /></div>
+    <div class="field full"><label>ملاحظة <span class="opt">اختياري</span></label>
+      <textarea id="remNote" rows="2" placeholder="تفاصيل إضافية"></textarea></div>
+    <div class="field full"><label>نوع التاريخ</label>
+      <select id="remCal" onchange="fillRemDayOptions()">
+        <option value="greg">ميلادي</option>
+        <option value="hijri">هجري</option>
+      </select></div>
+    <div class="form-grid">
+      <div class="field"><label>اليوم</label><input id="remDay" type="number" min="1" max="31" placeholder="اليوم" oninput="updateRemGreg()" /></div>
+      <div class="field"><label>الشهر</label><select id="remMonth" onchange="updateRemGreg()"></select></div>
+      <div class="field"><label>السنة</label><input id="remYear" type="number" placeholder="السنة" oninput="updateRemGreg()" /></div>
+    </div>
+    <div class="rem-greg" id="remGreg"></div>
+    <div class="actions-row">
+      <button class="btn btn-primary" onclick="saveReminder()">حفظ التذكير</button>
+      <button class="btn btn-ghost" onclick="closeModal('reminderModal')">إلغاء</button>
+    </div>
+  </div></div>
 
   <!-- صفحة ملف العضو -->
   <section id="tab-memberpage" class="tab-content" style="display:none">
