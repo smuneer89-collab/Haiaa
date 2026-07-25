@@ -127,6 +127,19 @@ const CloudSync = (() => {
       unsubs.push(un);
     });
 
+    // المالية: مستند واحد
+    const unF = db.collection('meta').doc('finance').onSnapshot(doc => {
+      if(doc.exists){
+        const d=doc.data();
+        try{ const f = d && typeof d.j==='string' ? JSON.parse(d.j) : null;
+          if(f){ applyingRemote=true; finance=Object.assign({total:0,yearStart:0,expenses:[]},f);
+            storage.set('finance',JSON.stringify(finance)); applyingRemote=false;
+            if(typeof refreshFinanceViews==='function') refreshFinanceViews(); }
+        }catch(e){}
+      }
+    }, err => console.error('snapshot finance', err));
+    unsubs.push(unF);
+
     // الإعدادات: مستند واحد
     const un2 = db.collection('meta').doc('settings').onSnapshot(doc => {
       if(doc.exists){
@@ -247,6 +260,11 @@ const CloudSync = (() => {
     try{ await db.collection('meta').doc('settings').set({ j: JSON.stringify(settings) }); }
     catch(e){ console.error('push settings', e); }
   }
+  async function pushFinance(){
+    if(!ready || applyingRemote || !db) return;
+    try{ await db.collection('meta').doc('finance').set({ j: JSON.stringify(finance) }); }
+    catch(e){ console.error('push finance', e); }
+  }
 
   /* ── النقل الأول: رفع كل البيانات المحلية ── */
   async function migrate(){
@@ -263,6 +281,7 @@ const CloudSync = (() => {
         await doPush(name, CLOUD_COLLECTIONS[name]());
       }
       await db.collection('meta').doc('settings').set({ j: JSON.stringify(settings) });
+      await db.collection('meta').doc('finance').set({ j: JSON.stringify(finance) });
       setStatus('ok','متصل');
       toast('تم رفع البيانات إلى السحابة ✅');
     }catch(e){
@@ -275,7 +294,7 @@ const CloudSync = (() => {
     }
   }
 
-  return { init, signIn, signOut, push, pushSettings, migrate, reapply,
+  return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };
 })();

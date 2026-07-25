@@ -173,6 +173,48 @@
   .rem-item .ri-note { font-size:12px; color:var(--ink-2); margin-top:3px; }
   .rem-item .ri-btn { background:none; border:none; cursor:pointer; font-size:16px; padding:3px; }
   .rem-greg { font-size:12.5px; color:var(--ok); font-weight:600; min-height:18px; margin:2px 0 10px; }
+
+  /* ═══ اللجنة المالية ═══ */
+  .fin-total-card { background:linear-gradient(150deg,var(--accent-deep),var(--accent)); border-radius:16px; padding:26px 20px; text-align:center; color:#fff; margin-bottom:18px; box-shadow:0 8px 22px rgba(18,48,40,.25); }
+  .fin-total-lbl { font-size:12px; color:var(--gold); letter-spacing:1px; margin-bottom:8px; }
+  .fin-total-val { font-size:38px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:12px; }
+  .fin-edit { background:rgba(255,255,255,.15); border:none; width:34px; height:34px; border-radius:10px; cursor:pointer; font-size:15px; }
+  .fin-big-btns { display:flex; gap:12px; }
+  .fin-big { flex:1; border:none; border-radius:16px; padding:24px 12px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:10px; font-family:var(--font-sans); font-weight:700; font-size:16px; color:#fff; box-shadow:0 6px 16px rgba(0,0,0,.12); }
+  .fin-big .fb-ic { font-size:30px; }
+  .fin-big.rev { background:linear-gradient(150deg,#1f6b4a,#2f8f5b); }
+  .fin-big.exp { background:linear-gradient(150deg,#8a4a1a,#b5763a); }
+  .fin-big:active { transform:scale(.98); }
+  .fin-yearstart { display:flex; align-items:center; justify-content:space-between; background:var(--accent-soft); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
+  .fin-yearstart .fys-lbl { font-size:12px; color:var(--muted); }
+  .fin-yearstart .fys-val { font-size:22px; font-weight:800; color:var(--accent); margin-top:2px; }
+  .fin-yearstart .fin-edit { background:var(--surface); color:var(--accent); }
+  .fin-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .fin-grid.one { grid-template-columns:1fr; }
+  .fin-cell { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 12px; font-family:var(--font-sans); font-size:14.5px; font-weight:600; color:var(--ink); cursor:pointer; text-align:center; border-bottom:3px solid var(--gold); }
+  .fin-cell:active { background:var(--accent-soft); }
+  .fin-cell.big { padding:24px 12px; font-size:15.5px; }
+  .fin-cell.mood { padding:28px 12px; font-size:16px; }
+  .fin-cell.mood.farah { border-bottom-color:#2f8f5b; }
+  .fin-cell.mood.hzn { border-bottom-color:#5a6b7a; }
+  .fin-field { margin-bottom:14px; }
+  .fin-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
+  .fin-field select, .fin-field input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
+  .fin-ctx { background:var(--accent-soft); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--accent); font-size:14px; margin-bottom:14px; text-align:center; }
+  .fin-add-exp { background:var(--bg); border-radius:12px; padding:14px; margin-bottom:16px; }
+  .fin-exp-list .fel-head { display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted); margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  .fin-exp-list .fel-head b { color:var(--accent); font-size:15px; }
+  .fel-item { display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--line); border-right:3px solid var(--warn); border-radius:10px; padding:11px 13px; margin-bottom:8px; }
+  .fel-type { font-weight:600; font-size:13.5px; color:var(--ink); }
+  .fel-meta { font-size:11.5px; color:var(--muted); margin-top:3px; }
+  .fel-cost { font-weight:700; color:var(--accent); display:flex; align-items:center; gap:8px; }
+  .fel-del { background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer; }
+  .fel-empty, .fs-txt { color:var(--muted-2); }
+  .fel-empty { text-align:center; padding:20px; font-size:13px; }
+  .fin-soon { text-align:center; padding:50px 20px; }
+  .fin-soon .fs-ic { font-size:44px; margin-bottom:14px; }
+  .fin-soon .fs-title { font-size:17px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+  .fin-soon .fs-txt { font-size:14px; }
   .notif-badge { position: absolute; top: -2px; left: -2px; background: #d13438; color: #fff; font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 1.5px solid var(--surface); }
 
   /* Notifications tab */
@@ -1198,6 +1240,18 @@
       <button class="btn btn-ghost btn-sm" onclick="switchTab('dashboard')">← الرئيسية</button>
     </div>
     <div id="notifList"></div>
+  </section>
+
+  <!-- اللجنة المالية -->
+  <section id="tab-finance" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="finBack()" id="finBackBtn"><span id="finBackLabel">← الإدارة</span></button>
+      <button class="btn btn-accent btn-sm" onclick="printFinanceReport()">🖨️ تقرير PDF</button>
+    </div>
+    <div class="panel">
+      <div class="page-title" style="display:flex;align-items:center;gap:8px;"><span>🔐 اللجنة المالية</span></div>
+      <div id="finBody"></div>
+    </div>
   </section>
 
   <!-- التقويم -->

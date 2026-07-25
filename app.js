@@ -58,6 +58,8 @@ let assemblies = []; // الجمعية العمومية: {id, year, attendees:[m
 let photos = []; // ألبوم الصور: {id, img, occasion, photographer, desc, date}
 let reminders = []; // تذكيرات التقويم: {id, title, note, day, month, year, cal:'greg'|'hijri', done}
 let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
+let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
+// كل مصروف: {id, section:'miqat', mood:'farah'|'hzn', miqatId, kind:'mawlid'|'ihtifal', type, subType, cost, date, note, at}
 let uiDark = false;
 let settings = {
   fee: 30, year: 1448,
@@ -153,6 +155,7 @@ async function loadData(){
   try { const ph=await storage.get('photos'); if(ph) photos=JSON.parse(ph); } catch(e){ photos=[]; }
   try { const r=await storage.get('reminders'); if(r) reminders=JSON.parse(r); } catch(e){ reminders=[]; }
   try { const f=await storage.get('financeLog'); if(f) financeLog=JSON.parse(f); } catch(e){ financeLog=[]; }
+  try { const fn=await storage.get('finance'); if(fn) finance=Object.assign({total:0,yearStart:0,expenses:[]}, JSON.parse(fn)); } catch(e){ finance={total:0,yearStart:0,expenses:[]}; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
 }
 function cloudPush(k,v){ if(window.CloudSync) CloudSync.push(k,v); }
@@ -165,6 +168,7 @@ async function saveAssemblies(){ try{ await storage.set('assemblies',JSON.string
 async function savePhotos(){ try{ await storage.set('photos',JSON.stringify(photos)); }catch(e){ toast('تعذّر حفظ الصور'); } cloudPush('photos',photos); }
 async function saveReminders(){ try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(e){} cloudPush('reminders',reminders); }
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
+async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 
 /* ═══════════ ألبوم الصور (اللجنة الإعلامية) ═══════════ */
 let albumPhotoData=null;
@@ -2715,10 +2719,212 @@ function openIdara(which){
 }
 async function enterFinance(){
   const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');
-  if(code===null) return;                 // ألغى
+  if(code===null) return;
   if(code.trim()!=='1989'){ toast('رقم سري غير صحيح'); return; }
-  await logFinanceEntry();                 // يُسجَّل ويُشعَر في كل دخول
-  idaraShow('finance');
+  await logFinanceEntry();
+  openFinancePage('home');
+}
+/* ═══════════ اللجنة المالية ═══════════ */
+const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expEntry','soon'];
+let finNav=[];   // مكدّس التنقّل للرجوع
+function openFinancePage(page, opts, push=true){
+  // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
+  $$('.tab[data-tab]').forEach(x=>x.classList.remove('active'));
+  $$('.tab-content').forEach(c=>c.style.display='none');
+  const host=$('#tab-finance'); if(host) host.style.display='block';
+  if(push) finNav.push({page,opts:opts||{}});
+  renderFinancePage(page, opts||{});
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function finBack(){
+  finNav.pop();
+  const prev=finNav[finNav.length-1];
+  if(!prev){ finNav=[]; switchTab('meetings'); idaraHome(); return; }
+  renderFinancePage(prev.page, prev.opts);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function finMoney(v){ return fmtMoney(Number(v)||0); }
+function financeTotalExpenses(){ return (finance.expenses||[]).reduce((s,e)=>s+(Number(e.cost)||0),0); }
+
+function renderFinancePage(page, opts){
+  const host=$('#finBody'); if(!host) return;
+  opts=opts||{};
+  if(page==='home') host.innerHTML=finHomeHTML();
+  else if(page==='revenue') host.innerHTML=finRevenueHTML();
+  else if(page==='expenses') host.innerHTML=finExpensesHTML();
+  else if(page==='expMiqat') host.innerHTML=finExpMiqatHTML();
+  else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
+  else if(page==='expEntry') host.innerHTML=finExpEntryHTML(opts);
+  else if(page==='soon') host.innerHTML=finSoonHTML(opts);
+  // زر الرجوع في الأعلى
+  const back=$('#finBackLabel');
+  if(back) back.textContent = finNav.length<=1 ? '← الإدارة' : '← رجوع';
+}
+
+/* صفحة المبلغ الكلي + زرّي الإيرادات والمصروفات */
+function finHomeHTML(){
+  return `
+  <div class="fin-total-card">
+    <div class="fin-total-lbl">المبلغ الكلي لهيئة محبي الحسين</div>
+    <div class="fin-total-val">${finMoney(finance.total)}
+      <button class="fin-edit" onclick="editFinanceTotal()" title="تعديل">✏️</button>
+    </div>
+  </div>
+  <div class="fin-big-btns">
+    <button class="fin-big rev" onclick="openFinancePage('revenue')">
+      <span class="fb-ic">📥</span><span class="fb-t">الإيرادات</span></button>
+    <button class="fin-big exp" onclick="openFinancePage('expenses')">
+      <span class="fb-ic">📤</span><span class="fb-t">المصروفات</span></button>
+  </div>`;
+}
+async function editFinanceTotal(){
+  const v=prompt('المبلغ الكلي لهيئة محبي الحسين (د.ب):', finance.total||0);
+  if(v===null) return;
+  const num=parseFloat(v); if(isNaN(num)){ toast('أدخل رقماً صحيحاً'); return; }
+  finance.total=num; await saveFinance(); renderFinancePage('home',{}); toast('تم تحديث المبلغ');
+}
+
+/* صفحة الإيرادات */
+function finRevenueHTML(){
+  const btns=[['المواقيت','miqats'],['التبرعات','donations'],['العضوية','membership'],
+    ['حساب الهيئة','account'],['النذور','vows'],['التثويبات','tathwib']];
+  return `
+  <div class="fin-yearstart">
+    <div><div class="fys-lbl">مبلغ بداية العام</div><div class="fys-val">${finMoney(finance.yearStart)}</div></div>
+    <button class="fin-edit" onclick="editYearStart()" title="تعديل">✏️</button>
+  </div>
+  <div class="fin-grid">
+    ${btns.map(([t,k])=>`<button class="fin-cell" onclick="openFinancePage('soon',{title:'${t}'})">${t}</button>`).join('')}
+  </div>`;
+}
+async function editYearStart(){
+  const v=prompt('مبلغ بداية العام (د.ب):', finance.yearStart||0);
+  if(v===null) return;
+  const num=parseFloat(v); if(isNaN(num)){ toast('أدخل رقماً صحيحاً'); return; }
+  finance.yearStart=num; await saveFinance(); renderFinancePage('revenue',{}); toast('تم التحديث');
+}
+
+/* صفحة المصروفات */
+function finExpensesHTML(){
+  return `
+  <div class="fin-grid one">
+    <button class="fin-cell big" onclick="openFinancePage('expMiqat')">مصروفات المواقيت</button>
+    <button class="fin-cell big" onclick="openFinancePage('soon',{title:'مصروفات غير متعلقة بالإحياء'})">مصروفات غير متعلقة بالإحياء</button>
+    <button class="fin-cell big" onclick="openFinancePage('soon',{title:'مشاريع'})">مشاريع</button>
+  </div>`;
+}
+
+/* مصروفات المواقيت → فرح / حزن */
+function finExpMiqatHTML(){
+  return `
+  <div class="fin-grid">
+    <button class="fin-cell mood farah" onclick="openFinancePage('expMood',{mood:'farah'})">🎉 مناسبة فرح</button>
+    <button class="fin-cell mood hzn" onclick="openFinancePage('soon',{title:'مناسبة حزن'})">🕯️ مناسبة حزن</button>
+  </div>`;
+}
+
+/* مناسبة فرح: اختيار ميقات ثم مولد/احتفال */
+function finExpMoodHTML(opts){
+  const sorted=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  return `
+  <div class="fin-field">
+    <label>اختر الميقات</label>
+    <select id="finMiqatSel" onchange="finMoodPick()">
+      <option value="">— اختر ميقاتاً —</option>
+      ${sorted.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
+    </select>
+  </div>
+  <div id="finMoodChoice" style="display:none">
+    <div class="fin-grid">
+      <button class="fin-cell" onclick="finGoEntry('mawlid')">📖 قراءة مولد</button>
+      <button class="fin-cell" onclick="finGoEntry('ihtifal')">🎊 احتفال</button>
+    </div>
+  </div>`;
+}
+function finMoodPick(){
+  const v=$('#finMiqatSel').value;
+  $('#finMoodChoice').style.display = v?'block':'none';
+}
+function finGoEntry(kind){
+  const miqatId=$('#finMiqatSel').value; if(!miqatId){ toast('اختر ميقاتاً'); return; }
+  openFinancePage('expEntry',{mood:'farah',miqatId,kind});
+}
+
+/* صفحة إضافة المصروف */
+const EXP_TYPES=['خطيب المساء','خطيب الظهر','وجبة العشاء','وجبة الغداء','الرادود','السواد','زينة','موكب','أجار زنجيل','أجار سماعات','جوائز','متفرقات','أخرى'];
+const EXP_MISC=['ماء','مناديل','صابون','غاز','قفازات','بارسلات','أخرى'];
+function finExpEntryHTML(opts){
+  const mq=miqats.find(x=>x.id===opts.miqatId);
+  const kindLbl = opts.kind==='mawlid'?'قراءة مولد':'احتفال';
+  const rows=(finance.expenses||[]).filter(e=>e.miqatId===opts.miqatId && e.kind===opts.kind && e.mood===opts.mood)
+    .sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const total=rows.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  return `
+  <div class="fin-ctx">${mq?escapeHtml(mq.name):''} · ${kindLbl}</div>
+  <div class="fin-add-exp">
+    <div class="fin-field"><label>نوع المصروف</label>
+      <select id="expType" onchange="expTypeChange()">
+        <option value="">— اختر —</option>
+        ${EXP_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}
+      </select></div>
+    <div class="fin-field" id="expSubWrap" style="display:none"><label>التفصيل</label>
+      <select id="expSub">
+        ${EXP_MISC.map(t=>`<option value="${t}">${t}</option>`).join('')}
+      </select></div>
+    <div class="fin-field"><label>التكلفة (د.ب)</label>
+      <input id="expCost" type="number" min="0" step="0.001" placeholder="0.000" /></div>
+    <div class="fin-field"><label>التاريخ</label>
+      <input id="expDate" type="date" value="${today()}" /></div>
+    <div class="fin-field"><label>ملاحظة (اختياري)</label>
+      <input id="expNote" type="text" placeholder="ملاحظة" /></div>
+    <button class="btn btn-primary" onclick='addExpense(${JSON.stringify(opts)})'>➕ إضافة مصروف</button>
+  </div>
+  <div class="fin-exp-list">
+    <div class="fel-head"><span>المصروفات المسجّلة</span><b>الإجمالي: ${finMoney(total)}</b></div>
+    ${rows.length?rows.map(e=>`<div class="fel-item">
+      <div><div class="fel-type">${escapeHtml(e.type)}${e.subType?' — '+escapeHtml(e.subType):''}</div>
+        <div class="fel-meta">${e.date?fmtDate(e.date):''}${e.note?' · '+escapeHtml(e.note):''}</div></div>
+      <div class="fel-cost">${finMoney(e.cost)}<button class="fel-del" onclick="deleteExpense('${e.id}')">×</button></div>
+    </div>`).join(''):'<div class="fel-empty">لا توجد مصروفات بعد</div>'}
+  </div>`;
+}
+function expTypeChange(){
+  const t=$('#expType').value;
+  $('#expSubWrap').style.display = (t==='متفرقات')?'block':'none';
+}
+async function addExpense(opts){
+  const type=$('#expType').value;
+  if(!type){ toast('اختر نوع المصروف'); return; }
+  const subType = (type==='متفرقات') ? $('#expSub').value : '';
+  const cost=parseFloat($('#expCost').value);
+  if(isNaN(cost)||cost<0){ toast('أدخل تكلفة صحيحة'); return; }
+  finance.expenses.push({ id:'e_'+Date.now(), section:'miqat', mood:opts.mood, miqatId:opts.miqatId, kind:opts.kind,
+    type, subType, cost, date:$('#expDate').value||today(), note:$('#expNote').value.trim(), at:new Date().toISOString() });
+  await saveFinance();
+  renderFinancePage('expEntry',opts); toast('تمت إضافة المصروف');
+}
+async function deleteExpense(id){
+  if(!confirm('حذف هذا المصروف؟')) return;
+  const e=finance.expenses.find(x=>x.id===id);
+  finance.expenses=finance.expenses.filter(x=>x.id!==id);
+  await saveFinance();
+  const cur=finNav[finNav.length-1];
+  renderFinancePage(cur.page, cur.opts);
+}
+
+/* صفحة قريباً */
+function finSoonHTML(opts){
+  return `<div class="fin-soon"><div class="fs-ic">🚧</div><div class="fs-title">${escapeHtml(opts.title||'')}</div><div class="fs-txt">قريباً</div></div>`;
+}
+/* تقرير المصروفات PDF — يُفصّل في الدفعة القادمة */
+function printFinanceReport(){
+  toast('التقارير الذكية قيد الإعداد — قريباً');
+}
+/* تُستدعى من السحابة عند تغيّر المالية */
+function refreshFinanceViews(){
+  if($('#tab-finance') && $('#tab-finance').style.display==='block'){
+    const cur=finNav[finNav.length-1]; if(cur) renderFinancePage(cur.page,cur.opts);
+  }
 }
 async function logFinanceEntry(){
   const email = (window.CloudSync && CloudSync.email) ? CloudSync.email : 'مستخدم محلي';
