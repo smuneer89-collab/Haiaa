@@ -2725,7 +2725,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expEntry','soon'];
+const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expEntry','reports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -2755,6 +2755,7 @@ function renderFinancePage(page, opts){
   else if(page==='expMiqat') host.innerHTML=finExpMiqatHTML();
   else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
   else if(page==='expEntry') host.innerHTML=finExpEntryHTML(opts);
+  else if(page==='reports') host.innerHTML=finReportsHTML();
   else if(page==='soon') host.innerHTML=finSoonHTML(opts);
   // زر الرجوع في الأعلى
   const back=$('#finBackLabel');
@@ -2775,7 +2776,10 @@ function finHomeHTML(){
       <span class="fb-ic">📥</span><span class="fb-t">الإيرادات</span></button>
     <button class="fin-big exp" onclick="openFinancePage('expenses')">
       <span class="fb-ic">📤</span><span class="fb-t">المصروفات</span></button>
-  </div>`;
+  </div>
+  <button class="fin-reports-btn" onclick="openFinancePage('reports')">
+    📊 التقارير الذكية للمصروفات
+  </button>`;
 }
 async function editFinanceTotal(){
   const v=prompt('المبلغ الكلي لهيئة محبي الحسين (د.ب):', finance.total||0);
@@ -2916,11 +2920,138 @@ async function deleteExpense(id){
 function finSoonHTML(opts){
   return `<div class="fin-soon"><div class="fs-ic">🚧</div><div class="fs-title">${escapeHtml(opts.title||'')}</div><div class="fs-txt">قريباً</div></div>`;
 }
-/* تقرير المصروفات PDF — يُفصّل في الدفعة القادمة */
-function printFinanceReport(){
-  toast('التقارير الذكية قيد الإعداد — قريباً');
+/* ═══ التقارير الذكية ═══ */
+function expenseMiqatName(e){ const mq=miqats.find(x=>x.id===e.miqatId); return mq?mq.name:'—'; }
+function expenseYear(e){ const d=new Date(e.date||e.at); return isNaN(d)?'':d.getFullYear(); }
+
+/* تجميع: إجمالي مصروفات كل ميقات */
+function reportByMiqat(){
+  const map={};
+  (finance.expenses||[]).forEach(e=>{
+    const k=e.miqatId||'—';
+    if(!map[k]) map[k]={ name:expenseMiqatName(e), total:0, count:0, mawlid:0, ihtifal:0 };
+    map[k].total+=Number(e.cost)||0; map[k].count++;
+    if(e.kind==='mawlid') map[k].mawlid+=Number(e.cost)||0;
+    if(e.kind==='ihtifal') map[k].ihtifal+=Number(e.cost)||0;
+  });
+  return Object.values(map).sort((a,b)=>b.total-a.total);
 }
-/* تُستدعى من السحابة عند تغيّر المالية */
+/* تجميع: كم صُرف على كل نوع (هذا العام) */
+function reportByType(year){
+  const map={};
+  (finance.expenses||[]).forEach(e=>{
+    if(year && expenseYear(e)!=year) return;
+    const k=e.type+(e.subType?' — '+e.subType:'');
+    if(!map[k]) map[k]={ type:k, total:0, count:0 };
+    map[k].total+=Number(e.cost)||0; map[k].count++;
+  });
+  return Object.values(map).sort((a,b)=>b.total-a.total);
+}
+function expenseYears(){
+  const ys=new Set(); (finance.expenses||[]).forEach(e=>{ const y=expenseYear(e); if(y) ys.add(y); });
+  return [...ys].sort((a,b)=>b-a);
+}
+
+let reportYear=null;
+function finReportsHTML(){
+  const years=expenseYears();
+  if(reportYear===null) reportYear = years[0] || new Date().getFullYear();
+  const byMiqat=reportByMiqat();
+  const byType=reportByType(reportYear);
+  const totalExp=financeTotalExpenses();
+  const rev=Number(finance.total)||0;
+  const yearStart=Number(finance.yearStart)||0;
+
+  return `
+  <div class="rep-summary">
+    <div class="rep-card in"><div class="rc-lbl">المبلغ الكلي</div><div class="rc-val">${finMoney(rev)}</div></div>
+    <div class="rep-card out"><div class="rc-lbl">إجمالي المصروفات</div><div class="rc-val">${finMoney(totalExp)}</div></div>
+    <div class="rep-card net"><div class="rc-lbl">المتبقّي</div><div class="rc-val">${finMoney(rev-totalExp)}</div></div>
+  </div>
+
+  <div class="rep-sec">
+    <div class="rep-h">💰 الإيرادات مقابل المصروفات</div>
+    <div class="rep-bar-wrap">
+      <div class="rep-bar-row"><span>المبلغ الكلي</span><div class="rep-bar"><div class="rb-fill in" style="width:${rev? Math.min(100,rev/Math.max(rev,totalExp)*100):0}%"></div></div><b>${finMoney(rev)}</b></div>
+      <div class="rep-bar-row"><span>المصروفات</span><div class="rep-bar"><div class="rb-fill out" style="width:${rev||totalExp? Math.min(100,totalExp/Math.max(rev,totalExp)*100):0}%"></div></div><b>${finMoney(totalExp)}</b></div>
+    </div>
+  </div>
+
+  <div class="rep-sec">
+    <div class="rep-h">🕌 إجمالي مصروفات كل ميقات</div>
+    ${byMiqat.length?`<table class="rep-tbl"><tr><th>الميقات</th><th>المصروفات</th><th>عدد</th></tr>
+      ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${finMoney(m.total)}</td><td>${m.count}</td></tr>`).join('')}
+      </table>`:'<div class="rep-empty">لا توجد مصروفات مسجّلة</div>'}
+  </div>
+
+  <div class="rep-sec">
+    <div class="rep-h">📋 كم صُرف على كل بند
+      ${years.length>1?`<select class="rep-year" onchange="reportYear=this.value; renderFinancePage('reports',{})">
+        ${years.map(y=>`<option value="${y}" ${y==reportYear?'selected':''}>${y}</option>`).join('')}</select>`:`<span class="rep-year-static">${reportYear}</span>`}
+    </div>
+    ${byType.length?`<table class="rep-tbl"><tr><th>البند</th><th>المبلغ</th><th>مرّات</th></tr>
+      ${byType.map(t=>`<tr><td>${escapeHtml(t.type)}</td><td>${finMoney(t.total)}</td><td>${t.count}</td></tr>`).join('')}
+      </table>`:`<div class="rep-empty">لا توجد مصروفات في ${reportYear}</div>`}
+  </div>
+
+  <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="printFinanceReport()">🖨️ طباعة التقرير PDF</button>`;
+}
+
+/* طباعة التقرير الذكي PDF */
+function printFinanceReport(){
+  const byMiqat=reportByMiqat();
+  const year=reportYear||new Date().getFullYear();
+  const byType=reportByType(year);
+  const totalExp=financeTotalExpenses();
+  const rev=Number(finance.total)||0;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>التقرير المالي — ${hijriToday()}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:230px;max-height:84px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:8px;}
+  .doc-title{text-align:center;font-family:'Amiri',serif;font-size:24px;font-weight:700;color:#1c4536;margin:12px 0 2px;}
+  .doc-sub{text-align:center;color:#8a7c6b;font-size:14px;margin-bottom:24px;}
+  h2{font-size:16px;color:#fff;background:#1c4536;display:inline-block;padding:6px 16px 6px 20px;border-radius:0 18px 18px 0;margin:24px 0 12px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:8px;}
+  th,td{border:1px solid #e6ddcb;padding:8px 12px;text-align:right;}
+  th{background:#1c4536;color:#fff;}
+  tr:nth-child(even){background:#faf7f0;}
+  .sum-row{display:flex;gap:14px;margin-bottom:10px;}
+  .sum-box{flex:1;border:1px solid #e6ddcb;border-radius:12px;padding:14px;text-align:center;}
+  .sum-box .l{font-size:12px;color:#8a7c6b;}
+  .sum-box .v{font-size:22px;font-weight:800;margin-top:4px;}
+  .sum-box.in .v{color:#2f8f5b;} .sum-box.out .v{color:#b5763a;} .sum-box.net .v{color:#1c4536;}
+  .foot{margin-top:36px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;}}
+  ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">التقرير المالي</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · ${hijriToday()}</div></div>
+
+  <h2>الملخّص</h2>
+  <div class="sum-row">
+    <div class="sum-box in"><div class="l">المبلغ الكلي</div><div class="v">${finMoney(rev)}</div></div>
+    <div class="sum-box out"><div class="l">إجمالي المصروفات</div><div class="v">${finMoney(totalExp)}</div></div>
+    <div class="sum-box net"><div class="l">المتبقّي</div><div class="v">${finMoney(rev-totalExp)}</div></div>
+  </div>
+
+  <h2>إجمالي مصروفات كل ميقات</h2>
+  ${byMiqat.length?`<table><tr><th>الميقات</th><th>قراءة مولد</th><th>احتفال</th><th>الإجمالي</th><th>عدد</th></tr>
+    ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${finMoney(m.mawlid)}</td><td>${finMoney(m.ihtifal)}</td><td><b>${finMoney(m.total)}</b></td><td>${m.count}</td></tr>`).join('')}
+    </table>`:'<p style="color:#8a7c6b">لا توجد مصروفات مسجّلة.</p>'}
+
+  <h2>تفصيل البنود لعام ${year}</h2>
+  ${byType.length?`<table><tr><th>البند</th><th>المبلغ</th><th>عدد المرّات</th></tr>
+    ${byType.map(t=>`<tr><td>${escapeHtml(t.type)}</td><td>${finMoney(t.total)}</td><td>${t.count}</td></tr>`).join('')}
+    </table>`:`<p style="color:#8a7c6b">لا توجد مصروفات في ${year}.</p>`}
+
+  <div class="foot">هيئة محبي الحسين (ع) — تقرير اللجنة المالية · وثيقة رسمية</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
 function refreshFinanceViews(){
   if($('#tab-finance') && $('#tab-finance').style.display==='block'){
     const cur=finNav[finNav.length-1]; if(cur) renderFinancePage(cur.page,cur.opts);

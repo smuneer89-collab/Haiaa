@@ -215,6 +215,32 @@
   .fin-soon .fs-ic { font-size:44px; margin-bottom:14px; }
   .fin-soon .fs-title { font-size:17px; font-weight:700; color:var(--ink); margin-bottom:6px; }
   .fin-soon .fs-txt { font-size:14px; }
+  .fin-reports-btn { width:100%; margin-top:14px; padding:16px; border:1px solid var(--line); border-radius:14px; background:var(--surface); font-family:var(--font-sans); font-size:15px; font-weight:700; color:var(--accent); cursor:pointer; border-bottom:3px solid var(--gold); }
+  .fin-reports-btn:active { background:var(--accent-soft); }
+  /* التقارير */
+  .rep-summary { display:flex; gap:10px; margin-bottom:18px; }
+  .rep-card { flex:1; border-radius:12px; padding:14px 10px; text-align:center; border:1px solid var(--line); }
+  .rep-card .rc-lbl { font-size:11px; color:var(--muted); margin-bottom:5px; }
+  .rep-card .rc-val { font-size:17px; font-weight:800; }
+  .rep-card.in { background:var(--ok-soft); } .rep-card.in .rc-val { color:var(--ok); }
+  .rep-card.out { background:var(--warn-soft); } .rep-card.out .rc-val { color:var(--warn); }
+  .rep-card.net { background:var(--accent-soft); } .rep-card.net .rc-val { color:var(--accent); }
+  .rep-sec { margin-bottom:22px; }
+  .rep-h { font-size:14px; font-weight:700; color:var(--ink); margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .rep-year { padding:5px 10px; border:1px solid var(--line); border-radius:8px; font-family:var(--font-sans); font-size:12px; background:var(--surface); color:var(--ink); }
+  .rep-year-static { font-size:12px; color:var(--muted); font-weight:500; }
+  .rep-bar-wrap { display:flex; flex-direction:column; gap:10px; }
+  .rep-bar-row { display:flex; align-items:center; gap:10px; font-size:12.5px; }
+  .rep-bar-row span { width:80px; color:var(--muted); flex-shrink:0; }
+  .rep-bar-row b { width:auto; flex-shrink:0; font-size:12.5px; }
+  .rep-bar { flex:1; height:10px; background:var(--line); border-radius:5px; overflow:hidden; }
+  .rb-fill { height:100%; border-radius:5px; }
+  .rb-fill.in { background:var(--ok); } .rb-fill.out { background:var(--warn); }
+  .rep-tbl { width:100%; border-collapse:collapse; font-size:13px; }
+  .rep-tbl th, .rep-tbl td { border:1px solid var(--line); padding:8px 10px; text-align:right; }
+  .rep-tbl th { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .rep-tbl td:nth-child(2) { font-weight:700; color:var(--accent); white-space:nowrap; }
+  .rep-empty { color:var(--muted-2); font-size:13px; padding:14px; text-align:center; }
   .notif-badge { position: absolute; top: -2px; left: -2px; background: #d13438; color: #fff; font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 1.5px solid var(--surface); }
 
   /* Notifications tab */
