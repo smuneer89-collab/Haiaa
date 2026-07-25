@@ -177,10 +177,23 @@ function renderAlbum(){
     </div>
   </div>`).join('');
 }
+let editingPhotoId=null;
 function openAddPhoto(){
-  albumPhotoData=null;
+  editingPhotoId=null; albumPhotoData=null;
   $('#albumPhotoPreview').innerHTML='🖼️';
   $('#albumOccasion').value=''; $('#albumPhotographer').value=''; $('#albumDesc').value='';
+  const t=$('#addPhotoTitle'); if(t) t.textContent='إضافة صورة';
+  const pl=$('#albumPhotoPickLabel'); if(pl) pl.textContent='اختر صورة';
+  $('#addPhotoModal').classList.add('open');
+}
+function openEditPhoto(id){
+  const p=photos.find(x=>x.id===id); if(!p) return;
+  editingPhotoId=id; albumPhotoData=null;   // null = أبقِ الصورة الحالية ما لم تُغيَّر
+  $('#albumPhotoPreview').innerHTML=`<img src="${p.img}" alt="" />`;
+  $('#albumOccasion').value=p.occasion||''; $('#albumPhotographer').value=p.photographer||''; $('#albumDesc').value=p.desc||'';
+  const t=$('#addPhotoTitle'); if(t) t.textContent='تعديل بيانات الصورة';
+  const pl=$('#albumPhotoPickLabel'); if(pl) pl.textContent='تغيير الصورة (اختياري)';
+  closeModal('photoLightbox');
   $('#addPhotoModal').classList.add('open');
 }
 async function handleAlbumPhotoSelect(e){
@@ -190,10 +203,18 @@ async function handleAlbumPhotoSelect(e){
   catch(err){ toast('تعذّرت معالجة الصورة'); }
 }
 async function saveAlbumPhoto(){
-  if(!albumPhotoData){ toast('اختر صورة أولاً'); return; }
   const occasion=$('#albumOccasion').value.trim();
   const photographer=$('#albumPhotographer').value.trim();
   const desc=$('#albumDesc').value.trim();
+  if(editingPhotoId){
+    const p=photos.find(x=>x.id===editingPhotoId);
+    if(p){ p.occasion=occasion; p.photographer=photographer; p.desc=desc; if(albumPhotoData) p.img=albumPhotoData; }
+    await savePhotos();
+    editingPhotoId=null; albumPhotoData=null;
+    closeModal('addPhotoModal'); toast('تم تحديث بيانات الصورة');
+    renderAlbum(); renderPhotoCarousel(); return;
+  }
+  if(!albumPhotoData){ toast('اختر صورة أولاً'); return; }
   photos.push({ id:'p_'+Date.now(), img:albumPhotoData, occasion, photographer, desc, date:new Date().toISOString() });
   await savePhotos();
   albumPhotoData=null;
@@ -206,6 +227,7 @@ function openLightbox(id){
   $('#lightboxOccasion').textContent=p.occasion||'بدون عنوان';
   $('#lightboxBy').textContent=p.photographer?('📷 '+p.photographer):'';
   $('#lightboxDesc').textContent=p.desc||'';
+  const ed=$('#lightboxEdit'); if(ed) ed.onclick=()=>openEditPhoto(id);
   $('#lightboxDel').onclick=()=>deletePhoto(id);
   $('#photoLightbox').classList.add('open');
 }
@@ -1342,6 +1364,7 @@ function showDetail(id){
     ${reminderHTML}
     <div class="actions-row">
       <button class="btn btn-primary" onclick="openAddSubPayment('${m.id}')">💳 تفعيل العضوية</button>
+      ${active?`<button class="btn btn-ghost" onclick="deactivateMembership('${m.id}')">⛔ إلغاء التفعيل</button>`:''}
       ${(memberPayments(m).length||memberMiqats(m).length)?`<button class="btn btn-ghost" onclick="printSubReceipt('${m.id}')">🧾 تقرير الأقساط PDF</button>`:''}
       ${active?`<button class="btn btn-accent" onclick="openCard('${m.id}')">بطاقة العضوية</button>`:''}
       <button class="btn btn-ghost" onclick="openEditMember('${m.id}')">✏️ تعديل الملف</button>
@@ -1748,6 +1771,10 @@ async function renewPayment(id){ const m=members.find(x=>x.id===id); if(!m) retu
   m.paymentDate=today(); m.expiryDate=addYear(m.paymentDate); m.paidAmount=settings.fee;
   m.hijriStartYear=start; m.hijriEndYear=start+1;
   await saveMembers(); toast('تم التجديد'); showDetail(id); renderMembers(); }
+async function deactivateMembership(id){ const m=members.find(x=>x.id===id); if(!m) return;
+  if(!confirm(`إلغاء تفعيل عضوية ${m.name}؟\n\nستُصبح العضوية «غير مفعّلة». لا يؤثر ذلك على مساهماته في المواقيت، ويمكنك تفعيلها مجدداً في أي وقت.`)) return;
+  m.paymentDate=null; m.expiryDate=null; m.paidAmount=null; m.feeTotal=0; m.payments=[]; m.hijriStartYear=null; m.hijriEndYear=null;
+  await saveMembers(); toast('تم إلغاء تفعيل العضوية'); showDetail(id); renderMembers(); renderDashboard(); }
 async function toggleAdmin(id){ const m=members.find(x=>x.id===id); if(!m) return;
   m.isAdmin=!m.isAdmin; if(m.isAdmin&&!m.committee){ const c=prompt('اسم اللجنة (اختياري):',''); m.committee=c?c.trim():''; }
   await saveMembers(); toast(m.isAdmin?'تم التعيين كإداري':'تمت الإزالة من الإدارة'); showDetail(id); }

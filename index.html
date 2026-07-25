@@ -2000,13 +2000,13 @@
 <!-- Add photo modal -->
 <div class="modal-backdrop" id="addPhotoModal"><div class="modal">
   <button class="modal-close" onclick="closeModal('addPhotoModal')">×</button>
-  <h3>➕ إضافة صورة</h3>
+  <h3 id="addPhotoTitle">➕ إضافة صورة</h3>
   <div class="field full"><label>الصورة</label>
     <div class="photo-row">
       <div class="photo-preview" id="albumPhotoPreview">🖼️</div>
       <div>
         <input type="file" id="albumPhotoInput" accept="image/*" style="display:none" onchange="handleAlbumPhotoSelect(event)">
-        <button type="button" class="photo-btn" onclick="document.getElementById('albumPhotoInput').click()">اختر صورة</button>
+        <button type="button" class="photo-btn" id="albumPhotoPickLabel" onclick="document.getElementById('albumPhotoInput').click()">اختر صورة</button>
         <div class="photo-hint">تُصغَّر تلقائياً للحفظ</div>
       </div>
     </div>
@@ -2028,7 +2028,10 @@
     <h2 id="lightboxOccasion"></h2>
     <div class="lightbox-by" id="lightboxBy"></div>
     <p id="lightboxDesc"></p>
-    <button class="btn btn-ghost btn-sm" id="lightboxDel">🗑️ حذف الصورة</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" id="lightboxEdit">✏️ تعديل البيانات</button>
+      <button class="btn btn-ghost btn-sm" id="lightboxDel">🗑️ حذف الصورة</button>
+    </div>
   </div>
 </div></div>
 
