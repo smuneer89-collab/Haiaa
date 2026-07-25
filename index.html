@@ -1844,9 +1844,12 @@
 </div></div>
 
 <!-- New / Edit Meeting Modal -->
-<div class="modal-backdrop" id="meetingModal"><div class="modal modal-wide">
-  <button class="modal-close" onclick="closeMeetingModal()">×</button>
-  <h3 id="meetingModalTitle">اجتماع جديد</h3>
+<section id="tab-meetingpage" class="tab-content" style="display:none">
+  <div class="page-bar">
+    <button class="btn btn-ghost btn-sm" onclick="closeMeetingModal()">← الإدارة</button>
+    <h3 class="page-title" id="meetingModalTitle" style="margin:0">اجتماع جديد</h3>
+  </div>
+  <div class="panel">
   <div class="subtitle">يملؤها أمين السر — احفظ أولاً بأول</div>
 
   <!-- Timer bar -->
@@ -1937,12 +1940,20 @@
     <button class="btn btn-primary" onclick="saveMeeting()">حفظ الاجتماع</button>
     <button class="btn btn-ghost" onclick="closeMeetingModal()">إلغاء</button>
   </div>
-</div></div>
+  </div>
+</section>
 
-<!-- Meeting Detail Modal -->
-<div class="modal-backdrop" id="meetingDetailModal"><div class="modal modal-wide">
-  <button class="modal-close" onclick="closeModal('meetingDetailModal')">×</button>
-  <h3 id="mdTitle">تفاصيل الاجتماع</h3>
+<!-- Meeting Detail: full page tab -->
+<section id="tab-meetingdetail" class="tab-content" style="display:none">
+  <div class="page-bar">
+    <button class="btn btn-ghost btn-sm" onclick="closeMeetingDetail()">← الإدارة</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary btn-sm" onclick="editCurrentMeeting()">✏️ تعديل</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCurrentMeeting()">حذف</button>
+    </div>
+  </div>
+  <div class="panel">
+  <h3 id="mdTitle" class="page-title">تفاصيل الاجتماع</h3>
   <div class="subtitle" id="mdSubtitle"></div>
 
   <div class="tabs md-tabs" id="mdTabs">
@@ -1965,11 +1976,8 @@
   <div id="md-attachments" class="md-pane" style="display:none"></div>
   <div id="md-minutes" class="md-pane" style="display:none"></div>
 
-  <div class="actions-row" style="margin-top:18px;">
-    <button class="btn btn-primary" onclick="editCurrentMeeting()">✏️ تعديل</button>
-    <button class="btn btn-danger" onclick="deleteCurrentMeeting()">حذف</button>
   </div>
-</div></div>
+</section>
 
 <!-- Meeting Invitation Modal -->
 <div class="modal-backdrop" id="inviteModal"><div class="modal">

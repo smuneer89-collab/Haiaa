@@ -2591,9 +2591,9 @@ function openMeetingModal(id){
   }
   renderMeetingAttachments(); updateItemCounts(); updateTimerUI();
   if(mtgDraft.startedAt && !mtgDraft.endedAt) mtgTimerInterval=setInterval(tickTimer,1000);
-  $('#meetingModal').classList.add('open');
+  openFullPage('meetingpage');
 }
-function closeMeetingModal(){ clearInterval(mtgTimerInterval); $('#meetingModal').classList.remove('open'); }
+function closeMeetingModal(){ clearInterval(mtgTimerInterval); switchTab('meetings'); switchMeetingSubtab('list'); }
 
 /* الحضور والغياب */
 function renderAttendancePicker(attendance){
@@ -2730,11 +2730,12 @@ async function saveMeeting(){ if(!persistMeetingDraft(false)) return; closeMeeti
 
 /* ─── صفحة التفاصيل ─── */
 let mdCurrentId=null;
+function closeMeetingDetail(){ switchTab('meetings'); switchMeetingSubtab('list'); }
 function showMeetingDetail(id){
   const m=meetings.find(x=>x.id===id); if(!m) return; mdCurrentId=id;
   $('#mdTitle').textContent=`اجتماع رقم ${m.number}`;
   $('#mdSubtitle').textContent=`${fmtMeetingDT(m.datetime)}${m.committee?' · '+m.committee:''}`;
-  renderDetailPanes(m); switchDetailTab('info'); $('#meetingDetailModal').classList.add('open');
+  renderDetailPanes(m); switchDetailTab('info'); mdCurrentId=id; openFullPage('meetingdetail');
 }
 function switchDetailTab(which){
   $$('#mdTabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.mdtab===which));
@@ -2859,12 +2860,12 @@ function sendInvite(memberId){
   if(!m.phone){ toast('لا يوجد رقم هاتف لهذا العضو'); return; }
   window.open(whatsappLink(m.phone,t),'_blank');
 }
-function editCurrentMeeting(){ const id=mdCurrentId; closeModal('meetingDetailModal'); openMeetingModal(id); }
+function editCurrentMeeting(){ const id=mdCurrentId; openMeetingModal(id); }
 async function deleteCurrentMeeting(){
   const m=meetings.find(x=>x.id===mdCurrentId); if(!m) return;
   if(!confirm(`حذف اجتماع رقم ${m.number}؟ لا يمكن التراجع.`)) return;
   meetings=meetings.filter(x=>x.id!==mdCurrentId); await saveMeetings();
-  closeModal('meetingDetailModal'); toast('تم حذف الاجتماع'); renderMeetings();
+  closeMeetingDetail(); toast('تم حذف الاجتماع'); renderMeetings();
 }
 
 /* ─── لوحة المتابعة ─── */
