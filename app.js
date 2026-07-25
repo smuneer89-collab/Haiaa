@@ -702,11 +702,18 @@ function updateNotifBadge(){
   syncAppBadge(n);
 }
 
+/* عدد الإشعارات الظاهرة فعلاً (بعد طرح المحذوف) */
+function visibleNotifCount(){
+  const all=computeNotifications();
+  const dismissed=getDismissedNotifs();
+  return all.filter(n=>!dismissed.includes(notifKey(n))).length;
+}
+
 /* شارة العدد فوق أيقونة البرنامج على الشاشة الرئيسية (PWA) */
 async function syncAppBadge(count){
   try{
     if(!('setAppBadge' in navigator)) return;
-    const n = (typeof count==='number') ? count : computeNotifications().length;
+    const n = (typeof count==='number') ? count : visibleNotifCount();
     if(n>0) await navigator.setAppBadge(n); else await navigator.clearAppBadge();
   }catch(e){}
 }
