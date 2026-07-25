@@ -647,34 +647,56 @@ function collectDueInstallments(m){
 
 /* عرض قائمة الإشعارات في التبويب */
 function renderNotifications(){
-  const list=computeNotifications();
+  let list=computeNotifications();
+  // إضافة مفتاح فريد لكل إشعار (لتتبّع المقروء)
+  list.forEach(n=>{ n.key = notifKey(n); });
+  const dismissed = getDismissedNotifs();
+  const visible = list.filter(n=>!dismissed.includes(n.key));
   const el=$('#notifList'); const sub=$('#notifSub');
-  if(sub) sub.textContent = list.length?`لديك ${list.length} تنبيه`:'كل شيء تحت السيطرة';
-  if(!list.length){ el.innerHTML=`<div class="notif-empty"><div class="big">✅</div><div>لا توجد تنبيهات حالياً</div></div>`; return; }
-  // ترتيب: urgent أولاً ثم warn ثم info
+  if(sub) sub.textContent = visible.length?`لديك ${visible.length} تنبيه`:'كل شيء تحت السيطرة';
+  if(!visible.length){ el.innerHTML=`<div class="notif-empty"><div class="big">✅</div><div>لا توجد تنبيهات حالياً</div></div>`; return; }
   const order={urgent:0,warn:1,info:2,ok:3};
-  list.sort((a,b)=>(order[a.type]??9)-(order[b.type]??9));
-  // تجميع حسب الفئة
+  visible.sort((a,b)=>(order[a.type]??9)-(order[b.type]??9));
   const groups={};
-  list.forEach((n,i)=>{ (groups[n.cat]=groups[n.cat]||[]).push({...n,_i:i}); });
-  window.__notifActions=list.map(n=>n.action);
-  el.innerHTML=Object.entries(groups).map(([cat,items])=>`
+  visible.forEach((n,i)=>{ (groups[n.cat]=groups[n.cat]||[]).push({...n,_i:i}); });
+  window.__notifActions=visible.map(n=>n.action);
+  const clearBar=`<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+    <button class="btn btn-ghost btn-sm" onclick="clearAllNotifs()">🧹 مسح الكل</button></div>`;
+  el.innerHTML=clearBar+Object.entries(groups).map(([cat,items])=>`
     <div class="notif-group">
       <div class="notif-group-title">${cat} <span style="color:var(--muted-2)">(${items.length})</span></div>
-      ${items.map(n=>`<div class="notif-item ${n.type}" onclick="(window.__notifActions[${n._i}]||function(){})()">
-        <div class="notif-ic">${n.ic}</div>
-        <div class="notif-body">
+      ${items.map(n=>`<div class="notif-item ${n.type}">
+        <div class="notif-ic" onclick="(window.__notifActions[${n._i}]||function(){})()">${n.ic}</div>
+        <div class="notif-body" onclick="(window.__notifActions[${n._i}]||function(){})()">
           <div class="notif-title">${n.title}</div>
           <div class="notif-desc">${n.desc}</div>
           ${n.meta?`<div class="notif-meta">${n.meta}</div>`:''}
         </div>
+        <button class="notif-x" onclick="dismissNotif('${n.key}')" title="حذف">×</button>
       </div>`).join('')}
     </div>`).join('');
+}
+/* مفتاح فريد للإشعار من فئته وعنوانه */
+function notifKey(n){ return (n.cat+'|'+n.title+'|'+(n.meta||'')).replace(/\s+/g,'_'); }
+function getDismissedNotifs(){ try{ return JSON.parse(localStorage.getItem('dismissedNotifs')||'[]'); }catch(e){ return []; } }
+function setDismissedNotifs(a){ try{ localStorage.setItem('dismissedNotifs', JSON.stringify(a)); }catch(e){} }
+function dismissNotif(key){
+  const d=getDismissedNotifs(); if(!d.includes(key)) d.push(key);
+  setDismissedNotifs(d); renderNotifications(); updateNotifBadge();
+}
+function clearAllNotifs(){
+  const list=computeNotifications().map(n=>notifKey(n));
+  const d=getDismissedNotifs();
+  list.forEach(k=>{ if(!d.includes(k)) d.push(k); });
+  setDismissedNotifs(d); renderNotifications(); updateNotifBadge();
 }
 
 /* تحديث عدّاد الجرس */
 function updateNotifBadge(){
-  const n=computeNotifications().length;
+  const all=computeNotifications();
+  all.forEach(n=>{ n.key=notifKey(n); });
+  const dismissed=getDismissedNotifs();
+  const n=all.filter(x=>!dismissed.includes(x.key)).length;
   const b=$('#notifBadge');
   if(b){ if(n>0){ b.textContent=n>99?'99+':n; b.style.display='flex'; } else b.style.display='none'; }
   syncAppBadge(n);
@@ -2677,7 +2699,6 @@ function renderIdaraHub(){
   const n=members.filter(m=>m.isAdmin).length;
   const el=document.getElementById('idaraAdminsCount'); if(el) el.textContent=`${n} إداري`;
 }
-let financeUnlocked=false;
 function openIdara(which){
   if(which==='sec'){ idaraShow('sec'); renderMeetings(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
@@ -2686,14 +2707,10 @@ function openIdara(which){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 async function enterFinance(){
-  if(!financeUnlocked){
-    const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');
-    if(code===null) return;                 // ألغى
-    if(code.trim()!=='1989'){ toast('رقم سري غير صحيح'); return; }
-    financeUnlocked=true;
-    // سجّل الدخول وأرسل إشعاراً لأمين السر
-    await logFinanceEntry();
-  }
+  const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');
+  if(code===null) return;                 // ألغى
+  if(code.trim()!=='1989'){ toast('رقم سري غير صحيح'); return; }
+  await logFinanceEntry();                 // يُسجَّل ويُشعَر في كل دخول
   idaraShow('finance');
 }
 async function logFinanceEntry(){
