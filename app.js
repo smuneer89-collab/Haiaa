@@ -2812,6 +2812,7 @@ function renderFinancePage(page, opts){
     const sel=$('#ptCountry'); if(sel){ sel.innerHTML=countryOptions(''); sel.value='973'; }
     paidThawabNames=['']; ptRenderNames();
   }
+  else if(page==='tathwibReports') host.innerHTML=finTathwibReportsHTML();
   else if(page==='soon') host.innerHTML=finSoonHTML(opts);
   // زر الرجوع في الأعلى
   const back=$('#finBackLabel');
@@ -3299,6 +3300,212 @@ function printPaidThawabPDF(id){
       <div class="cert-sig">${HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="" />`:''}<div>أمين السر</div></div>
     </div>
   </div></div></div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* ═══ تقارير التثويبات ═══ */
+/* توحيد كل التثويبات من المصدرين: حجوزات المواقيت + المدفوعة */
+function allThawabRecords(){
+  const recs=[];
+  // من حجوزات المواقيت (المساهمون)
+  miqats.forEach(mq=>{
+    (mq.bookings||[]).forEach(b=>{
+      if(b.deceased && b.deceased.length){
+        recs.push({ source:'booking', miqatId:mq.id, miqatName:mq.name,
+          name:bookingName(b), memberId:b.memberId||null,
+          amount:bookingAgreed(b), deceased:b.deceased, at:null });
+      }
+    });
+  });
+  // من المدفوعة
+  (paidThawab||[]).forEach(p=>{
+    const mq=miqats.find(x=>x.id===p.miqatId);
+    recs.push({ source:'paid', miqatId:p.miqatId, miqatName:mq?mq.name:'—',
+      name:p.name, memberId:null, amount:Number(p.amount)||0, deceased:p.deceased||[], at:p.at });
+  });
+  return recs;
+}
+/* عدد ومجموع لكل مناسبة */
+function thawabByMiqat(){
+  const map={};
+  allThawabRecords().forEach(r=>{
+    const k=r.miqatId||'—';
+    if(!map[k]) map[k]={ name:r.miqatName, count:0, total:0, deceased:[] };
+    map[k].count++; map[k].total+=r.amount;
+    map[k].deceased.push(...r.deceased);
+  });
+  return Object.values(map).sort((a,b)=>b.count-a.count);
+}
+/* تثويبات كل مساهم (بالاسم) */
+function thawabByPerson(){
+  const map={};
+  allThawabRecords().forEach(r=>{
+    const k=r.name||'—';
+    if(!map[k]) map[k]={ name:k, count:0, total:0 };
+    map[k].count++; map[k].total+=r.amount;
+  });
+  return Object.values(map).sort((a,b)=>b.count-a.count);
+}
+/* المجاميع الشهرية والسنوية (من المدفوعة التي لها تاريخ) */
+function thawabByMonth(){
+  const map={};
+  (paidThawab||[]).forEach(p=>{
+    if(!p.at) return;
+    const d=new Date(p.at); const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(!map[k]) map[k]={ key:k, total:0, count:0 };
+    map[k].total+=Number(p.amount)||0; map[k].count++;
+  });
+  return Object.values(map).sort((a,b)=>b.key.localeCompare(a.key));
+}
+function thawabByYear(){
+  const map={};
+  (paidThawab||[]).forEach(p=>{
+    if(!p.at) return;
+    const y=new Date(p.at).getFullYear();
+    if(!map[y]) map[y]={ year:y, total:0, count:0 };
+    map[y].total+=Number(p.amount)||0; map[y].count++;
+  });
+  return Object.values(map).sort((a,b)=>b.year-a.year);
+}
+
+let tathReportMiqat='';   // للمرحومين لمناسبة معيّنة
+let tathReportPerson='';  // لتثويبات عضو معيّن
+function finTathwibReportsHTML(){
+  const byMiqat=thawabByMiqat();
+  const byPerson=thawabByPerson();
+  const topPerson=byPerson[0];
+  const topMiqat=[...byMiqat].sort((a,b)=>b.total-a.total)[0];
+  const months=thawabByMonth();
+  const years=thawabByYear();
+  const allRecs=allThawabRecords();
+  const grandCount=allRecs.length;
+  const grandTotal=allRecs.reduce((s,r)=>s+r.amount,0);
+  const miqatOpts=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const persons=byPerson.map(p=>p.name);
+
+  const selMiqat=tathReportMiqat;
+  const decNames = selMiqat ? (byMiqat.find(m=>{ const mq=miqats.find(x=>x.name===m.name); return mq&&mq.id===selMiqat; })||{}).deceased||[] : [];
+  const mqSel=miqats.find(x=>x.id===selMiqat);
+
+  const selPerson=tathReportPerson;
+  const personRecs = selPerson ? allRecs.filter(r=>r.name===selPerson) : [];
+
+  return `
+  <div class="rep-summary">
+    <div class="rep-card in"><div class="rc-lbl">عدد التثويبات</div><div class="rc-val">${grandCount}</div></div>
+    <div class="rep-card net"><div class="rc-lbl">إجمالي المبالغ</div><div class="rc-val">${finMoney(grandTotal)}</div></div>
+  </div>
+
+  ${topPerson||topMiqat?`<div class="rep-sec"><div class="rep-h">🏆 الأبرز</div>
+    ${topPerson?`<div class="tath-top"><span>أكثر من ثوّب</span><b>${escapeHtml(topPerson.name)}</b><span class="tt-n">${topPerson.count} تثويب</span></div>`:''}
+    ${topMiqat?`<div class="tath-top"><span>أكثر مناسبة تثويباً</span><b>${escapeHtml(topMiqat.name)}</b><span class="tt-n">${finMoney(topMiqat.total)}</span></div>`:''}
+  </div>`:''}
+
+  <div class="rep-sec">
+    <div class="rep-h">🕌 التثويبات لكل مناسبة</div>
+    ${byMiqat.length?`<table class="rep-tbl"><tr><th>المناسبة</th><th>المبلغ</th><th>عدد</th></tr>
+      ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${finMoney(m.total)}</td><td>${m.count}</td></tr>`).join('')}
+      </table>`:'<div class="rep-empty">لا توجد تثويبات</div>'}
+  </div>
+
+  <div class="rep-sec">
+    <div class="rep-h">🕯️ أسماء المرحومين في مناسبة</div>
+    <select class="rep-year" style="width:100%;margin-bottom:10px;" onchange="tathReportMiqat=this.value; renderFinancePage('tathwibReports',{})">
+      <option value="">— اختر المناسبة —</option>
+      ${miqatOpts.map(mq=>`<option value="${mq.id}" ${mq.id===selMiqat?'selected':''}>${escapeHtml(mq.name)}</option>`).join('')}
+    </select>
+    ${selMiqat?(decNames.length?`<div class="tath-dec-list">${decNames.map(d=>`<div>${escapeHtml(d)}</div>`).join('')}</div>`:'<div class="rep-empty">لا مرحومين مسجّلين لهذه المناسبة</div>'):''}
+  </div>
+
+  <div class="rep-sec">
+    <div class="rep-h">👤 تثويبات مساهم معيّن</div>
+    <select class="rep-year" style="width:100%;margin-bottom:10px;" onchange="tathReportPerson=this.value; renderFinancePage('tathwibReports',{})">
+      <option value="">— اختر المساهم —</option>
+      ${persons.map(nm=>`<option value="${escapeHtml(nm)}" ${nm===selPerson?'selected':''}>${escapeHtml(nm)}</option>`).join('')}
+    </select>
+    ${selPerson?(personRecs.length?`<table class="rep-tbl"><tr><th>المناسبة</th><th>المبلغ</th><th>مرحومون</th></tr>
+      ${personRecs.map(r=>`<tr><td>${escapeHtml(r.miqatName)}</td><td>${finMoney(r.amount)}</td><td>${r.deceased.length}</td></tr>`).join('')}
+      </table>`:'<div class="rep-empty">لا تثويبات لهذا المساهم</div>'):''}
+  </div>
+
+  ${months.length?`<div class="rep-sec"><div class="rep-h">📅 المجاميع الشهرية (المدفوعة)</div>
+    <table class="rep-tbl"><tr><th>الشهر</th><th>المبلغ</th><th>عدد</th></tr>
+    ${months.map(m=>`<tr><td>${m.key}</td><td>${finMoney(m.total)}</td><td>${m.count}</td></tr>`).join('')}
+    </table></div>`:''}
+
+  ${years.length?`<div class="rep-sec"><div class="rep-h">🗓️ المجاميع السنوية (المدفوعة)</div>
+    <table class="rep-tbl"><tr><th>السنة</th><th>المبلغ</th><th>عدد</th></tr>
+    ${years.map(y=>`<tr><td>${y.year}</td><td>${finMoney(y.total)}</td><td>${y.count}</td></tr>`).join('')}
+    </table></div>`:''}
+
+  <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="printThawabReport()">🖨️ طباعة تقرير التثويبات PDF</button>`;
+}
+
+/* تقرير التثويبات PDF */
+function printThawabReport(){
+  const byMiqat=thawabByMiqat();
+  const byPerson=thawabByPerson();
+  const topPerson=byPerson[0];
+  const topMiqat=[...byMiqat].sort((a,b)=>b.total-a.total)[0];
+  const years=thawabByYear();
+  const allRecs=allThawabRecords();
+  const grandCount=allRecs.length;
+  const grandTotal=allRecs.reduce((s,r)=>s+r.amount,0);
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير التثويبات — ${hijriToday()}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:230px;max-height:84px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:8px;}
+  .doc-title{text-align:center;font-family:'Amiri',serif;font-size:24px;font-weight:700;color:#1c4536;margin:12px 0 2px;}
+  .doc-sub{text-align:center;color:#8a7c6b;font-size:14px;margin-bottom:24px;}
+  h2{font-size:16px;color:#fff;background:#1c4536;display:inline-block;padding:6px 16px 6px 20px;border-radius:0 18px 18px 0;margin:24px 0 12px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:8px;}
+  th,td{border:1px solid #e6ddcb;padding:8px 12px;text-align:right;}
+  th{background:#1c4536;color:#fff;}
+  tr:nth-child(even){background:#faf7f0;}
+  .sum-row{display:flex;gap:14px;margin-bottom:10px;}
+  .sum-box{flex:1;border:1px solid #e6ddcb;border-radius:12px;padding:14px;text-align:center;}
+  .sum-box .l{font-size:12px;color:#8a7c6b;} .sum-box .v{font-size:22px;font-weight:800;color:#1c4536;margin-top:4px;}
+  .top-row{display:flex;gap:14px;margin-bottom:14px;}
+  .top-box{flex:1;background:#f6f2ea;border-radius:12px;padding:14px;text-align:center;}
+  .top-box .l{font-size:12px;color:#8a7c6b;} .top-box .v{font-size:17px;font-weight:700;color:#1c4536;margin-top:4px;}
+  .foot{margin-top:36px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;}}
+  ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">تقرير التثويبات</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · ${hijriToday()}</div></div>
+
+  <h2>الملخّص</h2>
+  <div class="sum-row">
+    <div class="sum-box"><div class="l">عدد التثويبات</div><div class="v">${grandCount}</div></div>
+    <div class="sum-box"><div class="l">إجمالي المبالغ</div><div class="v">${finMoney(grandTotal)}</div></div>
+  </div>
+  ${topPerson||topMiqat?`<div class="top-row">
+    ${topPerson?`<div class="top-box"><div class="l">أكثر من ثوّب</div><div class="v">${escapeHtml(topPerson.name)} (${topPerson.count})</div></div>`:''}
+    ${topMiqat?`<div class="top-box"><div class="l">أكثر مناسبة تثويباً</div><div class="v">${escapeHtml(topMiqat.name)}</div></div>`:''}
+  </div>`:''}
+
+  <h2>التثويبات لكل مناسبة</h2>
+  ${byMiqat.length?`<table><tr><th>المناسبة</th><th>المبلغ</th><th>العدد</th></tr>
+    ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${finMoney(m.total)}</td><td>${m.count}</td></tr>`).join('')}
+    </table>`:'<p style="color:#8a7c6b">لا توجد تثويبات.</p>'}
+
+  <h2>تثويبات كل مساهم</h2>
+  ${byPerson.length?`<table><tr><th>المساهم</th><th>المبلغ</th><th>العدد</th></tr>
+    ${byPerson.map(p=>`<tr><td>${escapeHtml(p.name)}</td><td>${finMoney(p.total)}</td><td>${p.count}</td></tr>`).join('')}
+    </table>`:''}
+
+  ${years.length?`<h2>المجاميع السنوية</h2>
+  <table><tr><th>السنة</th><th>المبلغ</th><th>العدد</th></tr>
+  ${years.map(y=>`<tr><td>${y.year}</td><td>${finMoney(y.total)}</td><td>${y.count}</td></tr>`).join('')}
+  </table>`:''}
+
+  <div class="foot">هيئة محبي الحسين (ع) — تقرير التثويبات · وثيقة رسمية</div>
   </body></html>`);
   w.document.close(); w.focus();
 }
