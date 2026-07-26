@@ -2808,6 +2808,10 @@ function renderFinancePage(page, opts){
   else if(page==='tathwib') host.innerHTML=finTathwibHTML();
   else if(page==='tathwibMiqat') host.innerHTML=finTathwibMiqatHTML();
   else if(page==='tathwibMiqatDetail') host.innerHTML=finTathwibDetailHTML(opts);
+  else if(page==='tathwibPaid'){ host.innerHTML=finTathwibPaidHTML();
+    const sel=$('#ptCountry'); if(sel){ sel.innerHTML=countryOptions(''); sel.value='973'; }
+    paidThawabNames=['']; ptRenderNames();
+  }
   else if(page==='soon') host.innerHTML=finSoonHTML(opts);
   // زر الرجوع في الأعلى
   const back=$('#finBackLabel');
@@ -3145,6 +3149,156 @@ function printThawabCertificate(miqatId, memberRef, idx){
       </div>
     </div></div>
   </div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* ═══ التثويبات المدفوعة ═══ */
+let paidThawabNames=[];
+function finTathwibPaidHTML(){
+  const sorted=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const recent=[...paidThawab].sort((a,b)=>(b.at||'').localeCompare(a.at||'')).slice(0,20);
+  return `
+  <div class="fin-ctx">تثويب مدفوع — لأي شخص (عضو أو غير عضو)</div>
+  <div class="fin-add-exp">
+    <div class="fin-field"><label>اسم مقدّم الطلب</label>
+      <input id="ptName" type="text" placeholder="الاسم الكامل" /></div>
+    <div class="fin-field"><label>رقم الهاتف</label>
+      <div class="phone-wrap"><select id="ptCountry" class="country-select"></select>
+      <input id="ptPhone" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="رقم الهاتف" /></div></div>
+    <div class="fin-field"><label>المناسبة</label>
+      <select id="ptMiqat"><option value="">— اختر الميقات —</option>
+        ${sorted.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
+      </select></div>
+    <div class="fin-field"><label>أسماء المرحومين</label>
+      <div id="ptNames"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="ptAddName()">➕ إضافة اسم متوفى</button></div>
+    <div class="fin-field"><label>المبلغ المقدّم (د.ب)</label>
+      <input id="ptAmount" type="number" min="0" step="0.001" placeholder="0.000" /></div>
+    <div class="fin-field"><label>ملاحظات <span class="opt">اختياري</span></label>
+      <input id="ptNote" type="text" placeholder="ملاحظة" /></div>
+    <button class="btn btn-primary" onclick="savePaidThawabEntry()">✔️ تثبيت</button>
+  </div>
+  <div class="fin-exp-list">
+    <div class="fel-head"><span>آخر التثويبات المدفوعة</span><b>${paidThawab.length} إجمالاً</b></div>
+    ${recent.length?recent.map(p=>{
+      const mq=miqats.find(x=>x.id===p.miqatId);
+      return `<div class="fel-item">
+        <div><div class="fel-type">${escapeHtml(p.name)}${p.deceased&&p.deceased.length?` · ${p.deceased.length} مرحوم`:''}</div>
+          <div class="fel-meta">${mq?escapeHtml(mq.name):'—'}${p.at?' · '+new Date(p.at).toLocaleDateString('ar'):''}</div></div>
+        <div class="fel-cost">${finMoney(p.amount)}
+          <button class="fel-del" onclick="reprintPaidThawab('${p.id}')" title="طباعة" style="color:var(--accent)">🖨️</button>
+          <button class="fel-del" onclick="deletePaidThawab('${p.id}')">×</button></div>
+      </div>`;
+    }).join(''):'<div class="fel-empty">لا توجد تثويبات مدفوعة بعد</div>'}
+  </div>`;
+}
+function ptRenderNames(){
+  const box=$('#ptNames'); if(!box) return;
+  box.innerHTML=paidThawabNames.map((nm,i)=>`
+    <div class="thawab-name-row">
+      <input type="text" placeholder="اسم المرحوم/ة" value="${(nm||'').replace(/"/g,'&quot;')}" oninput="paidThawabNames[${i}]=this.value" />
+      <button type="button" class="contrib-del" onclick="ptRemoveName(${i})">×</button>
+    </div>`).join('');
+}
+function ptAddName(){ paidThawabNames.push(''); ptRenderNames(); }
+function ptRemoveName(i){ paidThawabNames.splice(i,1); ptRenderNames(); }
+
+async function savePaidThawabEntry(){
+  const name=$('#ptName').value.trim();
+  if(!name){ toast('أدخل اسم مقدّم الطلب'); return; }
+  const cc=$('#ptCountry').value||'973';
+  const local=toEnglishDigits($('#ptPhone').value).replace(/\D/g,'');
+  const phone = local ? '+'+cc+local : '';
+  const miqatId=$('#ptMiqat').value;
+  if(!miqatId){ toast('اختر المناسبة'); return; }
+  const amount=parseFloat($('#ptAmount').value);
+  if(isNaN(amount)||amount<0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  const deceased=paidThawabNames.map(s=>(s||'').trim()).filter(Boolean);
+  const entry={ id:'pt_'+Date.now(), name, phone, miqatId, deceased, amount, note:$('#ptNote').value.trim(), at:new Date().toISOString() };
+  paidThawab.push(entry);
+  await savePaidThawab();
+  paidThawabNames=[];
+  // رسالة نجاح
+  alert('✅ تم استلام طلبكم بنجاح\n\nنسأل الله تعالى أن يتقبل منكم هذا العمل المبارك.');
+  // فتح الـ PDF
+  printPaidThawabPDF(entry.id);
+  renderFinancePage('tathwibPaid',{});
+}
+async function deletePaidThawab(id){
+  if(!confirm('حذف هذا التثويب المدفوع؟')) return;
+  paidThawab=paidThawab.filter(x=>x.id!==id);
+  await savePaidThawab();
+  renderFinancePage('tathwibPaid',{});
+}
+function reprintPaidThawab(id){ printPaidThawabPDF(id); }
+
+/* PDF التثويب المدفوع + زر واتساب */
+function printPaidThawabPDF(id){
+  const p=paidThawab.find(x=>x.id===id); if(!p) return;
+  const mq=miqats.find(x=>x.id===p.miqatId);
+  const dec=p.deceased||[];
+  const decBlock = dec.length ? `
+    <p class="cert-p">وقد أُهدي ثواب هذه المناسبة إلى أرواح:</p>
+    <div class="cert-names">${dec.map(d=>`<div>${escapeHtml(d)}</div>`).join('')}</div>
+    <p class="cert-p">نسأل الله تعالى أن يرحمهم، وأن يجعل ثواب هذا المجلس واصلًا إليهم.</p>` : '';
+  const waText = `السلام عليكم ورحمة الله وبركاته\nالأخ/الأخت ${p.name}\nتشكركم هيئة محبي الحسين على تثويبكم في ميقات ${mq?mq.name:''} بمبلغ ${fmtMoney(p.amount)}.\n${dec.length?'وقد أُهدي الثواب إلى أرواح: '+dec.join('، ')+'\n':''}نسأل الله أن يتقبل منكم هذا العمل المبارك.`;
+  const waLink = p.phone ? whatsappLink(p.phone, waText) : '';
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>سند تثويب — ${escapeHtml(p.name)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0;color:#1a2620;}
+  .cert{max-width:800px;margin:0 auto;padding:30px;background:radial-gradient(circle at 12% 8%,rgba(193,154,62,.06),transparent 40%),radial-gradient(circle at 88% 92%,rgba(28,69,54,.05),transparent 40%),#fffdf8;}
+  .cert-frame{border:2px solid #c19a3e;border-radius:8px;padding:6px;}
+  .cert-inner{border:1px solid #d8ccb6;border-radius:5px;padding:34px 30px;text-align:center;}
+  .cert-logo{max-width:180px;max-height:72px;margin:0 auto 6px;display:block;}
+  .cert-org{font-family:'Aref Ruqaa','Amiri',serif;font-size:20px;color:#1c4536;font-weight:700;}
+  .cert-line{width:120px;height:2px;background:#c19a3e;margin:14px auto 22px;}
+  .cert-title{font-family:'Amiri',serif;font-size:28px;font-weight:700;color:#1c4536;margin:6px 0 4px;}
+  .cert-sub{font-size:14px;color:#8a7c6b;margin-bottom:22px;}
+  .cert-name{font-family:'Amiri',serif;font-size:24px;font-weight:700;color:#1a2620;margin:6px 0 18px;}
+  .cert-p{font-size:15.5px;line-height:2.1;color:#3a473f;margin:10px auto;max-width:600px;}
+  .cert-miqat{color:#1c4536;font-weight:700;}
+  .cert-info{display:flex;justify-content:center;gap:30px;margin:18px 0;flex-wrap:wrap;}
+  .ci-box{background:rgba(28,69,54,.05);border-radius:10px;padding:12px 20px;}
+  .ci-box .l{font-size:11px;color:#8a7c6b;}
+  .ci-box .v{font-size:18px;font-weight:800;color:#1c4536;margin-top:2px;}
+  .cert-names{margin:16px auto;padding:16px 22px;background:rgba(28,69,54,.05);border-radius:12px;display:inline-block;min-width:260px;}
+  .cert-names div{font-family:'Amiri',serif;font-size:18px;font-weight:700;color:#1c4536;padding:4px 0;}
+  .cert-foot{margin-top:26px;padding-top:20px;display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #e6ddcb;}
+  .cert-sig{text-align:center;font-size:13px;color:#8a7c6b;}
+  .cert-sig img{max-width:110px;max-height:52px;display:block;margin:0 auto 4px;}
+  .cert-date{font-size:12px;color:#b3a894;}
+  .toolbar{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:9;}
+  .tb-btn{border:none;padding:10px 16px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;color:#fff;text-decoration:none;display:inline-block;}
+  .tb-print{background:#1c4536;} .tb-wa{background:#25d366;}
+  @media print{ body{padding:0;} .toolbar{display:none;} }
+  </style></head><body>
+  <div class="toolbar">
+    <button class="tb-btn tb-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+    ${waLink?`<a class="tb-btn tb-wa" href="${waLink}" target="_blank">💬 إرسال واتساب</a>`:''}
+  </div>
+  <div class="cert"><div class="cert-frame"><div class="cert-inner">
+    ${HAIAA_LOGO?`<img class="cert-logo" src="${HAIAA_LOGO}" alt="" />`:''}
+    <div class="cert-org">هيئة محبي الحسين (ع)</div>
+    <div class="cert-line"></div>
+    <div class="cert-title">سند تثويب</div>
+    <div class="cert-sub">شكراً لتثويبكم المبارك</div>
+    <div class="cert-name">${escapeHtml(p.name)}</div>
+    <p class="cert-p">تتقدم هيئة محبي الحسين بخالص الشكر والتقدير على تثويبكم في ميقات <span class="cert-miqat">${mq?escapeHtml(mq.name):''}</span>، ونسأل الله تعالى أن يتقبل منكم هذا العمل المبارك.</p>
+    <div class="cert-info">
+      <div class="ci-box"><div class="l">المبلغ</div><div class="v">${finMoney(p.amount)}</div></div>
+      <div class="ci-box"><div class="l">المناسبة</div><div class="v">${mq?escapeHtml(mq.name):'—'}</div></div>
+    </div>
+    ${decBlock}
+    ${p.note?`<p class="cert-p" style="font-size:13px;color:#8a7c6b">ملاحظة: ${escapeHtml(p.note)}</p>`:''}
+    <div class="cert-foot">
+      <div class="cert-date">${hijriToday()}</div>
+      <div class="cert-sig">${HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="" />`:''}<div>أمين السر</div></div>
+    </div>
+  </div></div></div>
   </body></html>`);
   w.document.close(); w.focus();
 }
