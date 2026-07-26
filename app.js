@@ -3154,11 +3154,15 @@ function finTathwibDetailHTML(opts){
   ${bookings.map((b,i)=>{
     const nm=bookingName(b);
     const agreed=bookingAgreed(b);
+    const paid=bookingPaid(b);
     const dec=b.deceased||[];
     return `<div class="tath-card">
       <div class="tath-card-head">
         <div class="tch-name">${escapeHtml(nm)}</div>
-        <div class="tch-amt">${finMoney(agreed)}</div>
+        <div class="tch-amounts">
+          <div class="tch-agreed"><span class="tch-lbl">المتّفق</span><b>${finMoney(agreed)}</b></div>
+          <div class="tch-paid"><span class="tch-lbl">تم الاستلام</span><b>${finMoney(paid)}</b></div>
+        </div>
       </div>
       <div class="tath-card-body">
         <div class="tcb-row"><span class="tcb-lbl">المساهمة</span><span>${bookingItemsText(b)}</span></div>
