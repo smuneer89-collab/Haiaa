@@ -3198,19 +3198,11 @@ function buildThawabCard(opts){
   // kind: 'farah' → أزرق | 'hzn' → أحمر | غير محدد → يسأل المستخدم
   const doBuild=(tpl)=>{
     const dec=opts.deceased||[];
-    // معامل التصغير التلقائي حسب كمية المحتوى (يبقى داخل القالب)
-    let s=1;
-    const nDec=dec.length;
-    const introLen=(opts.intro||'').length;
-    if(nDec>=6 || introLen>340) s=0.8;
-    else if(nDec>=4 || introLen>260) s=0.85;
-    else if(nDec>=2) s=0.92;
-    if(opts.infoBoxes) s=Math.min(s,0.88);
     const decBlock = dec.length ? `
       <div class="dec-intro">وقد أُهدي ثواب هذه المناسبة إلى أرواح:</div>
       <div class="dec-box">${dec.map(d=>`<div class="dec-name">${escapeHtml(d)}</div>`).join('')}</div>
       <div class="dec-after">نسأل الله تعالى أن يرحمهم، وأن يجعل ثواب هذا المجلس واصلًا إليهم.</div>
-    ` : `<div class="dec-after" style="margin-top:8px">نسأل الله تعالى أن يجعله في ميزان حسناتكم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</div>`;
+    ` : `<div class="dec-after" style="margin-top:.4em">نسأل الله تعالى أن يجعله في ميزان حسناتكم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</div>`;
     const w=window.open('','_blank');
     w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(opts.title)} — ${escapeHtml(opts.name)}</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
@@ -3221,24 +3213,26 @@ function buildThawabCard(opts){
     .tb-btn{ border:none; padding:10px 16px; border-radius:9px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
     .tb-print{ background:#1c4536; } .tb-wa{ background:#25d366; } .tb-close{ background:#8a7c6b; }
     .wrap{ max-width:600px; margin:0 auto 30px; }
-    .card{ position:relative; width:100%; aspect-ratio:1080/1440; overflow:hidden; box-shadow:0 10px 34px rgba(0,0,0,.45); container-type:inline-size; }
+    .card{ position:relative; width:100%; aspect-ratio:1080/1440; overflow:hidden; box-shadow:0 10px 34px rgba(0,0,0,.45); }
     .bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-    .content{ position:absolute; left:0; right:0; top:50.5%; bottom:0; padding:0 7% 4%; display:flex; flex-direction:column; text-align:center; color:#fff; }
-    .greet{ font-size:calc(2.9cqw * ${s}); opacity:.9; margin-bottom:.6%; }
-    .name{ font-weight:700; font-size:calc(4.6cqw * ${s}); margin-bottom:2.4%; line-height:1.25; }
-    .body{ font-size:calc(3cqw * ${s}); line-height:1.7; margin-bottom:2%; }
+    /* منطقة النص تحت الفريم — بحدود ثابتة، والخط يُقاس تلقائياً بـ JS */
+    .content{ position:absolute; left:6%; right:6%; top:51%; bottom:4%; display:flex; flex-direction:column; text-align:center; color:#fff; overflow:hidden; }
+    .fit{ display:flex; flex-direction:column; height:100%; }
+    .greet{ font-size:.62em; opacity:.9; margin-bottom:.3em; }
+    .name{ font-weight:700; font-size:1.12em; margin-bottom:.5em; line-height:1.2; }
+    .body{ font-size:.72em; line-height:1.6; margin-bottom:.45em; }
     .body b{ font-weight:700; }
-    .dec-intro{ font-size:calc(2.8cqw * ${s}); margin-bottom:1.4%; opacity:.92; }
-    .dec-box{ background:rgba(255,255,255,.12); border-radius:10px; padding:1.6% 3%; margin-bottom:1.8%; }
-    .dec-name{ font-weight:700; font-size:calc(3.2cqw * ${s}); padding:.5% 0; }
-    .dec-after{ font-size:calc(2.7cqw * ${s}); line-height:1.55; opacity:.85; margin-bottom:1%; }
-    .info-row{ display:flex; justify-content:center; gap:5%; margin:1.6% 0; }
-    .info-box{ background:rgba(255,255,255,.12); border-radius:10px; padding:1.2% 4%; }
-    .info-box .il{ font-size:calc(2.2cqw * ${s}); opacity:.75; } .info-box .iv{ font-weight:700; font-size:calc(3.2cqw * ${s}); }
-    .foot{ margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; padding-top:2%; }
-    .sig{ font-weight:700; font-size:calc(3cqw * ${s}); text-align:right; }
-    .sig span{ display:block; font-weight:400; font-size:calc(2.4cqw * ${s}); opacity:.8; margin-top:.3%; }
-    .date{ font-size:calc(2.4cqw * ${s}); opacity:.85; }
+    .dec-intro{ font-size:.66em; margin-bottom:.3em; opacity:.92; }
+    .dec-box{ background:rgba(255,255,255,.13); border-radius:14px; padding:.5em .8em; margin-bottom:.4em; }
+    .dec-name{ font-weight:700; font-size:.78em; padding:.12em 0; }
+    .dec-after{ font-size:.62em; line-height:1.5; opacity:.85; margin-bottom:.4em; }
+    .info-row{ display:flex; justify-content:center; gap:1em; margin:.4em 0; }
+    .info-box{ background:rgba(255,255,255,.13); border-radius:10px; padding:.35em .9em; }
+    .info-box .il{ font-size:.52em; opacity:.75; } .info-box .iv{ font-weight:700; font-size:.75em; }
+    .foot{ margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; padding-top:.4em; }
+    .sig{ font-weight:700; font-size:.72em; text-align:right; }
+    .sig span{ display:block; font-weight:400; font-size:.55em; opacity:.8; }
+    .date{ font-size:.55em; opacity:.85; }
     @media print{
       @page{ size:1080px 1440px; margin:0; }
       body{ background:#fff; } .toolbar{ display:none; } .wrap{ max-width:100%; margin:0; }
@@ -3252,19 +3246,40 @@ function buildThawabCard(opts){
     </div>
     <div class="wrap"><div class="card">
       <img class="bg" src="${tpl}" alt="" />
-      <div class="content">
-        <div class="greet">الأخ / الأخت الكريم</div>
-        <div class="name">${escapeHtml(opts.name)}</div>
-        <div class="body">${opts.intro}</div>
-        ${opts.infoBoxes||''}
-        ${decBlock}
-        ${opts.note?`<div class="dec-after">ملاحظة: ${escapeHtml(opts.note)}</div>`:''}
-        <div class="foot">
-          <div class="sig">صادق الغسرة<span>أمين السر</span></div>
-          <div class="date">${hijriToday()}</div>
+      <div class="content" id="thawabContent">
+        <div class="fit" id="thawabFit">
+          <div class="greet">الأخ / الأخت الكريم</div>
+          <div class="name">${escapeHtml(opts.name)}</div>
+          <div class="body">${opts.intro}</div>
+          ${opts.infoBoxes||''}
+          ${decBlock}
+          ${opts.note?`<div class="dec-after">ملاحظة: ${escapeHtml(opts.note)}</div>`:''}
+          <div class="foot">
+            <div class="sig">صادق الغسرة<span>أمين السر</span></div>
+            <div class="date">${hijriToday()}</div>
+          </div>
         </div>
       </div>
     </div></div>
+    <script>
+    (function(){
+      function fit(){
+        var ct=document.getElementById('thawabContent'), el=document.getElementById('thawabFit');
+        if(!ct||!el) return;
+        // حجم الأساس نسبةً لعرض البطاقة (يتحجّم مع الشاشة)، ثم يُصغَّر لين يدخل
+        var base = ct.clientWidth * 0.075;
+        var size = base, guard=0;
+        el.style.fontSize = size+'px';
+        while(el.scrollHeight > ct.clientHeight && size > 6 && guard < 400){ size -= 0.5; el.style.fontSize = size+'px'; guard++; }
+      }
+      if(document.readyState==='complete') setTimeout(fit,60);
+      else window.addEventListener('load', function(){ setTimeout(fit,60); });
+      // إعادة القياس قبل الطباعة (لضمان الدقة في PDF)
+      window.addEventListener('beforeprint', fit);
+      // إعادة القياس عند تغيّر حجم النافذة
+      window.addEventListener('resize', function(){ setTimeout(fit,60); });
+    })();
+    </script>
     </body></html>`);
     w.document.close(); w.focus();
   };
