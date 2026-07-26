@@ -109,7 +109,12 @@ function hijriToday(){ const h=hijriParts(); return `${h.day} ${HIJRI_MONTHS[h.m
 /* ─── Miqat status ─── */
 /* ─── الحجز/الاكتمال بالمدفوع فعلاً (تقسيط) ─── */
 function bookingAgreed(b){ return Number(b&&b.amount)||0; }                 // المبلغ المتّفق عليه
-function bookingPaid(b){ if(b && Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); return Number(b&&b.amount)||0; } // القديم = مدفوع بالكامل
+function bookingPaid(b){
+  if(!b) return 0;
+  if(b.received!=null && b.received!=='') return Number(b.received)||0;   // المستلم من «مواقيت تقترب»
+  if(Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  return 0;   // لم يُسجَّل استلام بعد
+}
 function bookingRemaining(b){ return Math.max(0, bookingAgreed(b)-bookingPaid(b)); }
 function miqatPaid(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingPaid(b),0); }   // اكتمال الميقات = المُحصّل فعلاً
 function miqatAgreed(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingAgreed(b),0); }
