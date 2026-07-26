@@ -3221,32 +3221,28 @@ function buildThawabCard(opts){
     .tb-btn{ border:none; padding:10px 16px; border-radius:9px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
     .tb-print{ background:#1c4536; } .tb-wa{ background:#25d366; } .tb-close{ background:#8a7c6b; }
     .wrap{ max-width:600px; margin:0 auto 30px; }
-    .card{ position:relative; width:100%; aspect-ratio:1080/1440; overflow:hidden; box-shadow:0 10px 34px rgba(0,0,0,.45); }
+    .card{ position:relative; width:100%; aspect-ratio:1080/1440; overflow:hidden; box-shadow:0 10px 34px rgba(0,0,0,.45); container-type:inline-size; }
     .bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-    .content{ position:absolute; left:0; right:0; top:50.5%; bottom:0; padding:0 8% 4.5%; display:flex; flex-direction:column; text-align:center; color:#fff; }
-    .greet{ font-family:inherit; font-size:calc(2.4vw * ${s}); opacity:.9; margin-bottom:.4%; }
-    .name{ font-family:inherit;font-weight:800; font-size:calc(4.3vw * ${s}); margin-bottom:2%; line-height:1.3; }
-    .body{ font-family:inherit; font-size:calc(2.5vw * ${s}); line-height:1.8; margin-bottom:1.6%; }
-    .body b{ font-family:inherit;font-weight:800; }
-    .dec-intro{ font-family:inherit; font-size:calc(2.3vw * ${s}); margin-bottom:1%; opacity:.92; }
-    .dec-box{ background:rgba(255,255,255,.12); border-radius:12px; padding:calc(1.1% * ${s}) 3%; margin-bottom:1.3%; }
-    .dec-name{ font-family:inherit;font-weight:800; font-size:calc(2.8vw * ${s}); padding:.4% 0; }
-    .dec-after{ font-family:inherit; font-size:calc(2.2vw * ${s}); line-height:1.6; opacity:.85; margin-bottom:1.2%; }
-    .info-row{ display:flex; justify-content:center; gap:5%; margin:1.5% 0; }
+    .content{ position:absolute; left:0; right:0; top:50.5%; bottom:0; padding:0 7% 4%; display:flex; flex-direction:column; text-align:center; color:#fff; }
+    .greet{ font-size:calc(2.9cqw * ${s}); opacity:.9; margin-bottom:.6%; }
+    .name{ font-weight:700; font-size:calc(4.6cqw * ${s}); margin-bottom:2.4%; line-height:1.25; }
+    .body{ font-size:calc(3cqw * ${s}); line-height:1.7; margin-bottom:2%; }
+    .body b{ font-weight:700; }
+    .dec-intro{ font-size:calc(2.8cqw * ${s}); margin-bottom:1.4%; opacity:.92; }
+    .dec-box{ background:rgba(255,255,255,.12); border-radius:10px; padding:1.6% 3%; margin-bottom:1.8%; }
+    .dec-name{ font-weight:700; font-size:calc(3.2cqw * ${s}); padding:.5% 0; }
+    .dec-after{ font-size:calc(2.7cqw * ${s}); line-height:1.55; opacity:.85; margin-bottom:1%; }
+    .info-row{ display:flex; justify-content:center; gap:5%; margin:1.6% 0; }
     .info-box{ background:rgba(255,255,255,.12); border-radius:10px; padding:1.2% 4%; }
-    .info-box .il{ font-size:calc(1.9vw * ${s}); opacity:.75; } .info-box .iv{ font-family:inherit;font-weight:800; font-size:calc(2.8vw * ${s}); }
-    .foot{ margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; padding-top:1.5%; }
-    .sig{ font-family:inherit;font-weight:800; font-size:calc(2.6vw * ${s}); text-align:right; }
-    .sig span{ display:block; font-family:inherit; font-size:calc(2vw * ${s}); opacity:.8; margin-top:.3%; }
-    .date{ font-family:inherit; font-size:calc(2vw * ${s}); opacity:.85; }
+    .info-box .il{ font-size:calc(2.2cqw * ${s}); opacity:.75; } .info-box .iv{ font-weight:700; font-size:calc(3.2cqw * ${s}); }
+    .foot{ margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; padding-top:2%; }
+    .sig{ font-weight:700; font-size:calc(3cqw * ${s}); text-align:right; }
+    .sig span{ display:block; font-weight:400; font-size:calc(2.4cqw * ${s}); opacity:.8; margin-top:.3%; }
+    .date{ font-size:calc(2.4cqw * ${s}); opacity:.85; }
     @media print{
       @page{ size:1080px 1440px; margin:0; }
       body{ background:#fff; } .toolbar{ display:none; } .wrap{ max-width:100%; margin:0; }
       .card{ box-shadow:none; width:1080px; height:1440px; }
-      .greet{ font-size:calc(26px * ${s}); } .name{ font-size:calc(46px * ${s}); } .body{ font-size:calc(27px * ${s}); }
-      .dec-intro{ font-size:calc(25px * ${s}); } .dec-name{ font-size:calc(30px * ${s}); } .dec-after{ font-size:calc(24px * ${s}); }
-      .info-box .il{ font-size:calc(20px * ${s}); } .info-box .iv{ font-size:calc(30px * ${s}); }
-      .sig{ font-size:calc(28px * ${s}); } .sig span{ font-size:calc(21px * ${s}); } .date{ font-size:calc(21px * ${s}); }
     }
     </style></head><body>
     <div class="toolbar">
