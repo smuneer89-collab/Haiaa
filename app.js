@@ -2900,6 +2900,8 @@ function renderFinancePage(page, opts){
     paidThawabNames=['']; ptRenderNames();
   }
   else if(page==='tathwibReports') host.innerHTML=finTathwibReportsHTML();
+  else if(page==='tathwibCountList') host.innerHTML=finThawabCountListHTML();
+  else if(page==='tathwibAmountList') host.innerHTML=finThawabAmountListHTML();
   else if(page==='soon') host.innerHTML=finSoonHTML(opts);
   // زر الرجوع في الأعلى
   const back=$('#finBackLabel');
@@ -3118,11 +3120,12 @@ function finTathwibMiqatHTML(){
   if(!withThawab.length) return `<div class="rep-empty">لا توجد مواقيت مسجّلة</div>`;
   return `
   <div class="fin-ctx">اختر ميقاتاً لعرض المساهمين وإهداءات الثواب</div>
-  <div class="tath-miqat-list">
+  <input type="text" class="tath-search" id="tathMiqatSearch" placeholder="🔍 ابحث عن ميقات…" oninput="filterTathMiqats(this.value)" />
+  <div class="tath-miqat-list" id="tathMiqatList">
     ${withThawab.map(mq=>{
       const total=(mq.bookings||[]).length;
       const thawabN=miqatThawabCount(mq);
-      return `<button class="tath-miqat-row" onclick="openFinancePage('tathwibMiqatDetail',{miqatId:'${mq.id}'})">
+      return `<button class="tath-miqat-row" data-name="${escapeHtml(mq.name)}" onclick="openFinancePage('tathwibMiqatDetail',{miqatId:'${mq.id}'})">
         <div class="tmr-body">
           <div class="tmr-name">${escapeHtml(mq.name)}</div>
           <div class="tmr-meta">${fmtMiqatDate(mq)} · ${total} مساهم${thawabN?` · ${thawabN} إهداء ثواب`:''}</div>
@@ -3131,6 +3134,13 @@ function finTathwibMiqatHTML(){
       </button>`;
     }).join('')}
   </div>`;
+}
+function filterTathMiqats(q){
+  q=(q||'').trim();
+  document.querySelectorAll('#tathMiqatList .tath-miqat-row').forEach(row=>{
+    const nm=row.getAttribute('data-name')||'';
+    row.style.display = (!q || nm.includes(q)) ? '' : 'none';
+  });
 }
 
 /* صفحة تفاصيل الميقات: صفحة (بطاقة) لكل عضو حاجز */
@@ -3173,72 +3183,93 @@ function bookingItemsText(b){
 }
 
 /* شهادة الشكر PDF (للمساهم في الميقات) */
+/* دالة موحّدة لتوليد شهادة/سند التثويب (بحجم بطاقة) */
+function buildThawabCard(opts){
+  // opts: {title, sub, name, miqatName, deceased[], intro, note, waLink}
+  const dec=opts.deceased||[];
+  const decBlock = dec.length ? `
+    <p class="cert-p">وقد أُهدي ثواب هذه المناسبة إلى أرواح:</p>
+    <div class="cert-names">${dec.map(d=>`<div>${escapeHtml(d)}</div>`).join('')}</div>
+    <p class="cert-p small">نسأل الله تعالى أن يرحمهم، وأن يجعل ثواب هذا المجلس واصلًا إليهم.</p>
+  ` : `<p class="cert-p small">نسأل الله تعالى أن يجعله في ميزان حسناتكم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</p>`;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(opts.title)} — ${escapeHtml(opts.name)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0;color:#1a2620;background:#eae5dc;padding:16px;}
+  .toolbar{display:flex;gap:8px;max-width:560px;margin:0 auto 14px;flex-wrap:wrap;}
+  .tb-btn{border:none;padding:9px 15px;border-radius:9px;font-family:'IBM Plex Sans Arabic';font-size:13.5px;font-weight:600;cursor:pointer;color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+  .tb-home{background:#8a7c6b;} .tb-fin{background:#123028;} .tb-back{background:#3a473f;} .tb-print{background:#1c4536;} .tb-wa{background:#25d366;}
+  /* البطاقة: حجم قريب من A5 أفقي / بطاقة */
+  .cert{max-width:560px;margin:0 auto;background:
+      radial-gradient(circle at 12% 10%, rgba(193,154,62,.07), transparent 42%),
+      radial-gradient(circle at 88% 90%, rgba(28,69,54,.06), transparent 42%),
+      #fffdf8;
+    border-radius:14px;box-shadow:0 10px 30px rgba(58,40,16,.14);}
+  .cert-frame{border:2px solid #c19a3e;border-radius:12px;margin:7px;}
+  .cert-inner{border:1px solid #d8ccb6;border-radius:8px;margin:5px;padding:22px 24px;text-align:center;}
+  .cert-logo{max-width:140px;max-height:56px;margin:0 auto 4px;display:block;}
+  .cert-org{font-family:'Aref Ruqaa','Amiri',serif;font-size:16px;color:#1c4536;font-weight:700;}
+  .cert-line{width:90px;height:2px;background:#c19a3e;margin:9px auto 14px;position:relative;}
+  .cert-line::before,.cert-line::after{content:'';position:absolute;top:50%;transform:translateY(-50%);width:5px;height:5px;background:#c19a3e;border-radius:50%;}
+  .cert-line::before{right:-3px;}.cert-line::after{left:-3px;}
+  .cert-title{font-family:'Amiri',serif;font-size:22px;font-weight:700;color:#1c4536;margin:2px 0;}
+  .cert-sub{font-size:12px;color:#8a7c6b;margin-bottom:14px;}
+  .cert-name{font-family:'Amiri',serif;font-size:20px;font-weight:700;color:#1a2620;margin:6px 0 12px;}
+  .cert-p{font-size:13.5px;line-height:1.9;color:#3a473f;margin:8px auto;max-width:480px;}
+  .cert-p.small{font-size:12.5px;color:#6a6055;}
+  .cert-miqat{color:#1c4536;font-weight:700;}
+  .cert-info{display:flex;justify-content:center;gap:20px;margin:12px 0;flex-wrap:wrap;}
+  .ci-box{background:rgba(28,69,54,.05);border-radius:9px;padding:9px 16px;}
+  .ci-box .l{font-size:10px;color:#8a7c6b;} .ci-box .v{font-size:15px;font-weight:800;color:#1c4536;margin-top:1px;}
+  .cert-names{margin:12px auto;padding:11px 18px;background:rgba(28,69,54,.05);border-radius:10px;display:inline-block;min-width:220px;}
+  .cert-names div{font-family:'Amiri',serif;font-size:16px;font-weight:700;color:#1c4536;padding:3px 0;}
+  .cert-foot{margin-top:16px;padding-top:14px;border-top:1px solid #e6ddcb;display:flex;justify-content:space-between;align-items:flex-end;}
+  .cert-date{font-size:11px;color:#b3a894;}
+  .cert-sig{text-align:center;}
+  .cert-sig .sn{font-family:'Amiri',serif;font-size:16px;font-weight:700;color:#1a2620;}
+  .cert-sig .sr{font-size:11px;color:#8a7c6b;margin-top:2px;}
+  @media print{ body{background:#fff;padding:0;} .toolbar{display:none;} .cert{box-shadow:none;max-width:100%;} }
+  </style></head><body>
+  <div class="toolbar">
+    <button class="tb-btn tb-print" onclick="window.print()">🖨️ طباعة / PDF</button>
+    ${opts.waLink?`<a class="tb-btn tb-wa" href="${opts.waLink}" target="_blank">💬 واتساب</a>`:''}
+    <button class="tb-btn tb-home" onclick="window.close()">✕ إغلاق</button>
+  </div>
+  <div class="cert"><div class="cert-frame"><div class="cert-inner">
+    ${HAIAA_LOGO?`<img class="cert-logo" src="${HAIAA_LOGO}" alt="" />`:''}
+    <div class="cert-org">هيئة محبي الحسين (ع)</div>
+    <div class="cert-line"></div>
+    <div class="cert-title">${escapeHtml(opts.title)}</div>
+    <div class="cert-sub">${escapeHtml(opts.sub||'السلام عليكم ورحمة الله وبركاته')}</div>
+    <div class="cert-name">${escapeHtml(opts.name)}</div>
+    <p class="cert-p">${opts.intro}</p>
+    ${opts.infoBoxes||''}
+    ${decBlock}
+    ${opts.note?`<p class="cert-p small">ملاحظة: ${escapeHtml(opts.note)}</p>`:''}
+    <div class="cert-foot">
+      <div class="cert-date">${hijriToday()}</div>
+      <div class="cert-sig"><div class="sn">صادق الغسرة</div><div class="sr">أمين السر</div></div>
+    </div>
+  </div></div></div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* شهادة شكر المساهم في الميقات */
 function printThawabCertificate(miqatId, memberRef, idx){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const bookings=mq.bookings||[];
   const b = (typeof idx==='number' && bookings[idx]) ? bookings[idx] : bookings.find(x=>x.memberId===memberRef);
   if(!b){ toast('تعذّر إيجاد المساهم'); return; }
-  const nm=bookingName(b);
-  const dec=b.deceased||[];
-  const decBlock = dec.length ? `
-    <p class="cert-p">وقد أُهدي ثواب هذه المناسبة إلى أرواح:</p>
-    <div class="cert-names">${dec.map(d=>`<div>${escapeHtml(d)}</div>`).join('')}</div>
-    <p class="cert-p">نسأل الله تعالى أن يرحمهم، وأن يجعل ثواب هذا المجلس واصلًا إليهم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</p>
-  ` : `<p class="cert-p">نسأل الله تعالى أن يجعله في ميزان حسناتكم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</p>`;
-  const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>شهادة شكر — ${escapeHtml(nm)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
-  <style>
-  *{box-sizing:border-box;}
-  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:0;margin:0;color:#1a2620;}
-  .cert{max-width:800px;margin:0 auto;padding:48px 54px;min-height:100vh;position:relative;
-    background:
-      radial-gradient(circle at 12% 8%, rgba(193,154,62,.06), transparent 40%),
-      radial-gradient(circle at 88% 92%, rgba(28,69,54,.05), transparent 40%),
-      #fffdf8;
-    border:none;}
-  .cert-frame{border:2px solid #c19a3e;border-radius:8px;padding:6px;height:calc(100vh - 60px);min-height:600px;}
-  .cert-inner{border:1px solid #d8ccb6;border-radius:5px;height:100%;padding:36px 32px;text-align:center;display:flex;flex-direction:column;}
-  .cert-logo{max-width:190px;max-height:74px;margin:0 auto 6px;display:block;}
-  .cert-org{font-family:'Aref Ruqaa','Amiri',serif;font-size:20px;color:#1c4536;font-weight:700;}
-  .cert-line{width:120px;height:2px;background:#c19a3e;margin:14px auto 22px;position:relative;}
-  .cert-line::before,.cert-line::after{content:'';position:absolute;top:50%;transform:translateY(-50%);width:6px;height:6px;background:#c19a3e;border-radius:50%;}
-  .cert-line::before{right:-3px;}.cert-line::after{left:-3px;}
-  .cert-title{font-family:'Amiri',serif;font-size:30px;font-weight:700;color:#1c4536;margin:6px 0 4px;}
-  .cert-sub{font-size:14px;color:#8a7c6b;margin-bottom:26px;}
-  .cert-greet{font-size:16px;color:#3a473f;margin-bottom:8px;}
-  .cert-name{font-family:'Amiri',serif;font-size:26px;font-weight:700;color:#1a2620;margin:6px 0 22px;}
-  .cert-p{font-size:15.5px;line-height:2.1;color:#3a473f;margin:10px auto;max-width:600px;}
-  .cert-miqat{color:#1c4536;font-weight:700;}
-  .cert-names{margin:16px auto;padding:16px 22px;background:rgba(28,69,54,.05);border-radius:12px;display:inline-block;min-width:260px;}
-  .cert-names div{font-family:'Amiri',serif;font-size:19px;font-weight:700;color:#1c4536;padding:4px 0;}
-  .cert-foot{margin-top:auto;padding-top:22px;display:flex;justify-content:space-between;align-items:flex-end;}
-  .cert-sig{text-align:center;font-size:13px;color:#8a7c6b;}
-  .cert-sig img{max-width:120px;max-height:56px;display:block;margin:0 auto 4px;}
-  .cert-date{font-size:12px;color:#b3a894;}
-  @media print{ body{padding:0;} .cert-frame{height:auto;min-height:0;} .no-print{display:none;} }
-  .no-print{position:fixed;top:12px;left:12px;background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;z-index:9;}
-  </style></head><body>
-  <button class="no-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
-  <div class="cert">
-    <div class="cert-frame"><div class="cert-inner">
-      ${HAIAA_LOGO?`<img class="cert-logo" src="${HAIAA_LOGO}" alt="" />`:''}
-      <div class="cert-org">هيئة محبي الحسين (ع)</div>
-      <div class="cert-line"></div>
-      <div class="cert-title">شهادة شكر وتقدير</div>
-      <div class="cert-sub">السلام عليكم ورحمة الله وبركاته</div>
-      <div class="cert-greet">الأخ/الأخت الكريم/ة</div>
-      <div class="cert-name">${escapeHtml(nm)}</div>
-      <p class="cert-p">تتشرف هيئة محبي الحسين بأن تتقدم لكم بخالص الشكر والتقدير على مساهمتكم في ميقات <span class="cert-miqat">${escapeHtml(mq.name)}</span>، ونسأل الله تعالى أن يتقبل منكم هذا العمل المبارك.</p>
-      ${decBlock}
-      <div class="cert-foot">
-        <div class="cert-date">${hijriToday()}</div>
-        <div class="cert-sig">${HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="" />`:''}<div>أمين السر</div></div>
-      </div>
-    </div></div>
-  </div>
-  </body></html>`);
-  w.document.close(); w.focus();
+  buildThawabCard({
+    title:'شهادة شكر وتقدير',
+    name:bookingName(b),
+    miqatName:mq.name,
+    deceased:b.deceased||[],
+    intro:`تتشرف هيئة محبي الحسين بأن تتقدم لكم بخالص الشكر والتقدير على مساهمتكم في ميقات <span class="cert-miqat">${escapeHtml(mq.name)}</span>، ونسأل الله تعالى أن يتقبل منكم هذا العمل المبارك.`
+  });
 }
 
 /* ═══ التثويبات المدفوعة ═══ */
@@ -3325,87 +3356,38 @@ function reprintPaidThawab(id){ printPaidThawabPDF(id); }
 function printPaidThawabPDF(id){
   const p=paidThawab.find(x=>x.id===id); if(!p) return;
   const mq=miqats.find(x=>x.id===p.miqatId);
-  const dec=p.deceased||[];
-  const decBlock = dec.length ? `
-    <p class="cert-p">وقد أُهدي ثواب هذه المناسبة إلى أرواح:</p>
-    <div class="cert-names">${dec.map(d=>`<div>${escapeHtml(d)}</div>`).join('')}</div>
-    <p class="cert-p">نسأل الله تعالى أن يرحمهم، وأن يجعل ثواب هذا المجلس واصلًا إليهم.</p>` : '';
-  const waText = `السلام عليكم ورحمة الله وبركاته\nالأخ/الأخت ${p.name}\nتشكركم هيئة محبي الحسين على تثويبكم في ميقات ${mq?mq.name:''} بمبلغ ${fmtMoney(p.amount)}.\n${dec.length?'وقد أُهدي الثواب إلى أرواح: '+dec.join('، ')+'\n':''}نسأل الله أن يتقبل منكم هذا العمل المبارك.`;
+  const waText = `السلام عليكم ورحمة الله وبركاته\nالأخ/الأخت ${p.name}\nتشكركم هيئة محبي الحسين على تثويبكم في ميقات ${mq?mq.name:''} بمبلغ ${fmtMoney(p.amount)}.\n${(p.deceased&&p.deceased.length)?'وقد أُهدي الثواب إلى أرواح: '+p.deceased.join('، ')+'\n':''}نسأل الله أن يتقبل منكم هذا العمل المبارك.`;
   const waLink = p.phone ? whatsappLink(p.phone, waText) : '';
-  const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>سند تثويب — ${escapeHtml(p.name)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
-  <style>
-  *{box-sizing:border-box;}
-  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0;color:#1a2620;}
-  .cert{max-width:800px;margin:0 auto;padding:30px;background:radial-gradient(circle at 12% 8%,rgba(193,154,62,.06),transparent 40%),radial-gradient(circle at 88% 92%,rgba(28,69,54,.05),transparent 40%),#fffdf8;}
-  .cert-frame{border:2px solid #c19a3e;border-radius:8px;padding:6px;}
-  .cert-inner{border:1px solid #d8ccb6;border-radius:5px;padding:34px 30px;text-align:center;}
-  .cert-logo{max-width:180px;max-height:72px;margin:0 auto 6px;display:block;}
-  .cert-org{font-family:'Aref Ruqaa','Amiri',serif;font-size:20px;color:#1c4536;font-weight:700;}
-  .cert-line{width:120px;height:2px;background:#c19a3e;margin:14px auto 22px;}
-  .cert-title{font-family:'Amiri',serif;font-size:28px;font-weight:700;color:#1c4536;margin:6px 0 4px;}
-  .cert-sub{font-size:14px;color:#8a7c6b;margin-bottom:22px;}
-  .cert-name{font-family:'Amiri',serif;font-size:24px;font-weight:700;color:#1a2620;margin:6px 0 18px;}
-  .cert-p{font-size:15.5px;line-height:2.1;color:#3a473f;margin:10px auto;max-width:600px;}
-  .cert-miqat{color:#1c4536;font-weight:700;}
-  .cert-info{display:flex;justify-content:center;gap:30px;margin:18px 0;flex-wrap:wrap;}
-  .ci-box{background:rgba(28,69,54,.05);border-radius:10px;padding:12px 20px;}
-  .ci-box .l{font-size:11px;color:#8a7c6b;}
-  .ci-box .v{font-size:18px;font-weight:800;color:#1c4536;margin-top:2px;}
-  .cert-names{margin:16px auto;padding:16px 22px;background:rgba(28,69,54,.05);border-radius:12px;display:inline-block;min-width:260px;}
-  .cert-names div{font-family:'Amiri',serif;font-size:18px;font-weight:700;color:#1c4536;padding:4px 0;}
-  .cert-foot{margin-top:26px;padding-top:20px;display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #e6ddcb;}
-  .cert-sig{text-align:center;font-size:13px;color:#8a7c6b;}
-  .cert-sig img{max-width:110px;max-height:52px;display:block;margin:0 auto 4px;}
-  .cert-date{font-size:12px;color:#b3a894;}
-  .toolbar{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:9;}
-  .tb-btn{border:none;padding:10px 16px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;color:#fff;text-decoration:none;display:inline-block;}
-  .tb-print{background:#1c4536;} .tb-wa{background:#25d366;}
-  @media print{ body{padding:0;} .toolbar{display:none;} }
-  </style></head><body>
-  <div class="toolbar">
-    <button class="tb-btn tb-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
-    ${waLink?`<a class="tb-btn tb-wa" href="${waLink}" target="_blank">💬 إرسال واتساب</a>`:''}
-  </div>
-  <div class="cert"><div class="cert-frame"><div class="cert-inner">
-    ${HAIAA_LOGO?`<img class="cert-logo" src="${HAIAA_LOGO}" alt="" />`:''}
-    <div class="cert-org">هيئة محبي الحسين (ع)</div>
-    <div class="cert-line"></div>
-    <div class="cert-title">سند تثويب</div>
-    <div class="cert-sub">شكراً لتثويبكم المبارك</div>
-    <div class="cert-name">${escapeHtml(p.name)}</div>
-    <p class="cert-p">تتقدم هيئة محبي الحسين بخالص الشكر والتقدير على تثويبكم في ميقات <span class="cert-miqat">${mq?escapeHtml(mq.name):''}</span>، ونسأل الله تعالى أن يتقبل منكم هذا العمل المبارك.</p>
-    <div class="cert-info">
-      <div class="ci-box"><div class="l">المبلغ</div><div class="v">${finMoney(p.amount)}</div></div>
-      <div class="ci-box"><div class="l">المناسبة</div><div class="v">${mq?escapeHtml(mq.name):'—'}</div></div>
-    </div>
-    ${decBlock}
-    ${p.note?`<p class="cert-p" style="font-size:13px;color:#8a7c6b">ملاحظة: ${escapeHtml(p.note)}</p>`:''}
-    <div class="cert-foot">
-      <div class="cert-date">${hijriToday()}</div>
-      <div class="cert-sig">${HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="" />`:''}<div>أمين السر</div></div>
-    </div>
-  </div></div></div>
-  </body></html>`);
-  w.document.close(); w.focus();
+  buildThawabCard({
+    title:'سند تثويب',
+    sub:'شكراً لتثويبكم المبارك',
+    name:p.name,
+    miqatName:mq?mq.name:'',
+    deceased:p.deceased||[],
+    intro:`تتقدم هيئة محبي الحسين بخالص الشكر والتقدير على تثويبكم في ميقات <span class="cert-miqat">${mq?escapeHtml(mq.name):''}</span>، ونسأل الله تعالى أن يتقبل منكم هذا العمل المبارك.`,
+    infoBoxes:`<div class="cert-info"><div class="ci-box"><div class="l">المبلغ</div><div class="v">${finMoney(p.amount)}</div></div><div class="ci-box"><div class="l">المناسبة</div><div class="v">${mq?escapeHtml(mq.name):'—'}</div></div></div>`,
+    note:p.note||'',
+    waLink
+  });
 }
 
 /* ═══ تقارير التثويبات ═══ */
-/* توحيد كل التثويبات من المصدرين: حجوزات المواقيت + المدفوعة */
+/* توحيد كل التثويبات من المصدرين: حجوزات المواقيت + المدفوعة
+   ملاحظة: المبلغ (amount) يُحسب فقط من التثويبات المدفوعة.
+   مساهمة الميقات المتّفق عليها ليست تثويباً مدفوعاً، فمبلغها = 0 في هذه التقارير. */
 function allThawabRecords(){
   const recs=[];
-  // من حجوزات المواقيت (المساهمون)
+  // من حجوزات المواقيت (المساهمون) — بلا مبلغ (المبلغ هو مساهمة الميقات وليس تثويباً)
   miqats.forEach(mq=>{
     (mq.bookings||[]).forEach(b=>{
       if(b.deceased && b.deceased.length){
         recs.push({ source:'booking', miqatId:mq.id, miqatName:mq.name,
           name:bookingName(b), memberId:b.memberId||null,
-          amount:bookingAgreed(b), deceased:b.deceased, at:null });
+          amount:0, deceased:b.deceased, at:null });
       }
     });
   });
-  // من المدفوعة
+  // من المدفوعة — المبلغ الفعلي
   (paidThawab||[]).forEach(p=>{
     const mq=miqats.find(x=>x.id===p.miqatId);
     recs.push({ source:'paid', miqatId:p.miqatId, miqatName:mq?mq.name:'—',
@@ -3413,12 +3395,12 @@ function allThawabRecords(){
   });
   return recs;
 }
-/* عدد ومجموع لكل مناسبة */
+/* عدد ومجموع لكل مناسبة (المجموع من المدفوعة فقط) */
 function thawabByMiqat(){
   const map={};
   allThawabRecords().forEach(r=>{
     const k=r.miqatId||'—';
-    if(!map[k]) map[k]={ name:r.miqatName, count:0, total:0, deceased:[] };
+    if(!map[k]) map[k]={ miqatId:r.miqatId, name:r.miqatName, count:0, total:0, deceased:[] };
     map[k].count++; map[k].total+=r.amount;
     map[k].deceased.push(...r.deceased);
   });
@@ -3480,19 +3462,19 @@ function finTathwibReportsHTML(){
 
   return `
   <div class="rep-summary">
-    <div class="rep-card in"><div class="rc-lbl">عدد التثويبات</div><div class="rc-val">${grandCount}</div></div>
-    <div class="rep-card net"><div class="rc-lbl">إجمالي المبالغ</div><div class="rc-val">${finMoney(grandTotal)}</div></div>
+    <div class="rep-card in clickable" onclick="openFinancePage('tathwibCountList')"><div class="rc-lbl">عدد التثويبات</div><div class="rc-val">${grandCount}</div><div class="rc-hint">اضغط للقائمة ›</div></div>
+    <div class="rep-card net clickable" onclick="openFinancePage('tathwibAmountList')"><div class="rc-lbl">إجمالي المبالغ المدفوعة</div><div class="rc-val">${finMoney(grandTotal)}</div><div class="rc-hint">اضغط للتفصيل ›</div></div>
   </div>
 
   ${topPerson||topMiqat?`<div class="rep-sec"><div class="rep-h">🏆 الأبرز</div>
     ${topPerson?`<div class="tath-top"><span>أكثر من ثوّب</span><b>${escapeHtml(topPerson.name)}</b><span class="tt-n">${topPerson.count} تثويب</span></div>`:''}
-    ${topMiqat?`<div class="tath-top"><span>أكثر مناسبة تثويباً</span><b>${escapeHtml(topMiqat.name)}</b><span class="tt-n">${finMoney(topMiqat.total)}</span></div>`:''}
+    ${topMiqat?`<div class="tath-top"><span>أكثر مناسبة تثويباً</span><b>${escapeHtml(topMiqat.name)}</b><span class="tt-n">${topMiqat.count} تثويب</span></div>`:''}
   </div>`:''}
 
   <div class="rep-sec">
     <div class="rep-h">🕌 التثويبات لكل مناسبة</div>
-    ${byMiqat.length?`<table class="rep-tbl"><tr><th>المناسبة</th><th>المبلغ</th><th>عدد</th></tr>
-      ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${finMoney(m.total)}</td><td>${m.count}</td></tr>`).join('')}
+    ${byMiqat.length?`<table class="rep-tbl"><tr><th>المناسبة</th><th>عدد التثويبات</th></tr>
+      ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${m.count}</td></tr>`).join('')}
       </table>`:'<div class="rep-empty">لا توجد تثويبات</div>'}
   </div>
 
@@ -3578,21 +3560,85 @@ function printThawabReport(){
   </div>`:''}
 
   <h2>التثويبات لكل مناسبة</h2>
-  ${byMiqat.length?`<table><tr><th>المناسبة</th><th>المبلغ</th><th>العدد</th></tr>
-    ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${finMoney(m.total)}</td><td>${m.count}</td></tr>`).join('')}
+  ${byMiqat.length?`<table><tr><th>المناسبة</th><th>عدد التثويبات</th></tr>
+    ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${m.count}</td></tr>`).join('')}
     </table>`:'<p style="color:#8a7c6b">لا توجد تثويبات.</p>'}
 
   <h2>تثويبات كل مساهم</h2>
-  ${byPerson.length?`<table><tr><th>المساهم</th><th>المبلغ</th><th>العدد</th></tr>
-    ${byPerson.map(p=>`<tr><td>${escapeHtml(p.name)}</td><td>${finMoney(p.total)}</td><td>${p.count}</td></tr>`).join('')}
+  ${byPerson.length?`<table><tr><th>المساهم</th><th>عدد التثويبات</th></tr>
+    ${byPerson.map(p=>`<tr><td>${escapeHtml(p.name)}</td><td>${p.count}</td></tr>`).join('')}
     </table>`:''}
 
-  ${years.length?`<h2>المجاميع السنوية</h2>
+  ${years.length?`<h2>المجاميع السنوية (المدفوعة)</h2>
   <table><tr><th>السنة</th><th>المبلغ</th><th>العدد</th></tr>
   ${years.map(y=>`<tr><td>${y.year}</td><td>${finMoney(y.total)}</td><td>${y.count}</td></tr>`).join('')}
   </table>`:''}
 
   <div class="foot">هيئة محبي الحسين (ع) — تقرير التثويبات · وثيقة رسمية</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* القائمة المختصرة (عند الضغط على عدد التثويبات) */
+function finThawabCountListHTML(){
+  const recs=allThawabRecords().sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  return `
+  <div class="fin-ctx">القائمة المختصرة — ${recs.length} تثويب</div>
+  ${recs.length?`<div class="tath-mini-list">
+    ${recs.map(r=>`<div class="tath-mini">
+      <div class="tm-body"><div class="tm-name">${escapeHtml(r.name)}</div>
+        <div class="tm-meta">${escapeHtml(r.miqatName)} · ${r.source==='paid'?'مدفوع':'مساهم'}${r.deceased.length?` · ${r.deceased.length} مرحوم`:''}</div></div>
+      ${r.source==='paid'?`<div class="tm-amt">${finMoney(r.amount)}</div>`:''}
+    </div>`).join('')}
+  </div>`:'<div class="rep-empty">لا توجد تثويبات</div>'}`;
+}
+
+/* القائمة التفصيلية لكل مبلغ (المدفوعة فقط) + طباعة */
+function finThawabAmountListHTML(){
+  const paid=[...(paidThawab||[])].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const total=paid.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  return `
+  <div class="fin-ctx">التثويبات المدفوعة — الإجمالي: ${finMoney(total)}</div>
+  ${paid.length?`<table class="rep-tbl"><tr><th>المتبرّع</th><th>المناسبة</th><th>المبلغ</th></tr>
+    ${paid.map(p=>{ const mq=miqats.find(x=>x.id===p.miqatId);
+      return `<tr><td>${escapeHtml(p.name)}</td><td>${mq?escapeHtml(mq.name):'—'}</td><td>${finMoney(p.amount)}</td></tr>`;
+    }).join('')}
+    <tr class="rep-sum"><td colspan="2">الإجمالي</td><td>${finMoney(total)}</td></tr>
+    </table>
+    <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="printThawabAmountList()">🖨️ طباعة القائمة التفصيلية PDF</button>
+    `:'<div class="rep-empty">لا توجد تثويبات مدفوعة</div>'}`;
+}
+function printThawabAmountList(){
+  const paid=[...(paidThawab||[])].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const total=paid.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>قائمة التثويبات المدفوعة — ${hijriToday()}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:210px;max-height:80px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:8px;}
+  .doc-title{text-align:center;font-family:'Amiri',serif;font-size:23px;font-weight:700;color:#1c4536;margin:12px 0 2px;}
+  .doc-sub{text-align:center;color:#8a7c6b;font-size:14px;margin-bottom:22px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{border:1px solid #e6ddcb;padding:9px 12px;text-align:right;}
+  th{background:#1c4536;color:#fff;}
+  tr:nth-child(even){background:#faf7f0;}
+  .sum td{background:#e6f0ea;font-weight:800;color:#1c4536;font-size:16px;}
+  .foot{margin-top:32px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;}}
+  ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">قائمة التثويبات المدفوعة</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · ${hijriToday()}</div></div>
+  <table><tr><th>#</th><th>المتبرّع</th><th>المناسبة</th><th>أسماء المرحومين</th><th>المبلغ</th></tr>
+    ${paid.map((p,i)=>{ const mq=miqats.find(x=>x.id===p.miqatId);
+      return `<tr><td>${i+1}</td><td>${escapeHtml(p.name)}</td><td>${mq?escapeHtml(mq.name):'—'}</td><td>${(p.deceased||[]).map(escapeHtml).join('، ')||'—'}</td><td>${finMoney(p.amount)}</td></tr>`;
+    }).join('')}
+    <tr class="sum"><td colspan="4">الإجمالي</td><td>${finMoney(total)}</td></tr>
+  </table>
+  <div class="foot">هيئة محبي الحسين (ع) — قائمة التثويبات المدفوعة · وثيقة رسمية</div>
   </body></html>`);
   w.document.close(); w.focus();
 }

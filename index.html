@@ -275,6 +275,19 @@
   .tath-dec-list { background:var(--accent-soft); border-radius:10px; padding:12px 16px; }
   .tath-dec-list div { font-size:14px; color:var(--accent); font-weight:600; padding:3px 0; border-bottom:1px solid rgba(28,69,54,.08); }
   .tath-dec-list div:last-child { border-bottom:none; }
+  /* بطاقات التقارير القابلة للنقر */
+  .rep-card.clickable { cursor:pointer; transition:transform .1s; }
+  .rep-card.clickable:active { transform:scale(.97); }
+  .rep-card .rc-hint { font-size:10px; color:var(--muted-2); margin-top:5px; }
+  /* شريط بحث الميقات */
+  .tath-search { width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); margin-bottom:12px; box-sizing:border-box; }
+  /* القائمة المختصرة */
+  .tath-mini-list { display:flex; flex-direction:column; gap:7px; }
+  .tath-mini { display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:11px 13px; }
+  .tm-name { font-weight:600; font-size:13.5px; color:var(--ink); }
+  .tm-meta { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .tm-amt { font-weight:700; color:var(--accent); font-size:14px; }
+  .rep-tbl .rep-sum td { background:var(--accent-soft); font-weight:800; color:var(--accent); }
   .notif-badge { position: absolute; top: -2px; left: -2px; background: #d13438; color: #fff; font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 1.5px solid var(--surface); }
 
   /* Notifications tab */
