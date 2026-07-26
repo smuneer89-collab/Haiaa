@@ -599,6 +599,25 @@ function computeNotifications(){
     }
   });
 
+  // 4b) بعد انتهاء الميقات - تذكير بإرسال رسائل الشكر للمساهمين
+  miqats.forEach(mq=>{
+    const ty=miqatTargetHijriYear(mq);
+    const g=hijriToGregorian(mq.day,mq.month,ty);
+    if(!g) return;
+    const gd=new Date(g); gd.setHours(0,0,0,0);
+    const daysSince=Math.round((todayG-gd)/86400000);
+    if(daysSince>=1 && daysSince<=14){   // انتهى خلال آخر أسبوعين
+      (mq.bookings||[]).forEach(b=>{
+        const nm=bookingName(b);
+        list.push({ cat:'رسائل الشكر', type:'info', ic:'📜',
+          title:`أرسل رسالة الشكر`,
+          desc:`للعضو ${escapeHtml(nm)} على مساهمته في «${escapeHtml(mq.name)}».`,
+          meta: `انتهى الميقات قبل ${daysSince} يوم`,
+          action:()=>{ enterFinance(); } });
+      });
+    }
+  });
+
   // 5) أعضاء لم يُذكّروا بمواقيتهم القريبة
   const notReminded=[];
   members.forEach(m=>{
@@ -2787,6 +2806,8 @@ function renderFinancePage(page, opts){
   else if(page==='expEntry') host.innerHTML=finExpEntryHTML(opts);
   else if(page==='reports') host.innerHTML=finReportsHTML();
   else if(page==='tathwib') host.innerHTML=finTathwibHTML();
+  else if(page==='tathwibMiqat') host.innerHTML=finTathwibMiqatHTML();
+  else if(page==='tathwibMiqatDetail') host.innerHTML=finTathwibDetailHTML(opts);
   else if(page==='soon') host.innerHTML=finSoonHTML(opts);
   // زر الرجوع في الأعلى
   const back=$('#finBackLabel');
@@ -2994,6 +3015,138 @@ function finTathwibHTML(){
     <button class="fin-cell big" onclick="openFinancePage('tathwibPaid')">💳 التثويبات المدفوعة</button>
     <button class="fin-cell big" onclick="openFinancePage('tathwibReports')">📊 تقارير التثويبات</button>
   </div>`;
+}
+
+/* عدد المساهمين الذين أهدوا ثواباً في ميقات */
+function miqatThawabCount(mq){ return (mq.bookings||[]).filter(b=>b.deceased && b.deceased.length).length; }
+
+/* صفحة اختيار الميقات */
+function finTathwibMiqatHTML(){
+  const withThawab=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  if(!withThawab.length) return `<div class="rep-empty">لا توجد مواقيت مسجّلة</div>`;
+  return `
+  <div class="fin-ctx">اختر ميقاتاً لعرض المساهمين وإهداءات الثواب</div>
+  <div class="tath-miqat-list">
+    ${withThawab.map(mq=>{
+      const total=(mq.bookings||[]).length;
+      const thawabN=miqatThawabCount(mq);
+      return `<button class="tath-miqat-row" onclick="openFinancePage('tathwibMiqatDetail',{miqatId:'${mq.id}'})">
+        <div class="tmr-body">
+          <div class="tmr-name">${escapeHtml(mq.name)}</div>
+          <div class="tmr-meta">${fmtMiqatDate(mq)} · ${total} مساهم${thawabN?` · ${thawabN} إهداء ثواب`:''}</div>
+        </div>
+        <span class="tmr-arrow">‹</span>
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+
+/* صفحة تفاصيل الميقات: صفحة (بطاقة) لكل عضو حاجز */
+function finTathwibDetailHTML(opts){
+  const mq=miqats.find(x=>x.id===opts.miqatId);
+  if(!mq) return `<div class="rep-empty">الميقات غير موجود</div>`;
+  const bookings=mq.bookings||[];
+  if(!bookings.length) return `<div class="fin-ctx">${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div><div class="rep-empty">لا يوجد مساهمون في هذا الميقات</div>`;
+  return `
+  <div class="fin-ctx">${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div>
+  ${bookings.map((b,i)=>{
+    const nm=bookingName(b);
+    const agreed=bookingAgreed(b);
+    const dec=b.deceased||[];
+    return `<div class="tath-card">
+      <div class="tath-card-head">
+        <div class="tch-name">${escapeHtml(nm)}</div>
+        <div class="tch-amt">${finMoney(agreed)}</div>
+      </div>
+      <div class="tath-card-body">
+        <div class="tcb-row"><span class="tcb-lbl">المساهمة</span><span>${bookingItemsText(b)}</span></div>
+        ${dec.length?`<div class="tcb-dec">
+          <div class="tcb-lbl">إهداء الثواب إلى أرواح:</div>
+          <ul>${dec.map(d=>`<li>${escapeHtml(d)}</li>`).join('')}</ul>
+        </div>`:`<div class="tcb-nodec">لم يُسجّل إهداء ثواب لهذا المساهم</div>`}
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="printThawabCertificate('${mq.id}','${b.memberId||('fam_'+i)}',${i})">📜 طباعة شهادة الشكر PDF</button>
+    </div>`;
+  }).join('')}`;
+}
+
+/* نص بنود المساهمة */
+function bookingItemsText(b){
+  const items=bookingItems(b);
+  if(!items.length) return finMoney(bookingAgreed(b));
+  return items.map(it=>{
+    const isCash = it.kind==='نقدي';
+    return isCash ? finMoney(Number(it.value)||0) : `${escapeHtml(it.kind)}${(Number(it.value)||0)>0?' ('+finMoney(it.value)+')':''}`;
+  }).join(' · ');
+}
+
+/* شهادة الشكر PDF (للمساهم في الميقات) */
+function printThawabCertificate(miqatId, memberRef, idx){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const bookings=mq.bookings||[];
+  const b = (typeof idx==='number' && bookings[idx]) ? bookings[idx] : bookings.find(x=>x.memberId===memberRef);
+  if(!b){ toast('تعذّر إيجاد المساهم'); return; }
+  const nm=bookingName(b);
+  const dec=b.deceased||[];
+  const decBlock = dec.length ? `
+    <p class="cert-p">وقد أُهدي ثواب هذه المناسبة إلى أرواح:</p>
+    <div class="cert-names">${dec.map(d=>`<div>${escapeHtml(d)}</div>`).join('')}</div>
+    <p class="cert-p">نسأل الله تعالى أن يرحمهم، وأن يجعل ثواب هذا المجلس واصلًا إليهم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</p>
+  ` : `<p class="cert-p">نسأل الله تعالى أن يجعله في ميزان حسناتكم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</p>`;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>شهادة شكر — ${escapeHtml(nm)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:0;margin:0;color:#1a2620;}
+  .cert{max-width:800px;margin:0 auto;padding:48px 54px;min-height:100vh;position:relative;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(193,154,62,.06), transparent 40%),
+      radial-gradient(circle at 88% 92%, rgba(28,69,54,.05), transparent 40%),
+      #fffdf8;
+    border:none;}
+  .cert-frame{border:2px solid #c19a3e;border-radius:8px;padding:6px;height:calc(100vh - 60px);min-height:600px;}
+  .cert-inner{border:1px solid #d8ccb6;border-radius:5px;height:100%;padding:36px 32px;text-align:center;display:flex;flex-direction:column;}
+  .cert-logo{max-width:190px;max-height:74px;margin:0 auto 6px;display:block;}
+  .cert-org{font-family:'Aref Ruqaa','Amiri',serif;font-size:20px;color:#1c4536;font-weight:700;}
+  .cert-line{width:120px;height:2px;background:#c19a3e;margin:14px auto 22px;position:relative;}
+  .cert-line::before,.cert-line::after{content:'';position:absolute;top:50%;transform:translateY(-50%);width:6px;height:6px;background:#c19a3e;border-radius:50%;}
+  .cert-line::before{right:-3px;}.cert-line::after{left:-3px;}
+  .cert-title{font-family:'Amiri',serif;font-size:30px;font-weight:700;color:#1c4536;margin:6px 0 4px;}
+  .cert-sub{font-size:14px;color:#8a7c6b;margin-bottom:26px;}
+  .cert-greet{font-size:16px;color:#3a473f;margin-bottom:8px;}
+  .cert-name{font-family:'Amiri',serif;font-size:26px;font-weight:700;color:#1a2620;margin:6px 0 22px;}
+  .cert-p{font-size:15.5px;line-height:2.1;color:#3a473f;margin:10px auto;max-width:600px;}
+  .cert-miqat{color:#1c4536;font-weight:700;}
+  .cert-names{margin:16px auto;padding:16px 22px;background:rgba(28,69,54,.05);border-radius:12px;display:inline-block;min-width:260px;}
+  .cert-names div{font-family:'Amiri',serif;font-size:19px;font-weight:700;color:#1c4536;padding:4px 0;}
+  .cert-foot{margin-top:auto;padding-top:22px;display:flex;justify-content:space-between;align-items:flex-end;}
+  .cert-sig{text-align:center;font-size:13px;color:#8a7c6b;}
+  .cert-sig img{max-width:120px;max-height:56px;display:block;margin:0 auto 4px;}
+  .cert-date{font-size:12px;color:#b3a894;}
+  @media print{ body{padding:0;} .cert-frame{height:auto;min-height:0;} .no-print{display:none;} }
+  .no-print{position:fixed;top:12px;left:12px;background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;z-index:9;}
+  </style></head><body>
+  <button class="no-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  <div class="cert">
+    <div class="cert-frame"><div class="cert-inner">
+      ${HAIAA_LOGO?`<img class="cert-logo" src="${HAIAA_LOGO}" alt="" />`:''}
+      <div class="cert-org">هيئة محبي الحسين (ع)</div>
+      <div class="cert-line"></div>
+      <div class="cert-title">شهادة شكر وتقدير</div>
+      <div class="cert-sub">السلام عليكم ورحمة الله وبركاته</div>
+      <div class="cert-greet">الأخ/الأخت الكريم/ة</div>
+      <div class="cert-name">${escapeHtml(nm)}</div>
+      <p class="cert-p">تتشرف هيئة محبي الحسين بأن تتقدم لكم بخالص الشكر والتقدير على مساهمتكم في ميقات <span class="cert-miqat">${escapeHtml(mq.name)}</span>، ونسأل الله تعالى أن يتقبل منكم هذا العمل المبارك.</p>
+      ${decBlock}
+      <div class="cert-foot">
+        <div class="cert-date">${hijriToday()}</div>
+        <div class="cert-sig">${HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="" />`:''}<div>أمين السر</div></div>
+      </div>
+    </div></div>
+  </div>
+  </body></html>`);
+  w.document.close(); w.focus();
 }
 
 function finReportsHTML(){
