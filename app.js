@@ -59,6 +59,7 @@ let photos = []; // ألبوم الصور: {id, img, occasion, photographer, des
 let reminders = []; // تذكيرات التقويم: {id, title, note, day, month, year, cal:'greg'|'hijri', done}
 let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
+let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
 // كل مصروف: {id, section:'miqat', mood:'farah'|'hzn', miqatId, kind:'mawlid'|'ihtifal', type, subType, cost, date, note, at}
 let uiDark = false;
 let settings = {
@@ -156,6 +157,7 @@ async function loadData(){
   try { const r=await storage.get('reminders'); if(r) reminders=JSON.parse(r); } catch(e){ reminders=[]; }
   try { const f=await storage.get('financeLog'); if(f) financeLog=JSON.parse(f); } catch(e){ financeLog=[]; }
   try { const fn=await storage.get('finance'); if(fn) finance=Object.assign({total:0,yearStart:0,expenses:[]}, JSON.parse(fn)); } catch(e){ finance={total:0,yearStart:0,expenses:[]}; }
+  try { const pt=await storage.get('paidThawab'); if(pt) paidThawab=JSON.parse(pt); } catch(e){ paidThawab=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
 }
 function cloudPush(k,v){ if(window.CloudSync) CloudSync.push(k,v); }
@@ -169,6 +171,7 @@ async function savePhotos(){ try{ await storage.set('photos',JSON.stringify(phot
 async function saveReminders(){ try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(e){} cloudPush('reminders',reminders); }
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
+async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
 
 /* ═══════════ ألبوم الصور (اللجنة الإعلامية) ═══════════ */
 let albumPhotoData=null;
@@ -548,7 +551,7 @@ function computeNotifications(){
     if(days<=0){
       list.push({ cat:'تذكيرات', type: days<0?'warn':'urgent', ic:'⏰',
         title: r.title || 'تذكير',
-        desc: r.note || (days===0?'موعده اليوم':'موعده فات'),
+        desc: (r.note?r.note+(r.time?' · ':''):'') + (r.time?'الساعة '+fmtTime12(r.time):'') || (days===0?'موعده اليوم':'موعده فات'),
         meta: days===0?'اليوم':(days===-1?'أمس':`منذ ${-days} يوم`),
         action:()=>openCalendar() });
     }
@@ -733,6 +736,7 @@ async function requestBadgePermission(){
 document.addEventListener('visibilitychange',()=>{ if(document.hidden) syncAppBadge(); });
 
 /* ═══════════ التقويم والتذكيرات ═══════════ */
+function fmtTime12(t){ if(!t) return ''; const [h,m]=t.split(':').map(Number); const ap=h<12?'ص':'م'; const h12=h%12||12; return `${h12}:${String(m).padStart(2,'0')} ${ap}`; }
 let calMode='greg';          // 'greg' | 'hijri'
 let calYear, calMonth;       // الشهر المعروض (حسب النمط)
 function openCalendar(){
@@ -815,7 +819,7 @@ function renderCalReminders(){
       <button class="ri-btn" onclick="toggleReminder('${r.id}')" title="${r.done?'إلغاء':'تم'}">${r.done?'↩️':'✅'}</button>
       <div class="ri-body">
         <div class="ri-title">${escapeHtml(r.title)}</div>
-        <div class="ri-date">${htxt?htxt+' · الموافق ':''}${gtxt}</div>
+        <div class="ri-date">${htxt?htxt+' · الموافق ':''}${gtxt}${r.time?' · '+fmtTime12(r.time):''}</div>
         ${r.note?`<div class="ri-note">${escapeHtml(r.note)}</div>`:''}
       </div>
       <button class="ri-btn" onclick="deleteReminder('${r.id}')" title="حذف">🗑</button>
@@ -842,7 +846,7 @@ function updateRemGreg(){
 function openAddReminder(){
   quickPrefill=null;
   $('#reminderModalTitle').textContent='إضافة تذكير';
-  $('#remTitle').value=''; $('#remNote').value='';
+  $('#remTitle').value=''; $('#remNote').value=''; $('#remTime').value='';
   const now=new Date();
   $('#remCal').value = calMode;
   fillRemMonths();
@@ -853,7 +857,7 @@ function openAddReminder(){
 }
 function quickAddReminder(cal,d,mo,y){
   $('#reminderModalTitle').textContent='إضافة تذكير';
-  $('#remTitle').value=''; $('#remNote').value='';
+  $('#remTitle').value=''; $('#remNote').value=''; $('#remTime').value='';
   $('#remCal').value=cal; fillRemMonths();
   $('#remDay').value=d; $('#remMonth').value=mo; $('#remYear').value=y;
   updateRemGreg();
@@ -865,7 +869,7 @@ async function saveReminder(){
   const cal=$('#remCal').value;
   const d=parseInt($('#remDay').value,10), mo=parseInt($('#remMonth').value,10), y=parseInt($('#remYear').value,10);
   if(!d||isNaN(mo)||!y){ toast('أدخل تاريخاً صحيحاً'); return; }
-  reminders.push({ id:'r_'+Date.now(), title, note:$('#remNote').value.trim(), day:d, month:mo, year:y, cal, done:false });
+  reminders.push({ id:'r_'+Date.now(), title, note:$('#remNote').value.trim(), day:d, month:mo, year:y, time:$('#remTime').value||'', cal, done:false });
   await saveReminders();
   closeModal('reminderModal'); toast('تمت إضافة التذكير');
   renderCalendar(); renderCalReminders(); updateNotifBadge();
@@ -2152,6 +2156,7 @@ function openBooking(miqatId){
   $('#bookingMember').innerHTML=members.slice().sort((a,b)=>a.number-b.number).map(m=>`<option value="${m.id}">${escapeHtml(m.name)} — ${memberCode(m)}</option>`).join('');
   if(!members.length){ toast('أضف أعضاء أولاً'); return; }
   contribInit('booking'); const bi=$('#bookingInitPaid'); if(bi) bi.value='';
+  resetThawabInputs();
   $('#bookingModal').classList.add('open');
 }
 /* ═══ محرّر بنود المساهمة (متعدّد: نقدي/عيني بقيمة تقديرية) ═══ */
@@ -2187,22 +2192,47 @@ function contribRender(ctx){
     </div>`;
 }
 
+let thawabNamesList=[];
+function toggleThawabNames(){
+  const on=$('#bookingThawab').checked;
+  $('#thawabNamesWrap').style.display = on?'block':'none';
+  if(on && !thawabNamesList.length){ thawabNamesList=['']; renderThawabNames(); }
+}
+function renderThawabNames(){
+  const box=$('#thawabNames'); if(!box) return;
+  box.innerHTML=thawabNamesList.map((nm,i)=>`
+    <div class="thawab-name-row">
+      <input type="text" placeholder="اسم المرحوم/ة" value="${(nm||'').replace(/"/g,'&quot;')}" oninput="setThawabName(${i},this.value)" />
+      <button type="button" class="contrib-del" onclick="removeThawabName(${i})" title="حذف">×</button>
+    </div>`).join('');
+}
+function setThawabName(i,v){ thawabNamesList[i]=v; }
+function addThawabName(){ thawabNamesList.push(''); renderThawabNames(); }
+function removeThawabName(i){ thawabNamesList.splice(i,1); if(!thawabNamesList.length){ thawabNamesList=['']; } renderThawabNames(); }
+function resetThawabInputs(){ thawabNamesList=[]; const cb=$('#bookingThawab'); if(cb) cb.checked=false; const w=$('#thawabNamesWrap'); if(w) w.style.display='none'; const b=$('#thawabNames'); if(b) b.innerHTML=''; }
+
 async function saveBooking(){
   const miqatId=$('#bookingMiqatId').value; const memberId=$('#bookingMember').value;
   const items=contribItems('booking'); const amount=items.reduce((s,i)=>s+i.value,0);
   if(!items.length){ toast('أدخل بنداً واحداً على الأقل'); return; }
   const initRaw=$('#bookingInitPaid').value; const initPaid = initRaw==='' ? 0 : Math.max(0, Math.min(amount, parseFloat(initRaw)||0));
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  // أسماء المرحومين (إهداء الثواب)
+  const deceased = ($('#bookingThawab') && $('#bookingThawab').checked)
+    ? thawabNamesList.map(s=>(s||'').trim()).filter(Boolean) : [];
   mq.bookings=mq.bookings||[]; const existing=mq.bookings.find(b=>b.memberId===memberId);
   if(existing){
     existing.items=[...bookingItems(existing).filter(x=>(Number(x.value)||0)>0||x.kind!=='نقدي'), ...items];
     existing.amount=(Number(existing.amount)||0)+amount;
     if(!Array.isArray(existing.payments)) existing.payments=[{amount:Number(existing.amount)-amount, date:today()}];
     if(initPaid>0) existing.payments.push({amount:initPaid, date:today()});
+    if(deceased.length) existing.deceased=[...(existing.deceased||[]), ...deceased];
   } else {
-    mq.bookings.push({memberId, amount, items, payments: initPaid>0?[{amount:initPaid, date:today()}]:[]});
+    const b={memberId, amount, items, payments: initPaid>0?[{amount:initPaid, date:today()}]:[]};
+    if(deceased.length) b.deceased=deceased;
+    mq.bookings.push(b);
   }
-  await saveMiqats(); closeModal('bookingModal'); renderMiqats(); renderRecentMembers(); renderDashboard(); toast('تم إضافة الحجز');
+  await saveMiqats(); resetThawabInputs(); closeModal('bookingModal'); renderMiqats(); renderRecentMembers(); renderDashboard(); toast('تم إضافة الحجز');
 }
 async function removeBooking(miqatId,memberId){ const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   if(!confirm('إزالة حجز هذا العضو؟')) return; mq.bookings=mq.bookings.filter(b=>b.memberId!==memberId); await saveMiqats(); renderMiqats(); }
@@ -2725,7 +2755,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expEntry','reports','soon'];
+const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expEntry','reports','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -2756,6 +2786,7 @@ function renderFinancePage(page, opts){
   else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
   else if(page==='expEntry') host.innerHTML=finExpEntryHTML(opts);
   else if(page==='reports') host.innerHTML=finReportsHTML();
+  else if(page==='tathwib') host.innerHTML=finTathwibHTML();
   else if(page==='soon') host.innerHTML=finSoonHTML(opts);
   // زر الرجوع في الأعلى
   const back=$('#finBackLabel');
@@ -2798,7 +2829,9 @@ function finRevenueHTML(){
     <button class="fin-edit" onclick="editYearStart()" title="تعديل">✏️</button>
   </div>
   <div class="fin-grid">
-    ${btns.map(([t,k])=>`<button class="fin-cell" onclick="openFinancePage('soon',{title:'${t}'})">${t}</button>`).join('')}
+    ${btns.map(([t,k])=> k==='tathwib'
+      ? `<button class="fin-cell" onclick="openFinancePage('tathwib')">${t}</button>`
+      : `<button class="fin-cell" onclick="openFinancePage('soon',{title:'${t}'})">${t}</button>`).join('')}
   </div>`;
 }
 async function editYearStart(){
@@ -2953,6 +2986,16 @@ function expenseYears(){
 }
 
 let reportYear=null;
+/* ═══════════ التثويبات ═══════════ */
+function finTathwibHTML(){
+  return `
+  <div class="fin-grid one">
+    <button class="fin-cell big" onclick="openFinancePage('tathwibMiqat')">🕌 تثويبات المساهمين في المواقيت</button>
+    <button class="fin-cell big" onclick="openFinancePage('tathwibPaid')">💳 التثويبات المدفوعة</button>
+    <button class="fin-cell big" onclick="openFinancePage('tathwibReports')">📊 تقارير التثويبات</button>
+  </div>`;
+}
+
 function finReportsHTML(){
   const years=expenseYears();
   if(reportYear===null) reportYear = years[0] || new Date().getFullYear();

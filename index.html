@@ -241,6 +241,13 @@
   .rep-tbl th { background:var(--accent-soft); color:var(--accent); font-weight:600; }
   .rep-tbl td:nth-child(2) { font-weight:700; color:var(--accent); white-space:nowrap; }
   .rep-empty { color:var(--muted-2); font-size:13px; padding:14px; text-align:center; }
+  /* إهداء الثواب */
+  .thawab-box { margin-top:14px; padding:14px; background:var(--accent-soft); border:1px solid var(--line); border-radius:12px; }
+  .thawab-q { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:600; color:var(--ink); cursor:pointer; line-height:1.6; }
+  .thawab-q input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; }
+  .thawab-name-row { display:flex; gap:8px; margin-top:8px; align-items:center; }
+  .thawab-name-row input { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
+  #thawabNamesWrap > button { margin-top:10px; }
   .notif-badge { position: absolute; top: -2px; left: -2px; background: #d13438; color: #fff; font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 1.5px solid var(--surface); }
 
   /* Notifications tab */
@@ -1322,6 +1329,8 @@
       <div class="field"><label>الشهر</label><select id="remMonth" onchange="updateRemGreg()"></select></div>
       <div class="field"><label>السنة</label><input id="remYear" type="number" placeholder="السنة" oninput="updateRemGreg()" /></div>
     </div>
+    <div class="field full"><label>الوقت <span class="opt">اختياري</span></label>
+      <input id="remTime" type="time" /></div>
     <div class="rem-greg" id="remGreg"></div>
     <div class="actions-row">
       <button class="btn btn-primary" onclick="saveReminder()">حفظ التذكير</button>
@@ -1966,6 +1975,16 @@
     <div id="bookingItems" class="contrib-editor" data-ctx="booking"></div></div>
   <div class="field" style="margin-top:10px;"><label>المبلغ المستلَم الآن (د.ب) <span class="opt">اتركه فارغاً إن لم يُستلَم شيء بعد — سجّل الاستلام لاحقاً</span></label>
     <input type="number" id="bookingInitPaid" min="0" step="0.001" placeholder="0" /></div>
+  <div class="thawab-box">
+    <label class="thawab-q">
+      <input type="checkbox" id="bookingThawab" onchange="toggleThawabNames()" />
+      إهداء ثواب هذا الميقات إلى أرواح المرحومين؟ <span class="opt">اختياري</span>
+    </label>
+    <div id="thawabNamesWrap" style="display:none">
+      <div id="thawabNames"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addThawabName()">➕ إضافة اسم متوفى</button>
+    </div>
+  </div>
   <div class="actions-row"><button class="btn btn-primary" onclick="saveBooking()">إضافة الحجز</button></div>
 </div></div>
 

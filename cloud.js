@@ -23,7 +23,8 @@ const CLOUD_COLLECTIONS = {
   news:       () => news,
   photos:     () => photos,
   reminders:  () => reminders,
-  financeLog: () => financeLog
+  financeLog: () => financeLog,
+  paidThawab: () => paidThawab
 };
 
 const CloudSync = (() => {
@@ -188,6 +189,7 @@ const CloudSync = (() => {
         case 'photos':     photos=arr;     storage.set('photos',JSON.stringify(arr)); break;
         case 'reminders':  reminders=arr;  storage.set('reminders',JSON.stringify(arr)); break;
         case 'financeLog': financeLog=arr; storage.set('financeLog',JSON.stringify(arr)); break;
+        case 'paidThawab':  paidThawab=arr;  storage.set('paidThawab',JSON.stringify(arr)); break;
       }
       refreshViews();
     } finally { applyingRemote = false; }
