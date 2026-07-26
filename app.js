@@ -3194,79 +3194,110 @@ function bookingItemsText(b){
 /* شهادة الشكر PDF (للمساهم في الميقات) */
 /* دالة موحّدة لتوليد شهادة/سند التثويب (بحجم بطاقة) */
 function buildThawabCard(opts){
-  // opts: {title, sub, name, miqatName, deceased[], intro, note, waLink}
-  const dec=opts.deceased||[];
-  const decBlock = dec.length ? `
-    <p class="cert-p">وقد أُهدي ثواب هذه المناسبة إلى أرواح:</p>
-    <div class="cert-names">${dec.map(d=>`<div>${escapeHtml(d)}</div>`).join('')}</div>
-    <p class="cert-p small">نسأل الله تعالى أن يرحمهم، وأن يجعل ثواب هذا المجلس واصلًا إليهم.</p>
-  ` : `<p class="cert-p small">نسأل الله تعالى أن يجعله في ميزان حسناتكم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</p>`;
-  const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(opts.title)} — ${escapeHtml(opts.name)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
-  <style>
-  *{box-sizing:border-box;}
-  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0;color:#1a2620;background:#eae5dc;padding:16px;}
-  .toolbar{display:flex;gap:8px;max-width:560px;margin:0 auto 14px;flex-wrap:wrap;}
-  .tb-btn{border:none;padding:9px 15px;border-radius:9px;font-family:'IBM Plex Sans Arabic';font-size:13.5px;font-weight:600;cursor:pointer;color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
-  .tb-home{background:#8a7c6b;} .tb-fin{background:#123028;} .tb-back{background:#3a473f;} .tb-print{background:#1c4536;} .tb-wa{background:#25d366;}
-  /* البطاقة: حجم قريب من A5 أفقي / بطاقة */
-  .cert{max-width:560px;margin:0 auto;background:
-      radial-gradient(circle at 12% 10%, rgba(193,154,62,.07), transparent 42%),
-      radial-gradient(circle at 88% 90%, rgba(28,69,54,.06), transparent 42%),
-      #fffdf8;
-    border-radius:14px;box-shadow:0 10px 30px rgba(58,40,16,.14);}
-  .cert-frame{border:2px solid #c19a3e;border-radius:12px;margin:7px;}
-  .cert-inner{border:1px solid #d8ccb6;border-radius:8px;margin:5px;padding:22px 24px;text-align:center;}
-  .cert-logo{max-width:140px;max-height:56px;margin:0 auto 4px;display:block;}
-  .cert-org{font-family:'Aref Ruqaa','Amiri',serif;font-size:16px;color:#1c4536;font-weight:700;}
-  .cert-line{width:90px;height:2px;background:#c19a3e;margin:9px auto 14px;position:relative;}
-  .cert-line::before,.cert-line::after{content:'';position:absolute;top:50%;transform:translateY(-50%);width:5px;height:5px;background:#c19a3e;border-radius:50%;}
-  .cert-line::before{right:-3px;}.cert-line::after{left:-3px;}
-  .cert-title{font-family:'Amiri',serif;font-size:22px;font-weight:700;color:#1c4536;margin:2px 0;}
-  .cert-sub{font-size:12px;color:#8a7c6b;margin-bottom:14px;}
-  .cert-name{font-family:'Amiri',serif;font-size:20px;font-weight:700;color:#1a2620;margin:6px 0 12px;}
-  .cert-p{font-size:13.5px;line-height:1.9;color:#3a473f;margin:8px auto;max-width:480px;}
-  .cert-p.small{font-size:12.5px;color:#6a6055;}
-  .cert-miqat{color:#1c4536;font-weight:700;}
-  .cert-info{display:flex;justify-content:center;gap:20px;margin:12px 0;flex-wrap:wrap;}
-  .ci-box{background:rgba(28,69,54,.05);border-radius:9px;padding:9px 16px;}
-  .ci-box .l{font-size:10px;color:#8a7c6b;} .ci-box .v{font-size:15px;font-weight:800;color:#1c4536;margin-top:1px;}
-  .cert-names{margin:12px auto;padding:11px 18px;background:rgba(28,69,54,.05);border-radius:10px;display:inline-block;min-width:220px;}
-  .cert-names div{font-family:'Amiri',serif;font-size:16px;font-weight:700;color:#1c4536;padding:3px 0;}
-  .cert-foot{margin-top:16px;padding-top:14px;border-top:1px solid #e6ddcb;display:flex;justify-content:space-between;align-items:flex-end;}
-  .cert-date{font-size:11px;color:#b3a894;}
-  .cert-sig{text-align:center;}
-  .cert-sig .sn{font-family:'Amiri',serif;font-size:16px;font-weight:700;color:#1a2620;}
-  .cert-sig .sr{font-size:11px;color:#8a7c6b;margin-top:2px;}
-  @media print{ body{background:#fff;padding:0;} .toolbar{display:none;} .cert{box-shadow:none;max-width:100%;} }
-  </style></head><body>
-  <div class="toolbar">
-    <button class="tb-btn tb-print" onclick="window.print()">🖨️ طباعة / PDF</button>
-    ${opts.waLink?`<a class="tb-btn tb-wa" href="${opts.waLink}" target="_blank">💬 واتساب</a>`:''}
-    <button class="tb-btn tb-home" onclick="window.close()">✕ إغلاق</button>
-  </div>
-  <div class="cert"><div class="cert-frame"><div class="cert-inner">
-    ${HAIAA_LOGO?`<img class="cert-logo" src="${HAIAA_LOGO}" alt="" />`:''}
-    <div class="cert-org">هيئة محبي الحسين (ع)</div>
-    <div class="cert-line"></div>
-    <div class="cert-title">${escapeHtml(opts.title)}</div>
-    <div class="cert-sub">${escapeHtml(opts.sub||'السلام عليكم ورحمة الله وبركاته')}</div>
-    <div class="cert-name">${escapeHtml(opts.name)}</div>
-    <p class="cert-p">${opts.intro}</p>
-    ${opts.infoBoxes||''}
-    ${decBlock}
-    ${opts.note?`<p class="cert-p small">ملاحظة: ${escapeHtml(opts.note)}</p>`:''}
-    <div class="cert-foot">
-      <div class="cert-date">${hijriToday()}</div>
-      <div class="cert-sig"><div class="sn">صادق الغسرة</div><div class="sr">أمين السر</div></div>
+  // opts: {title, sub, name, miqatName, deceased[], intro, infoBoxes, note, waLink, kind}
+  // kind: 'farah' → أزرق | 'hzn' → أحمر | غير محدد → يسأل المستخدم
+  const doBuild=(tpl)=>{
+    const dec=opts.deceased||[];
+    // معامل التصغير التلقائي حسب كمية المحتوى (يبقى داخل القالب)
+    let s=1;
+    const nDec=dec.length;
+    const introLen=(opts.intro||'').length;
+    if(nDec>=6 || introLen>340) s=0.8;
+    else if(nDec>=4 || introLen>260) s=0.85;
+    else if(nDec>=2) s=0.92;
+    if(opts.infoBoxes) s=Math.min(s,0.88);
+    const decBlock = dec.length ? `
+      <div class="dec-intro">وقد أُهدي ثواب هذه المناسبة إلى أرواح:</div>
+      <div class="dec-box">${dec.map(d=>`<div class="dec-name">${escapeHtml(d)}</div>`).join('')}</div>
+      <div class="dec-after">نسأل الله تعالى أن يرحمهم، وأن يجعل ثواب هذا المجلس واصلًا إليهم.</div>
+    ` : `<div class="dec-after" style="margin-top:8px">نسأل الله تعالى أن يجعله في ميزان حسناتكم، وأن يرزقكم دوام التوفيق لخدمة أهل البيت (ع).</div>`;
+    const w=window.open('','_blank');
+    w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(opts.title)} — ${escapeHtml(opts.name)}</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+    *{ margin:0; padding:0; box-sizing:border-box; }
+    body{ background:#2a2a2a; font-family:'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif; }
+    .toolbar{ display:flex; gap:8px; max-width:600px; margin:14px auto; flex-wrap:wrap; padding:0 10px; }
+    .tb-btn{ border:none; padding:10px 16px; border-radius:9px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; color:#fff; text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
+    .tb-print{ background:#1c4536; } .tb-wa{ background:#25d366; } .tb-close{ background:#8a7c6b; }
+    .wrap{ max-width:600px; margin:0 auto 30px; }
+    .card{ position:relative; width:100%; aspect-ratio:1080/1440; overflow:hidden; box-shadow:0 10px 34px rgba(0,0,0,.45); }
+    .bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    .content{ position:absolute; left:0; right:0; top:50.5%; bottom:0; padding:0 8% 4.5%; display:flex; flex-direction:column; text-align:center; color:#fff; }
+    .greet{ font-family:inherit; font-size:calc(2.4vw * ${s}); opacity:.9; margin-bottom:.4%; }
+    .name{ font-family:inherit;font-weight:800; font-size:calc(4.3vw * ${s}); margin-bottom:2%; line-height:1.3; }
+    .body{ font-family:inherit; font-size:calc(2.5vw * ${s}); line-height:1.8; margin-bottom:1.6%; }
+    .body b{ font-family:inherit;font-weight:800; }
+    .dec-intro{ font-family:inherit; font-size:calc(2.3vw * ${s}); margin-bottom:1%; opacity:.92; }
+    .dec-box{ background:rgba(255,255,255,.12); border-radius:12px; padding:calc(1.1% * ${s}) 3%; margin-bottom:1.3%; }
+    .dec-name{ font-family:inherit;font-weight:800; font-size:calc(2.8vw * ${s}); padding:.4% 0; }
+    .dec-after{ font-family:inherit; font-size:calc(2.2vw * ${s}); line-height:1.6; opacity:.85; margin-bottom:1.2%; }
+    .info-row{ display:flex; justify-content:center; gap:5%; margin:1.5% 0; }
+    .info-box{ background:rgba(255,255,255,.12); border-radius:10px; padding:1.2% 4%; }
+    .info-box .il{ font-size:calc(1.9vw * ${s}); opacity:.75; } .info-box .iv{ font-family:inherit;font-weight:800; font-size:calc(2.8vw * ${s}); }
+    .foot{ margin-top:auto; display:flex; justify-content:space-between; align-items:flex-end; padding-top:1.5%; }
+    .sig{ font-family:inherit;font-weight:800; font-size:calc(2.6vw * ${s}); text-align:right; }
+    .sig span{ display:block; font-family:inherit; font-size:calc(2vw * ${s}); opacity:.8; margin-top:.3%; }
+    .date{ font-family:inherit; font-size:calc(2vw * ${s}); opacity:.85; }
+    @media print{
+      @page{ size:1080px 1440px; margin:0; }
+      body{ background:#fff; } .toolbar{ display:none; } .wrap{ max-width:100%; margin:0; }
+      .card{ box-shadow:none; width:1080px; height:1440px; }
+      .greet{ font-size:calc(26px * ${s}); } .name{ font-size:calc(46px * ${s}); } .body{ font-size:calc(27px * ${s}); }
+      .dec-intro{ font-size:calc(25px * ${s}); } .dec-name{ font-size:calc(30px * ${s}); } .dec-after{ font-size:calc(24px * ${s}); }
+      .info-box .il{ font-size:calc(20px * ${s}); } .info-box .iv{ font-size:calc(30px * ${s}); }
+      .sig{ font-size:calc(28px * ${s}); } .sig span{ font-size:calc(21px * ${s}); } .date{ font-size:calc(21px * ${s}); }
+    }
+    </style></head><body>
+    <div class="toolbar">
+      <button class="tb-btn tb-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+      ${opts.waLink?`<a class="tb-btn tb-wa" href="${opts.waLink}" target="_blank">💬 واتساب</a>`:''}
+      <button class="tb-btn tb-close" onclick="window.close()">✕ إغلاق</button>
     </div>
-  </div></div></div>
-  </body></html>`);
-  w.document.close(); w.focus();
+    <div class="wrap"><div class="card">
+      <img class="bg" src="${tpl}" alt="" />
+      <div class="content">
+        <div class="greet">الأخ / الأخت الكريم</div>
+        <div class="name">${escapeHtml(opts.name)}</div>
+        <div class="body">${opts.intro}</div>
+        ${opts.infoBoxes||''}
+        ${decBlock}
+        ${opts.note?`<div class="dec-after">ملاحظة: ${escapeHtml(opts.note)}</div>`:''}
+        <div class="foot">
+          <div class="sig">صادق الغسرة<span>أمين السر</span></div>
+          <div class="date">${hijriToday()}</div>
+        </div>
+      </div>
+    </div></div>
+    </body></html>`);
+    w.document.close(); w.focus();
+  };
+  // اختيار القالب
+  if(opts.kind==='farah'){ doBuild(THAWAB_TPL_BLUE); return; }
+  if(opts.kind==='hzn'){ doBuild(THAWAB_TPL_RED); return; }
+  // اسأل المستخدم عن اللون
+  showThawabTemplatePicker(doBuild);
 }
-
-/* شهادة شكر المساهم في الميقات */
+/* نافذة اختيار القالب (أحمر/أزرق) */
+function showThawabTemplatePicker(cb){
+  const ov=document.createElement('div');
+  ov.className='tpl-picker-overlay';
+  ov.innerHTML=`<div class="tpl-picker">
+    <div class="tpp-title">اختر قالب الرسالة</div>
+    <div class="tpp-sub">حسب المناسبة</div>
+    <div class="tpp-btns">
+      <button class="tpp-btn blue" onclick="window.__pickTpl('blue')"><span>🔵</span> أزرق<small>مناسبة فرح</small></button>
+      <button class="tpp-btn red" onclick="window.__pickTpl('red')"><span>🔴</span> أحمر<small>مناسبة حزن</small></button>
+    </div>
+    <button class="tpp-cancel" onclick="window.__pickTpl('')">إلغاء</button>
+  </div>`;
+  document.body.appendChild(ov);
+  window.__pickTpl=(c)=>{
+    ov.remove(); delete window.__pickTpl;
+    if(c==='blue') cb(THAWAB_TPL_BLUE);
+    else if(c==='red') cb(THAWAB_TPL_RED);
+  };
+}
 function printThawabCertificate(miqatId, memberRef, idx){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const bookings=mq.bookings||[];

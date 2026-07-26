@@ -293,6 +293,18 @@
   .tm-meta { font-size:11.5px; color:var(--muted); margin-top:2px; }
   .tm-amt { font-weight:700; color:var(--accent); font-size:14px; }
   .rep-tbl .rep-sum td { background:var(--accent-soft); font-weight:800; color:var(--accent); }
+  /* اختيار قالب الرسالة */
+  .tpl-picker-overlay { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:24px; }
+  .tpl-picker { background:var(--surface); border-radius:18px; padding:24px 20px; max-width:340px; width:100%; text-align:center; }
+  .tpp-title { font-size:18px; font-weight:700; color:var(--ink); }
+  .tpp-sub { font-size:12.5px; color:var(--muted); margin:4px 0 18px; }
+  .tpp-btns { display:flex; gap:12px; margin-bottom:14px; }
+  .tpp-btn { flex:1; border:2px solid var(--line); border-radius:14px; padding:18px 10px; background:var(--surface); cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:6px; font-family:var(--font-sans); font-size:15px; font-weight:700; color:var(--ink); }
+  .tpp-btn span { font-size:26px; }
+  .tpp-btn small { font-size:11px; font-weight:400; color:var(--muted); }
+  .tpp-btn.blue { border-color:#2f5f8f; } .tpp-btn.blue:active { background:#eaf1f8; }
+  .tpp-btn.red { border-color:#a13b3b; } .tpp-btn.red:active { background:#f8ecec; }
+  .tpp-cancel { border:none; background:none; color:var(--muted); font-family:var(--font-sans); font-size:13px; cursor:pointer; padding:6px; }
   .notif-badge { position: absolute; top: -2px; left: -2px; background: #d13438; color: #fff; font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 1.5px solid var(--surface); }
 
   /* Notifications tab */
