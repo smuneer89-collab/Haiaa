@@ -1601,6 +1601,7 @@ function showDetail(id){
       ${active?`<button class="btn btn-ghost" onclick="deactivateMembership('${m.id}')">⛔ إلغاء التفعيل</button>`:''}
       ${(memberPayments(m).length||memberMiqats(m).length)?`<button class="btn btn-ghost" onclick="printSubReceipt('${m.id}')">🧾 تقرير الأقساط PDF</button>`:''}
       ${active?`<button class="btn btn-accent" onclick="openCard('${m.id}')">بطاقة العضوية</button>`:''}
+      ${memberMiqats(m).length?`<button class="btn btn-ghost" onclick="openMemberThawab('${m.id}')">🕯️ تثويبات المرحومين</button>`:''}
       <button class="btn btn-ghost" onclick="openEditMember('${m.id}')">✏️ تعديل الملف</button>
       <a href="${whatsappLink(m.phone)}" target="_blank" class="btn wa-btn large">${WA_ICON} واتساب</a>
       ${active?`<button class="btn btn-ghost" onclick="renewPayment('${m.id}')">تجديد سنة</button>`:''}
@@ -1608,6 +1609,92 @@ function showDetail(id){
       <button class="btn btn-danger btn-sm" onclick="deleteMember('${m.id}')">حذف</button>
     </div>`;
   currentMemberPageId=id; openFullPage('memberpage');
+}
+
+/* ═══════════ تثويبات المرحومين من ملف العضو ═══════════ */
+let mThawabMemberId=null, mThawabMiqatId=null, mThawabNames=[];
+function openMemberThawab(memberId){
+  const m=members.find(x=>x.id===memberId); if(!m) return;
+  const mqs=memberMiqats(m);
+  if(!mqs.length){ toast('لا توجد مواقيت محجوزة لهذا العضو'); return; }
+  mThawabMemberId=memberId;
+  mThawabMiqatId = mqs.length===1 ? mqs[0].id : '';
+  loadMThawabNames();
+  $('#mThawabMemberName').textContent=m.name;
+  renderMThawabBody();
+  $('#memberThawabModal').classList.add('open');
+}
+function loadMThawabNames(){
+  const mq=miqats.find(x=>x.id===mThawabMiqatId);
+  if(!mq){ mThawabNames=[]; return; }
+  const b=(mq.bookings||[]).find(x=>x.memberId===mThawabMemberId);
+  mThawabNames = (b && b.deceased) ? [...b.deceased] : [];
+}
+function renderMThawabBody(){
+  const m=members.find(x=>x.id===mThawabMemberId); if(!m) return;
+  const mqs=memberMiqats(m);
+  const body=$('#mThawabBody');
+  const miqatSelector = mqs.length>1 ? `
+    <div class="field full"><label>اختر الميقات</label>
+      <select id="mThawabMiqatSel" onchange="mThawabPickMiqat(this.value)">
+        <option value="">— اختر ميقاتاً —</option>
+        ${mqs.map(mq=>`<option value="${mq.id}" ${mq.id===mThawabMiqatId?'selected':''}>${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
+      </select></div>` :
+    `<div class="fin-ctx">${escapeHtml(mqs[0].name)} · ${fmtMiqatDate(mqs[0])}</div>`;
+
+  let namesBlock='';
+  if(mThawabMiqatId){
+    namesBlock=`
+    <div class="field full"><label>أسماء المرحومين (إهداء ثواب هذا الميقات)</label>
+      <div id="mThawabNames"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="mThawabAddName()">➕ إضافة اسم متوفى</button>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" onclick="saveMemberThawab()">💾 حفظ التثويبات</button>
+      ${isMiqatPassed(mThawabMiqatId)?`<button class="btn btn-accent" onclick="sendMemberThankYou('${mThawabMemberId}','${mThawabMiqatId}')">📜 إرسال شهادة الشكر PDF</button>`:''}
+    </div>`;
+  }
+  body.innerHTML=miqatSelector+namesBlock;
+  if(mThawabMiqatId) renderMThawabNames();
+}
+function mThawabPickMiqat(id){ mThawabMiqatId=id; loadMThawabNames(); renderMThawabBody(); }
+function renderMThawabNames(){
+  const box=$('#mThawabNames'); if(!box) return;
+  if(!mThawabNames.length) mThawabNames=[''];
+  box.innerHTML=mThawabNames.map((nm,i)=>`
+    <div class="thawab-name-row">
+      <input type="text" placeholder="اسم المرحوم/ة" value="${(nm||'').replace(/"/g,'&quot;')}" oninput="mThawabNames[${i}]=this.value" />
+      <button type="button" class="contrib-del" onclick="mThawabRemoveName(${i})">×</button>
+    </div>`).join('');
+}
+function mThawabAddName(){ mThawabNames.push(''); renderMThawabNames(); }
+function mThawabRemoveName(i){ mThawabNames.splice(i,1); if(!mThawabNames.length) mThawabNames=['']; renderMThawabNames(); }
+async function saveMemberThawab(){
+  if(!mThawabMiqatId){ toast('اختر ميقاتاً'); return; }
+  const mq=miqats.find(x=>x.id===mThawabMiqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===mThawabMemberId);
+  if(!b){ toast('لا يوجد حجز لهذا العضو في هذا الميقات'); return; }
+  const clean=mThawabNames.map(s=>(s||'').trim()).filter(Boolean);
+  b.deceased = clean;
+  await saveMiqats();
+  closeModal('memberThawabModal');
+  toast(clean.length?`تم حفظ ${clean.length} اسماً`:'تم مسح التثويبات');
+}
+/* هل انتهى تاريخ الميقات؟ */
+function isMiqatPassed(miqatId){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return false;
+  const ty=miqatTargetHijriYear(mq);
+  const g=hijriToGregorian(mq.day,mq.month,ty); if(!g) return false;
+  const gd=new Date(g); gd.setHours(0,0,0,0);
+  const t=new Date(); t.setHours(0,0,0,0);
+  return gd < t;
+}
+/* إرسال شهادة الشكر من ملف العضو (نفس شهادة تثويبات المساهمين) */
+function sendMemberThankYou(memberId, miqatId){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const idx=(mq.bookings||[]).findIndex(b=>b.memberId===memberId);
+  if(idx<0){ toast('لا يوجد حجز'); return; }
+  printThawabCertificate(miqatId, memberId, idx);
 }
 
 /* ═══════════ تعديل ملف العضو ═══════════ */
