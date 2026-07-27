@@ -2877,10 +2877,12 @@ function renderRadoods(){
   host.innerHTML=list.map(r=>{
     const nEval=radoodEvals.filter(e=>e.radoodId===r.id).length;
     return `<div class="radood-card">
-      <div class="radood-avatar">${r.img?`<img class="radood-avatar" src="${r.img}" alt="" style="border:none">`:'🎤'}</div>
-      <div class="radood-info">
-        <div class="radood-name">${escapeHtml(r.name)}</div>
-        <div class="radood-meta">${nEval} تقييم${r.note?' · '+escapeHtml(r.note):''}</div>
+      <div class="radood-open" onclick="openRadoodRecord('${r.id}')">
+        <div class="radood-avatar">${r.img?`<img class="radood-avatar" src="${r.img}" alt="" style="border:none">`:'🎤'}</div>
+        <div class="radood-info">
+          <div class="radood-name">${escapeHtml(r.name)}</div>
+          <div class="radood-meta">${nEval} تقييم${r.note?' · '+escapeHtml(r.note):''} · اضغط للسجل ›</div>
+        </div>
       </div>
       <div class="radood-actions">
         <button onclick="openRadoodEval('${r.id}')" title="تقييم جديد" class="rad-eval-btn">⭐ تقييم</button>
@@ -3115,6 +3117,158 @@ async function saveRadoodEval(){
   await saveRadoodEvals();
   toast('تم حفظ التقييم بنجاح');
   closeRadoodEval();
+}
+
+/* ═══════════ التقرير الذكي (يُبنى من الدرجات) ═══════════ */
+function buildSmartReport(ev){
+  const parts=[];
+  const st=ev.stars||{};
+  const g=(k)=>Number(st[k])||0;
+  const avg=ev.avg||0;
+  // الافتتاح حسب المستوى العام
+  if(avg>=4.5) parts.push('قدّم الرادود أداءً متميّزاً في هذه المناسبة');
+  else if(avg>=3.5) parts.push('قدّم الرادود أداءً جيداً بشكل عام');
+  else if(avg>=2.5) parts.push('كان أداء الرادود متوسطاً في هذه المناسبة');
+  else parts.push('أظهر الأداء عدداً من الجوانب التي تحتاج إلى تطوير');
+  // الالتزام
+  const commit=(g('attendance')+g('duration'))/2;
+  if(commit>=4) parts.push('مع التزام ممتاز بالحضور وإدارة الوقت');
+  else if(commit>0 && commit<3) parts.push('مع الحاجة إلى تحسين الالتزام بالوقت');
+  // الصوت والأداء
+  if(g('voice')>=4 || g('melody')>=4) parts.push('وتميّز بقوة الصوت والتحكّم باللحن');
+  // التفاعل
+  const eng=(g('audience')+g('response'))/2;
+  if(eng>=4) parts.push('وكان تفاعل المعزّين مرتفعاً');
+  else if(eng>0 && eng<3) parts.push('ويُنصح برفع مستوى التفاعل مع المعزّين');
+  // القصائد
+  const poems=(g('selection')+g('suitability')+g('quality'))/3;
+  if(poems>0 && poems<3) parts.push('كما يُوصى بتنويع اختيار القصائد وتحسين ملاءمتها للمناسبة');
+  else if(poems>=4) parts.push('مع اختيار موفّق للقصائد');
+  // المستهل
+  if(g('opener')>0 && g('opener')<3) parts.push('ويُنصح بالتركيز على تحسين المستهل');
+  // الخلاصة
+  let verdict='';
+  if(avg>=4.3) verdict='بشكل عام يُعتبر مناسباً للمناسبات الرئيسية.';
+  else if(avg>=3.3) verdict='بشكل عام يُعتبر مناسباً للمناسبات الاعتيادية.';
+  else if(avg>0) verdict='ويُنصح بمنحه مناسبات أصغر مع المتابعة والتطوير.';
+  let report=parts.join('، ')+'. '+verdict;
+  return report;
+}
+
+/* ═══════════ سجل الرادود ═══════════ */
+let recordRadoodId=null;
+function openRadoodRecord(id){ recordRadoodId=id; renderRadoodRecord(); openFullPage('radoodrecord'); }
+function closeRadoodRecord(){ switchTab('meetings'); openIdara('aza'); }
+
+// ترتيب الرواديد حسب متوسط التقييم
+function radoodRanking(){
+  const arr=radoods.map(r=>{
+    const evs=radoodEvals.filter(e=>e.radoodId===r.id);
+    const avg=evs.length ? evs.reduce((s,e)=>s+(e.avg||0),0)/evs.length : 0;
+    return { id:r.id, name:r.name, avg, n:evs.length };
+  }).filter(x=>x.n>0).sort((a,b)=>b.avg-a.avg);
+  return arr;
+}
+function renderRadoodRecord(){
+  const r=radoods.find(x=>x.id===recordRadoodId); if(!r) return;
+  const evs=radoodEvals.filter(e=>e.radoodId===recordRadoodId).sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const host=$('#radoodRecordBody');
+  if(!evs.length){
+    host.innerHTML=`<div class="panel"><div class="rec-head">
+      <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
+      <div class="rec-name">${escapeHtml(r.name)}</div></div>
+      <div class="radood-empty"><div class="re-ic">📋</div><div>لا توجد تقييمات لهذا الرادود بعد</div></div></div>`;
+    return;
+  }
+  const n=evs.length;
+  const avgAll=evs.reduce((s,e)=>s+(e.avg||0),0)/n;
+  const pctAll=Math.round(avgAll*20);
+  const best=[...evs].sort((a,b)=>(b.avg||0)-(a.avg||0))[0];
+  const worst=[...evs].sort((a,b)=>(a.avg||0)-(b.avg||0))[0];
+  // أعلى تفاعل
+  let topEngage=null, topEngageVal=-1;
+  evs.forEach(e=>{ const v=((Number(e.stars?.audience)||0)+(Number(e.stars?.response)||0))/2; if(v>topEngageVal){ topEngageVal=v; topEngage=e; } });
+  // الترتيب
+  const ranking=radoodRanking();
+  const rank=ranking.findIndex(x=>x.id===recordRadoodId)+1;
+  // آخر 5
+  const last5=evs.slice(0,5);
+  // بيانات الرسم (زمنياً تصاعدي)
+  const chartData=[...evs].sort((a,b)=>(a.at||'').localeCompare(b.at||'')).map(e=>({ v:e.pct||Math.round((e.avg||0)*20), label:e.miqatName||'' }));
+
+  host.innerHTML=`
+  <div class="panel rec-panel">
+    <div class="rec-head">
+      <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
+      <div class="rec-name">${escapeHtml(r.name)}</div>
+      <div class="rec-rank">🏆 الترتيب ${rank} من ${ranking.length}</div>
+    </div>
+
+    <div class="rec-stats">
+      <div class="rec-stat"><div class="rs-v">${n}</div><div class="rs-l">مناسبة</div></div>
+      <div class="rec-stat"><div class="rs-v">${pctAll}%</div><div class="rs-l">متوسط التقييم</div></div>
+      <div class="rec-stat"><div class="rs-v">${Math.round(avgAll*100)/100}</div><div class="rs-l">من 5</div></div>
+    </div>
+
+    <div class="rec-sec">
+      <div class="rec-sec-h">📈 تطوّر المستوى</div>
+      ${chartData.length>1 ? renderEvalChart(chartData) : '<div class="rec-note">يحتاج تقييمين على الأقل لعرض التطوّر</div>'}
+    </div>
+
+    <div class="rec-highlights">
+      <div class="rec-hl best"><div class="hl-l">🌟 أفضل مناسبة</div><div class="hl-v">${escapeHtml(best.miqatName||'—')}</div><div class="hl-s">${best.pct||Math.round((best.avg||0)*20)}%</div></div>
+      <div class="rec-hl low"><div class="hl-l">📉 أقل مناسبة</div><div class="hl-v">${escapeHtml(worst.miqatName||'—')}</div><div class="hl-s">${worst.pct||Math.round((worst.avg||0)*20)}%</div></div>
+    </div>
+    ${topEngage?`<div class="rec-engage">🔥 أعلى تفاعل: <b>${escapeHtml(topEngage.miqatName||'—')}</b> (${Math.round(topEngageVal*20)}%)</div>`:''}
+
+    <div class="rec-sec">
+      <div class="rec-sec-h">🕐 آخر ${last5.length} قراءات</div>
+      ${last5.map(e=>{
+        const pct=e.pct||Math.round((e.avg||0)*20);
+        return `<div class="rec-eval-row" onclick="toggleEvalReport('${e.id}')">
+          <div class="rer-body">
+            <div class="rer-name">${escapeHtml(e.miqatName||e.occasion||'—')}</div>
+            <div class="rer-date">${e.at?new Date(e.at).toLocaleDateString('ar'):''}${e.duration?' · '+escapeHtml(e.duration):''}</div>
+          </div>
+          <div class="rer-score ${pct>=80?'good':pct>=60?'mid':'low'}">${pct}%</div>
+        </div>
+        <div class="rer-report" id="report_${e.id}" style="display:none">
+          <div class="rer-report-h">📄 التقرير</div>
+          <p>${escapeHtml(buildSmartReport(e))}</p>
+          ${e.strengths&&e.strengths.length?`<div class="rer-tags"><b>نقاط القوة:</b> ${e.strengths.map(escapeHtml).join('، ')}</div>`:''}
+          ${e.recommends&&e.recommends.length?`<div class="rer-tags"><b>التوصيات:</b> ${e.recommends.map(escapeHtml).join('، ')}</div>`:''}
+          ${e.notes?`<div class="rer-tags"><b>ملاحظات:</b> ${escapeHtml(e.notes)}</div>`:''}
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteRadoodEval('${e.id}')" style="color:var(--danger);margin-top:8px;">🗑️ حذف التقييم</button>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+function toggleEvalReport(id){
+  const el=$('#report_'+id); if(el) el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+async function deleteRadoodEval(id){
+  if(!confirm('حذف هذا التقييم؟')) return;
+  radoodEvals=radoodEvals.filter(e=>e.id!==id);
+  await saveRadoodEvals();
+  renderRadoodRecord(); renderRadoods();
+}
+/* رسم بياني SVG بسيط لتطوّر التقييم */
+function renderEvalChart(data){
+  const W=300, H=120, pad=20;
+  const max=100, min=0;
+  const n=data.length;
+  const stepX=(W-pad*2)/Math.max(1,n-1);
+  const y=v=>H-pad-((v-min)/(max-min))*(H-pad*2);
+  const pts=data.map((d,i)=>({ x:pad+i*stepX, y:y(d.v), v:d.v }));
+  const line=pts.map((p,i)=>`${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const area=`${line} L${pts[pts.length-1].x.toFixed(1)},${H-pad} L${pts[0].x.toFixed(1)},${H-pad} Z`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="eval-chart" preserveAspectRatio="xMidYMid meet">
+    ${[0,25,50,75,100].map(v=>`<line x1="${pad}" y1="${y(v)}" x2="${W-pad}" y2="${y(v)}" stroke="#e6ddcb" stroke-width="1"/>`).join('')}
+    <path d="${area}" fill="rgba(28,69,54,.08)"/>
+    <path d="${line}" fill="none" stroke="#1c4536" stroke-width="2.5" stroke-linejoin="round"/>
+    ${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#c19a3e"/><text x="${p.x.toFixed(1)}" y="${(p.y-9).toFixed(1)}" text-anchor="middle" font-size="10" fill="#1c4536" font-weight="700">${p.v}</text>`).join('')}
+  </svg>`;
 }
 async function enterFinance(){
   const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');

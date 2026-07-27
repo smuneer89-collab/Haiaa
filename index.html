@@ -344,6 +344,41 @@
   .er-stars { margin-top:8px; }
   .rs-star { font-size:22px; color:var(--gold); }
   .rs-star:not(.on) { opacity:.3; }
+  /* سجل الرادود */
+  .radood-open { display:flex; align-items:center; gap:14px; flex:1; min-width:0; cursor:pointer; }
+  .rec-panel { padding:0; overflow:hidden; }
+  .rec-head { background:linear-gradient(150deg,var(--accent-deep),var(--accent)); padding:20px 18px; color:#fff; display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .rec-name { font-size:19px; font-weight:800; }
+  .rec-rank { font-size:12.5px; color:var(--gold); background:rgba(255,255,255,.1); padding:4px 14px; border-radius:20px; }
+  .rec-stats { display:flex; padding:16px; gap:10px; border-bottom:1px solid var(--line); }
+  .rec-stat { flex:1; text-align:center; background:var(--accent-soft); border-radius:12px; padding:14px 8px; }
+  .rec-stat .rs-v { font-size:22px; font-weight:800; color:var(--accent); }
+  .rec-stat .rs-l { font-size:11px; color:var(--muted); margin-top:3px; }
+  .rec-sec { padding:16px 18px; border-bottom:1px solid var(--line); }
+  .rec-sec-h { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:12px; }
+  .rec-note { color:var(--muted-2); font-size:13px; text-align:center; padding:14px; }
+  .eval-chart { width:100%; height:auto; display:block; }
+  .rec-highlights { display:flex; gap:10px; padding:16px 18px; }
+  .rec-hl { flex:1; border-radius:12px; padding:12px; text-align:center; border:1px solid var(--line); }
+  .rec-hl.best { background:var(--ok-soft); } .rec-hl.low { background:var(--warn-soft); }
+  .rec-hl .hl-l { font-size:11px; color:var(--muted); }
+  .rec-hl .hl-v { font-size:13.5px; font-weight:700; color:var(--ink); margin:4px 0; }
+  .rec-hl .hl-s { font-size:16px; font-weight:800; }
+  .rec-hl.best .hl-s { color:var(--ok); } .rec-hl.low .hl-s { color:var(--warn); }
+  .rec-engage { margin:0 18px 16px; padding:11px 14px; background:#fdf3e3; border-radius:10px; font-size:13px; color:var(--warn); }
+  .rec-engage b { color:var(--ink); }
+  .rec-eval-row { display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:8px; cursor:pointer; }
+  .rer-name { font-weight:600; font-size:14px; color:var(--ink); }
+  .rer-date { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .rer-score { font-weight:800; font-size:16px; padding:4px 10px; border-radius:8px; }
+  .rer-score.good { color:var(--ok); background:var(--ok-soft); }
+  .rer-score.mid { color:var(--warn); background:var(--warn-soft); }
+  .rer-score.low { color:var(--danger); background:#f8ecec; }
+  .rer-report { background:var(--bg); border-radius:10px; padding:14px; margin:-2px 0 10px; }
+  .rer-report-h { font-size:12.5px; font-weight:700; color:var(--accent); margin-bottom:8px; }
+  .rer-report p { font-size:13.5px; line-height:1.9; color:var(--ink); margin:0 0 8px; }
+  .rer-tags { font-size:12.5px; color:var(--muted); margin-top:6px; line-height:1.7; }
+  .rer-tags b { color:var(--accent); }
   /* اختيار قالب الرسالة */
   .tpl-picker-overlay { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:24px; }
   .tpl-picker { background:var(--surface); border-radius:18px; padding:24px 20px; max-width:340px; width:100%; text-align:center; }
@@ -1381,6 +1416,14 @@
       <button class="btn btn-ghost btn-sm" onclick="switchTab('dashboard')">← الرئيسية</button>
     </div>
     <div id="notifList"></div>
+  </section>
+
+  <!-- صفحة سجل الرادود -->
+  <section id="tab-radoodrecord" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeRadoodRecord()">← رجوع للجنة العزاء</button>
+    </div>
+    <div id="radoodRecordBody"></div>
   </section>
 
   <!-- صفحة تقييم الرادود -->
