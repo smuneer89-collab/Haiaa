@@ -2868,20 +2868,38 @@ function openIdara(which){
 
 /* ═══════════ لجنة العزاء — الرواديد ═══════════ */
 let radoodPhotoData=null, editingRadoodId=null;
+function radoodParticipations(radoodId){
+  // عدد المناسبات المختلفة التي قُيّم فيها الرادود
+  const evs=radoodEvals.filter(e=>e.radoodId===radoodId);
+  const miqatSet=new Set(evs.map(e=>e.miqatId));
+  return miqatSet.size;
+}
+function radoodOverallAvg(radoodId){
+  const evs=radoodEvals.filter(e=>e.radoodId===radoodId);
+  if(!evs.length) return 0;
+  return evs.reduce((s,e)=>s+(e.avg||0),0)/evs.length;
+}
 function renderRadoods(){
   const q=($('#radoodSearch')?.value||'').trim();
-  const list=radoods.filter(r=>!q||(r.name||'').includes(q)).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar'));
   const cnt=$('#azaRcount'); if(cnt) cnt.textContent=`${radoods.length} رادود`;
   const host=$('#radoodList'); if(!host) return;
-  if(!list.length){ host.innerHTML=`<div class="radood-empty"><div class="re-ic">🎤</div><div>${q?'لا نتائج':'لا يوجد رواديد بعد — أضف أول رادود'}</div></div>`; return; }
+  // لا تُظهر القائمة إلا عند البحث
+  if(!q){
+    host.innerHTML=`<div class="radood-empty"><div class="re-ic">🔍</div><div>ابحث عن رادود بالاسم لعرض سجلّه ومشاركاته</div></div>`;
+    return;
+  }
+  const list=radoods.filter(r=>(r.name||'').includes(q)).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar'));
+  if(!list.length){ host.innerHTML=`<div class="radood-empty"><div class="re-ic">🎤</div><div>لا نتائج للبحث «${escapeHtml(q)}»</div></div>`; return; }
   host.innerHTML=list.map(r=>{
-    const nEval=radoodEvals.filter(e=>e.radoodId===r.id).length;
+    const nPart=radoodParticipations(r.id);
+    const avg=radoodOverallAvg(r.id);
+    const pct=Math.round(avg*20);
     return `<div class="radood-card">
       <div class="radood-open" onclick="openRadoodRecord('${r.id}')">
         <div class="radood-avatar">${r.img?`<img class="radood-avatar" src="${r.img}" alt="" style="border:none">`:'🎤'}</div>
         <div class="radood-info">
           <div class="radood-name">${escapeHtml(r.name)}</div>
-          <div class="radood-meta">${nEval} تقييم${r.note?' · '+escapeHtml(r.note):''} · اضغط للسجل ›</div>
+          <div class="radood-meta">${nPart} مشاركة${nPart?` · متوسط ${pct}%`:''}${r.note?' · '+escapeHtml(r.note):''} · اضغط للسجل ›</div>
         </div>
       </div>
       <div class="radood-actions">
@@ -2961,7 +2979,7 @@ let evalRadoodId=null, evalData=null;
 function openRadoodEval(radoodId){
   const r=radoods.find(x=>x.id===radoodId); if(!r) return;
   evalRadoodId=radoodId;
-  evalData={ stars:{}, program:{}, ambiance:{}, strengths:[], recommends:[], miqatId:'', occasion:'', duration:'', notes:'' };
+  evalData={ stars:{}, program:{}, ambiance:{}, strengths:[], recommends:[], miqatId:'', occasion:'', duration:'', notes:'', gaveRight:'', gaveRightReason:'' };
   renderRadoodEvalPage();
   openFullPage('radoodeval');
 }
@@ -3054,6 +3072,18 @@ function renderRadoodEvalPage(){
       </div>
     </div>
 
+    <!-- هل أعطى المناسبة حقها -->
+    <div class="eval-sec">
+      <div class="eval-sec-h">⚖️ هل أعطى الرادود هذه المناسبة حقّها؟</div>
+      <div class="eyn-btns" style="margin-bottom:10px;">
+        <button class="eyn-btn" id="rightYes" onclick="setGaveRight('yes')">نعم</button>
+        <button class="eyn-btn" id="rightNo" onclick="setGaveRight('no')">لا</button>
+      </div>
+      <div id="rightReasonWrap" style="display:none;">
+        <textarea id="rightReason" rows="2" placeholder="اذكر السبب…" oninput="evalData.gaveRightReason=this.value"></textarea>
+      </div>
+    </div>
+
     <!-- النتيجة النهائية -->
     <div class="eval-result" id="evalResult">
       <div class="er-label">النتيجة النهائية</div>
@@ -3083,6 +3113,13 @@ function toggleRecommend(s,btn){
   const i=evalData.recommends.indexOf(s);
   if(i<0){ evalData.recommends.push(s); btn.classList.add('on'); } else { evalData.recommends.splice(i,1); btn.classList.remove('on'); }
 }
+function setGaveRight(v){
+  evalData.gaveRight=v;
+  $('#rightYes')?.classList.toggle('on', v==='yes');
+  $('#rightNo')?.classList.toggle('on', v==='no');
+  const wrap=$('#rightReasonWrap'); if(wrap) wrap.style.display = v==='no' ? 'block' : 'none';
+  if(v==='yes') evalData.gaveRightReason='';
+}
 /* حساب النتيجة: متوسط كل النجوم × 20 = نسبة مئوية */
 function computeEvalScore(data){
   const vals=Object.values(data.stars||{}).map(Number).filter(n=>n>0);
@@ -3111,6 +3148,7 @@ async function saveRadoodEval(){
     miqatName:mq?mq.name:'', occasion:evalData.occasion||'', duration:evalData.duration||'',
     stars:evalData.stars, program:evalData.program, ambiance:evalData.ambiance,
     strengths:evalData.strengths, recommends:evalData.recommends, notes:evalData.notes||'',
+    gaveRight:evalData.gaveRight||'', gaveRightReason:evalData.gaveRightReason||'',
     avg, pct, at:new Date().toISOString()
   };
   radoodEvals.push(entry);
@@ -3202,6 +3240,7 @@ function renderRadoodRecord(){
       <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
       <div class="rec-name">${escapeHtml(r.name)}</div>
       <div class="rec-rank">🏆 الترتيب ${rank} من ${ranking.length}</div>
+      <button class="btn btn-accent btn-sm" style="margin-top:6px;" onclick="printRadoodProfile('${r.id}')">🖨️ طباعة ملف الرادود PDF</button>
     </div>
 
     <div class="rec-stats">
@@ -3237,8 +3276,12 @@ function renderRadoodRecord(){
           <p>${escapeHtml(buildSmartReport(e))}</p>
           ${e.strengths&&e.strengths.length?`<div class="rer-tags"><b>نقاط القوة:</b> ${e.strengths.map(escapeHtml).join('، ')}</div>`:''}
           ${e.recommends&&e.recommends.length?`<div class="rer-tags"><b>التوصيات:</b> ${e.recommends.map(escapeHtml).join('، ')}</div>`:''}
+          ${e.gaveRight?`<div class="rer-tags"><b>أعطى المناسبة حقّها:</b> ${e.gaveRight==='yes'?'نعم ✅':'لا ❌'}${e.gaveRight==='no'&&e.gaveRightReason?' — '+escapeHtml(e.gaveRightReason):''}</div>`:''}
           ${e.notes?`<div class="rer-tags"><b>ملاحظات:</b> ${escapeHtml(e.notes)}</div>`:''}
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteRadoodEval('${e.id}')" style="color:var(--danger);margin-top:8px;">🗑️ حذف التقييم</button>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printRadoodMiqatPDF('${e.id}')" style="color:var(--accent);">🖨️ طباعة هذه المناسبة</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteRadoodEval('${e.id}')" style="color:var(--danger);">🗑️ حذف</button>
+          </div>
         </div>`;
       }).join('')}
     </div>
@@ -3269,6 +3312,126 @@ function renderEvalChart(data){
     <path d="${line}" fill="none" stroke="#1c4536" stroke-width="2.5" stroke-linejoin="round"/>
     ${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#c19a3e"/><text x="${p.x.toFixed(1)}" y="${(p.y-9).toFixed(1)}" text-anchor="middle" font-size="10" fill="#1c4536" font-weight="700">${p.v}</text>`).join('')}
   </svg>`;
+}
+
+/* PDF ملف الرادود الكامل (بصورته + كل مشاركاته) */
+function printRadoodProfile(id){
+  const r=radoods.find(x=>x.id===id); if(!r) return;
+  const evs=radoodEvals.filter(e=>e.radoodId===id).sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const n=evs.length;
+  const avgAll=n?evs.reduce((s,e)=>s+(e.avg||0),0)/n:0;
+  const pctAll=Math.round(avgAll*20);
+  const parts=radoodParticipations(id);
+  const ranking=radoodRanking();
+  const rank=ranking.findIndex(x=>x.id===id)+1;
+  const best=n?[...evs].sort((a,b)=>(b.avg||0)-(a.avg||0))[0]:null;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ملف الرادود — ${escapeHtml(r.name)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:200px;max-height:76px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:20px;}
+  .doc-title{font-family:'Amiri',serif;font-size:22px;font-weight:700;color:#1c4536;margin:10px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:14px;}
+  .rp-head{display:flex;align-items:center;gap:20px;margin-bottom:22px;padding:18px;background:#f6f2ea;border-radius:14px;}
+  .rp-avatar{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #c19a3e;background:#e6f0ea;display:flex;align-items:center;justify-content:center;font-size:40px;}
+  .rp-name{font-size:22px;font-weight:800;color:#1c4536;}
+  .rp-note{font-size:13px;color:#8a7c6b;margin-top:4px;}
+  .rp-stats{display:flex;gap:14px;margin-bottom:24px;}
+  .rp-stat{flex:1;text-align:center;border:1px solid #e6ddcb;border-radius:12px;padding:14px;}
+  .rp-stat .v{font-size:24px;font-weight:800;color:#1c4536;}
+  .rp-stat .l{font-size:12px;color:#8a7c6b;margin-top:3px;}
+  h2{font-size:16px;color:#fff;background:#1c4536;display:inline-block;padding:6px 16px 6px 20px;border-radius:0 18px 18px 0;margin:22px 0 12px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{border:1px solid #e6ddcb;padding:9px 12px;text-align:right;}
+  th{background:#1c4536;color:#fff;}
+  tr:nth-child(even){background:#faf7f0;}
+  .foot{margin-top:32px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;} .no-print{display:none;}}
+  .no-print{position:fixed;top:12px;left:12px;background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;}
+  </style></head><body>
+  <button class="no-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">ملف تقييم الرادود</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · لجنة العزاء · ${hijriToday()}</div></div>
+  <div class="rp-head">
+    <div class="rp-avatar">${r.img?`<img src="${r.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`:'🎤'}</div>
+    <div><div class="rp-name">${escapeHtml(r.name)}</div>${r.note?`<div class="rp-note">${escapeHtml(r.note)}</div>`:''}</div>
+  </div>
+  <div class="rp-stats">
+    <div class="rp-stat"><div class="v">${parts}</div><div class="l">مشاركة في الهيئة</div></div>
+    <div class="rp-stat"><div class="v">${pctAll}%</div><div class="l">التقييم الكلي</div></div>
+    <div class="rp-stat"><div class="v">${rank||'—'}</div><div class="l">الترتيب من ${ranking.length}</div></div>
+  </div>
+  ${best?`<p>🌟 أفضل مناسبة: <b>${escapeHtml(best.miqatName||'—')}</b> بنسبة ${best.pct||Math.round((best.avg||0)*20)}%.</p>`:''}
+  <h2>سجل المشاركات (${n})</h2>
+  ${n?`<table><tr><th>#</th><th>المناسبة</th><th>التاريخ</th><th>المدة</th><th>التقييم</th><th>أعطى حقّها</th></tr>
+    ${evs.map((e,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(e.miqatName||e.occasion||'—')}</td><td>${e.at?new Date(e.at).toLocaleDateString('ar'):''}</td><td>${escapeHtml(e.duration||'—')}</td><td>${e.pct||Math.round((e.avg||0)*20)}%</td><td>${e.gaveRight==='yes'?'نعم':e.gaveRight==='no'?'لا':'—'}</td></tr>`).join('')}
+    </table>`:'<p style="color:#8a7c6b">لا مشاركات مسجّلة.</p>'}
+  <div class="foot">هيئة محبي الحسين (ع) — لجنة العزاء · ملف تقييم الرادود</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* PDF مناسبة واحدة بتفاصيلها */
+function printRadoodMiqatPDF(evalId){
+  const e=radoodEvals.find(x=>x.id===evalId); if(!e) return;
+  const r=radoods.find(x=>x.id===e.radoodId);
+  const pct=e.pct||Math.round((e.avg||0)*20);
+  const starRows=EVAL_GROUPS.map(g=>{
+    const rows=g.items.filter(([k])=>e.stars&&e.stars[k]).map(([k,label])=>`<tr><td>${label}</td><td>${'★'.repeat(e.stars[k])}${'☆'.repeat(5-e.stars[k])} (${e.stars[k]}/5)</td></tr>`).join('');
+    return rows?`<tr class="grp"><td colspan="2">${g.title}</td></tr>${rows}`:'';
+  }).join('');
+  const prog=Object.entries(e.program||{}).filter(([_,v])=>v&&Number(v)>0).map(([k,v])=>`${k}: ${v}%`).join(' · ');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(r?r.name:'')} — ${escapeHtml(e.miqatName||'')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:190px;max-height:72px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:18px;}
+  .doc-title{font-family:'Amiri',serif;font-size:21px;font-weight:700;color:#1c4536;margin:10px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:13px;}
+  .mq-info{display:flex;align-items:center;gap:16px;background:#f6f2ea;border-radius:12px;padding:14px;margin-bottom:18px;}
+  .mq-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #c19a3e;background:#e6f0ea;display:flex;align-items:center;justify-content:center;font-size:28px;}
+  .mq-name{font-size:18px;font-weight:800;color:#1c4536;}
+  .mq-occ{font-size:13px;color:#8a7c6b;margin-top:2px;}
+  .mq-score{margin-right:auto;text-align:center;}
+  .mq-score .v{font-size:28px;font-weight:800;color:${pct>=80?'#2f8f5b':pct>=60?'#b5763a':'#b85c5c'};}
+  h2{font-size:15px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 18px;border-radius:0 16px 16px 0;margin:18px 0 10px;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:8px;}
+  th,td{border:1px solid #e6ddcb;padding:7px 11px;text-align:right;}
+  th{background:#1c4536;color:#fff;}
+  tr.grp td{background:#e6f0ea;font-weight:700;color:#1c4536;}
+  .box{background:#faf7f0;border:1px solid #e6ddcb;border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:13.5px;}
+  .box b{color:#1c4536;}
+  .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;} .no-print{display:none;}}
+  .no-print{position:fixed;top:12px;left:12px;background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;}
+  </style></head><body>
+  <button class="no-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">تقييم مناسبة</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · لجنة العزاء · ${hijriToday()}</div></div>
+  <div class="mq-info">
+    <div class="mq-avatar">${r&&r.img?`<img src="${r.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`:'🎤'}</div>
+    <div><div class="mq-name">${escapeHtml(r?r.name:'')}</div><div class="mq-occ">${escapeHtml(e.miqatName||e.occasion||'')}${e.duration?' · '+escapeHtml(e.duration):''}</div></div>
+    <div class="mq-score"><div class="v">${pct}%</div><div style="font-size:11px;color:#8a7c6b;">${e.avg||0}/5</div></div>
+  </div>
+  <h2>تفاصيل التقييم</h2>
+  <table>${starRows}</table>
+  ${prog?`<div class="box"><b>نوع البرنامج:</b> ${escapeHtml(prog)}</div>`:''}
+  ${e.strengths&&e.strengths.length?`<div class="box"><b>نقاط القوة:</b> ${e.strengths.map(escapeHtml).join('، ')}</div>`:''}
+  ${e.recommends&&e.recommends.length?`<div class="box"><b>التوصيات:</b> ${e.recommends.map(escapeHtml).join('، ')}</div>`:''}
+  <div class="box"><b>هل أعطى المناسبة حقّها؟</b> ${e.gaveRight==='yes'?'نعم':e.gaveRight==='no'?'لا':'—'}${e.gaveRight==='no'&&e.gaveRightReason?' — '+escapeHtml(e.gaveRightReason):''}</div>
+  ${e.notes?`<div class="box"><b>ملاحظات:</b> ${escapeHtml(e.notes)}</div>`:''}
+  <div class="box"><b>التقرير:</b> ${escapeHtml(buildSmartReport(e))}</div>
+  <div class="foot">هيئة محبي الحسين (ع) — لجنة العزاء · تقييم مناسبة</div>
+  </body></html>`);
+  w.document.close(); w.focus();
 }
 async function enterFinance(){
   const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');
