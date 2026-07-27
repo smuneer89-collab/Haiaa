@@ -2883,17 +2883,16 @@ function renderRadoods(){
   const q=($('#radoodSearch')?.value||'').trim();
   const cnt=$('#azaRcount'); if(cnt) cnt.textContent=`${radoods.length} رادود`;
   const host=$('#radoodList'); if(!host) return;
-  // لا تُظهر القائمة إلا عند البحث
-  if(!q){
-    host.innerHTML=`<div class="radood-empty"><div class="re-ic">🔍</div><div>ابحث عن رادود بالاسم لعرض سجلّه ومشاركاته</div></div>`;
+  if(!radoods.length){
+    host.innerHTML=`<div class="radood-empty"><div class="re-ic">🎤</div><div>لا يوجد رواديد بعد — أضف أول رادود من زر «➕ إضافة رادود»</div></div>`;
     return;
   }
-  const list=radoods.filter(r=>(r.name||'').includes(q)).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar'));
-  if(!list.length){ host.innerHTML=`<div class="radood-empty"><div class="re-ic">🎤</div><div>لا نتائج للبحث «${escapeHtml(q)}»</div></div>`; return; }
+  const list=radoods.filter(r=>!q||(r.name||'').includes(q)).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar'));
+  if(!list.length){ host.innerHTML=`<div class="radood-empty"><div class="re-ic">🔍</div><div>لا نتائج للبحث «${escapeHtml(q)}»</div></div>`; return; }
   host.innerHTML=list.map(r=>{
     const nPart=radoodParticipations(r.id);
     const avg=radoodOverallAvg(r.id);
-    const pct=Math.round(avg*20);
+    const pct=Math.round(avg/3*100);
     return `<div class="radood-card">
       <div class="radood-open" onclick="openRadoodRecord('${r.id}')">
         <div class="radood-avatar">${r.img?`<img class="radood-avatar" src="${r.img}" alt="" style="border:none">`:'🎤'}</div>
@@ -3222,22 +3221,27 @@ function renderRadoodRecord(){
     host.innerHTML=`<div class="panel"><div class="rec-head">
       <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
       <div class="rec-name">${escapeHtml(r.name)}</div>
-      <button class="btn btn-sm" style="margin-top:8px;background:#25604a;color:#fff;border:none;" onclick="openEvalLinkDialog('${r.id}')">🔗 رابط تقييم جماعي</button>
     </div>
       <div class="radood-empty"><div class="re-ic">📋</div><div>لا توجد تقييمات لهذا الرادود بعد</div>
         <div style="margin-top:14px;">
           <button class="btn btn-primary btn-sm" onclick="openRadoodEval('${r.id}')">⭐ إضافة تقييم</button>
         </div>
       </div>
+      <div class="rec-sec">
+        <div class="rec-sec-h">🔗 جلسات التقييم الجماعي</div>
+        <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">➕ إنشاء رابط تقييم جديد</button>
+        <div id="recSessionsList"><div class="eval-link-loading">جارٍ تحميل الجلسات…</div></div>
+      </div>
       <div style="padding:14px 18px;text-align:center;border-top:1px solid var(--line);">
         <button class="btn btn-ghost btn-sm" onclick="closeRadoodRecord()">← رجوع للجنة العزاء</button>
       </div>
     </div>`;
+    loadRecordSessions(recordRadoodId);
     return;
   }
   const n=evs.length;
   const avgAll=evs.reduce((s,e)=>s+(e.avg||0),0)/n;
-  const pctAll=Math.round(avgAll*20);
+  const pctAll=Math.round(avgAll/3*100);
   const best=[...evs].sort((a,b)=>(b.avg||0)-(a.avg||0))[0];
   const worst=[...evs].sort((a,b)=>(a.avg||0)-(b.avg||0))[0];
   // أعلى تفاعل
@@ -3304,10 +3308,19 @@ function renderRadoodRecord(){
       }).join('')}
     </div>
 
+    <!-- جلسات التقييم الجماعي -->
+    <div class="rec-sec">
+      <div class="rec-sec-h">🔗 جلسات التقييم الجماعي</div>
+      <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">➕ إنشاء رابط تقييم جديد</button>
+      <div id="recSessionsList"><div class="eval-link-loading">جارٍ تحميل الجلسات…</div></div>
+    </div>
+
     <div style="padding:16px 18px;text-align:center;">
       <button class="btn btn-ghost" onclick="closeRadoodRecord()">← رجوع للجنة العزاء</button>
     </div>
   </div>`;
+  // حمّل الجلسات في صفحة الرادود
+  loadRecordSessions(recordRadoodId);
 }
 function toggleEvalReport(id){
   const el=$('#report_'+id); if(el) el.style.display = el.style.display==='none' ? 'block' : 'none';
@@ -3334,6 +3347,56 @@ function renderEvalChart(data){
     <path d="${line}" fill="none" stroke="#1c4536" stroke-width="2.5" stroke-linejoin="round"/>
     ${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#c19a3e"/><text x="${p.x.toFixed(1)}" y="${(p.y-9).toFixed(1)}" text-anchor="middle" font-size="10" fill="#1c4536" font-weight="700">${p.v}</text>`).join('')}
   </svg>`;
+}
+
+/* جلسات التقييم الجماعي داخل صفحة الرادود */
+async function loadRecordSessions(radoodId){
+  const host=$('#recSessionsList'); if(!host) return;
+  if(!window.CloudSync || !CloudSync.isReady){ host.innerHTML='<div class="eval-link-note">سجّل الدخول للسحابة لعرض جلسات التقييم الجماعي.</div>'; return; }
+  try{
+    const all=await CloudSync.fetchEvalSessions();
+    const mine=all.filter(s=>s.radoodId===radoodId);
+    if(!mine.length){ host.innerHTML='<div class="eval-link-note">لا توجد جلسات تقييم جماعي بعد. أنشئ رابطاً لبدء جلسة.</div>'; return; }
+    host.innerHTML=mine.map(s=>`
+      <div class="els-row">
+        <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
+          <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلقة':'· 🟢 مفتوحة'}</div></div>
+        <button class="btn btn-sm" onclick="viewRecordResults('${s._id}','${escapeHtml(s.miqatName||'')}')">👁️ النتائج</button>
+      </div>
+      <div id="recRes_${s._id}" class="rec-session-result" style="display:none;"></div>`).join('');
+  }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err">تعذّر تحميل الجلسات.</div>'; }
+}
+async function viewRecordResults(sessionId, miqatName){
+  const box=$('#recRes_'+sessionId); if(!box) return;
+  if(box.style.display==='block'){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML='<div class="eval-link-loading">جارٍ جلب النتائج…</div>';
+  try{
+    const evals=await CloudSync.fetchPublicEvals(sessionId);
+    if(!evals.length){ box.innerHTML='<div class="eval-link-note">لم يصل أي تقييم بعد.</div>'; return; }
+    const n=evals.length;
+    const avg=evals.reduce((s,e)=>s+(e.avg||0),0)/n;
+    const pct=Math.round(avg/3*100);
+    const yes=evals.filter(e=>e.gaveRight==='yes').length;
+    const no=evals.filter(e=>e.gaveRight==='no').length;
+    currentEvalRadoodId=recordRadoodId;
+    window.__lastGroupEvals={ sessionId, miqatName, evals, avg, pct, n };
+    box.innerHTML=`
+      <div class="eval-results-box">
+        <div class="erb-main"><div class="erb-pct">${pct}%</div><div class="erb-sub">${n} مقيّم</div></div>
+        <div class="erb-right">أعطى المناسبة حقّها: ${yes} قالوا نعم · ${no} قالوا لا</div>
+        <div class="erb-actions">
+          <button class="btn btn-primary btn-sm" onclick="saveGroupEvalToRecord('${sessionId}','${escapeHtml(miqatName)}')">💾 حفظ في السجل</button>
+          <button class="btn btn-accent btn-sm" onclick="printGroupEvalPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ PDF</button>
+          <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleEvalSessionRec('${sessionId}')">🔒 إغلاق</button>
+        </div>
+      </div>`;
+  }catch(e){ console.error(e); box.innerHTML='<div class="eval-link-err">تعذّر جلب النتائج.</div>'; }
+}
+async function toggleEvalSessionRec(sessionId){
+  if(!confirm('إغلاق هذه الجلسة؟ لن يستطيع أحد التقييم بعدها.')) return;
+  try{ await CloudSync.setEvalSessionClosed(sessionId, true); toast('أُغلقت الجلسة'); loadRecordSessions(recordRadoodId); }
+  catch(e){ toast('تعذّر الإغلاق'); }
 }
 
 /* PDF ملف الرادود الكامل (بصورته + كل مشاركاته) */
@@ -3483,10 +3546,8 @@ function openEvalLinkDialog(radoodId){
     <div class="actions-row">
       <button class="btn btn-primary" onclick="createEvalLink()">🔗 إنشاء الرابط</button>
     </div>
-    <div id="evalLinkResult" style="margin-top:14px;"></div>
-    <div class="eval-sessions-list" id="evalSessionsList" style="margin-top:18px;"></div>`;
+    <div id="evalLinkResult" style="margin-top:14px;"></div>`;
   $('#evalLinkModal').classList.add('open');
-  loadRadoodSessions(radoodId);
 }
 async function createEvalLink(){
   if(!window.CloudSync || !CloudSync.isReady){ toast('يجب الاتصال بالسحابة أولاً (سجّل الدخول)'); return; }
@@ -3510,7 +3571,7 @@ async function createEvalLink(){
           <a class="btn btn-sm" style="background:#25d366;color:#fff;" href="https://wa.me/?text=${encodeURIComponent('السلام عليكم، نرجو تقييم قراءة الرادود '+r.name+(mq?' في '+mq.name:'')+' عبر الرابط: '+url)}" target="_blank">💬 واتساب</a>
         </div>
       </div>`;
-    loadRadoodSessions(r.id);
+    loadRecordSessions(currentEvalRadoodId);
   }catch(e){ console.error(e); res.innerHTML='<div class="eval-link-err">تعذّر إنشاء الرابط. تأكد من الاتصال.</div>'; }
 }
 function copyEvalLink(url){
@@ -3592,7 +3653,8 @@ function printGroupEvalPDF(sessionId, miqatName){
   const starRows=EVAL_GROUPS.map(grp=>{
     const rows=grp.items.filter(([k])=>starCnt[k]).map(([k,label])=>{
       const a=starSum[k]/starCnt[k];
-      return `<tr><td>${label}</td><td>${(Math.round(a*10)/10)} / 5</td></tr>`;
+      const lbl = a>=2.5?'ممتاز':a>=1.6?'جيد':'سيء';
+      return `<tr><td>${label}</td><td>${lbl} (${Math.round(a/3*100)}%)</td></tr>`;
     }).join('');
     return rows?`<tr class="grp"><td colspan="2">${grp.title}</td></tr>${rows}`:'';
   }).join('');
@@ -3604,16 +3666,26 @@ function printGroupEvalPDF(sessionId, miqatName){
   .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:18px;}
   .doc-title{font-family:'Amiri',serif;font-size:21px;font-weight:700;color:#1c4536;margin:10px 0 2px;}
   .doc-sub{color:#8a7c6b;font-size:13px;}
+  .g-radood{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px;}
+  .g-avatar{width:76px;height:76px;border-radius:50%;object-fit:cover;border:3px solid #c19a3e;background:#e6f0ea;display:flex;align-items:center;justify-content:center;font-size:34px;}
+  .g-rname{font-size:20px;font-weight:800;color:#1c4536;}
+  .g-rocc{font-size:13px;color:#8a7c6b;}
   .g-main{text-align:center;background:#e6f0ea;border-radius:14px;padding:20px;margin-bottom:18px;}
   .g-pct{font-size:40px;font-weight:800;color:#1c4536;}
   .g-sub{font-size:14px;color:#8a7c6b;}
   h2{font-size:15px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 18px;border-radius:0 16px 16px 0;margin:16px 0 10px;}
   table{width:100%;border-collapse:collapse;font-size:13.5px;}th,td{border:1px solid #e6ddcb;padding:7px 11px;text-align:right;}th{background:#1c4536;color:#fff;}
   tr.grp td{background:#e6f0ea;font-weight:700;color:#1c4536;}
+  .vote-box{display:flex;gap:12px;margin:10px 0;}
+  .vote-cell{flex:1;text-align:center;border-radius:12px;padding:14px;}
+  .vote-yes{background:#e6f3ea;border:1px solid #2f8f5b;}
+  .vote-no{background:#f8ecec;border:1px solid #b85c5c;}
+  .vote-n{font-size:26px;font-weight:800;}
+  .vote-yes .vote-n{color:#2f8f5b;} .vote-no .vote-n{color:#b85c5c;}
+  .vote-l{font-size:12px;color:#8a7c6b;}
   .box{background:#faf7f0;border:1px solid #e6ddcb;border-radius:10px;padding:12px 14px;margin:10px 0;font-size:13.5px;}
   .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
   @media print{body{padding:24px;} .no-print{display:none;}}
-  .no-print{position:fixed;top:12px;left:12px;background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;}
   </style></head><body>
   <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
     <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
@@ -3622,12 +3694,19 @@ function printGroupEvalPDF(sessionId, miqatName){
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
     <div class="doc-title">نتيجة التقييم الجماعي</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · لجنة العزاء · ${hijriToday()}</div></div>
-  <p style="text-align:center;font-size:17px;"><b>${escapeHtml(r?r.name:'')}</b> — ${escapeHtml(miqatName)}</p>
-  <div class="g-main"><div class="g-pct">${g.pct}%</div><div class="g-sub">${g.n} مقيّم · متوسط ${Math.round(g.avg*100)/100} من 5</div></div>
+  <div class="g-radood">
+    <div class="g-avatar">${r&&r.img?`<img src="${r.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`:'🎤'}</div>
+    <div><div class="g-rname">${escapeHtml(r?r.name:'')}</div><div class="g-rocc">${escapeHtml(miqatName)}</div></div>
+  </div>
+  <div class="g-main"><div class="g-pct">${g.pct}%</div><div class="g-sub">${g.n} مقيّم</div></div>
   <h2>متوسط البنود</h2>
   <table>${starRows}</table>
-  <div class="box"><b>هل أعطى المناسبة حقّها؟</b> ${gaveRightYes} من ${g.n} قالوا نعم.
-  ${gaveRightNo.length?`<br><b>أسباب «لا»:</b> ${gaveRightNo.map(e=>escapeHtml(e.gaveRightReason||'—')).filter(x=>x&&x!=='—').join(' · ')||'بلا تفصيل'}`:''}</div>
+  <h2>هل أعطى المناسبة حقّها؟</h2>
+  <div class="vote-box">
+    <div class="vote-cell vote-yes"><div class="vote-n">${gaveRightYes}</div><div class="vote-l">قالوا نعم</div></div>
+    <div class="vote-cell vote-no"><div class="vote-n">${gaveRightNo.length}</div><div class="vote-l">قالوا لا</div></div>
+  </div>
+  ${gaveRightNo.length?`<div class="box"><b>أسباب «لا»:</b> ${gaveRightNo.map(e=>escapeHtml(e.gaveRightReason||'')).filter(x=>x).join(' · ')||'بلا تفصيل'}</div>`:''}
   <div class="foot">هيئة محبي الحسين (ع) — لجنة العزاء · التقييم الجماعي</div>
   </body></html>`);
   w.document.close(); w.focus();
