@@ -304,6 +304,46 @@
   .radood-actions button { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:7px 9px; cursor:pointer; font-size:14px; }
   .radood-empty { text-align:center; padding:40px 20px; color:var(--muted-2); }
   .radood-empty .re-ic { font-size:40px; margin-bottom:10px; }
+  .rad-eval-btn { background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important; font-weight:600; white-space:nowrap; }
+  /* صفحة التقييم */
+  .eval-panel { padding:0; overflow:hidden; }
+  .eval-head { background:linear-gradient(150deg,var(--accent-deep),var(--accent)); padding:20px 18px; color:#fff; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .eval-avatar { width:76px; height:76px; border-radius:50%; overflow:hidden; background:rgba(255,255,255,.15); display:flex; align-items:center; justify-content:center; font-size:34px; border:3px solid var(--gold); }
+  .eval-avatar img { width:100%; height:100%; object-fit:cover; }
+  .eval-rname { font-size:19px; font-weight:800; }
+  .eval-title { font-size:13px; color:var(--gold); }
+  .eval-sec { padding:16px 18px; border-bottom:1px solid var(--line); }
+  .eval-sec-h { font-size:15px; font-weight:700; color:var(--accent); margin-bottom:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .eval-hint { font-size:11px; font-weight:400; color:var(--muted-2); }
+  .eval-field { margin-bottom:12px; }
+  .eval-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
+  .eval-field select, .eval-field input, #evNotes { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); box-sizing:border-box; }
+  #evNotes { resize:vertical; }
+  .eval-star-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; }
+  .esr-label { font-size:13.5px; color:var(--ink); }
+  .esr-stars { display:flex; gap:3px; }
+  .esr-stars .star { font-size:24px; color:var(--gold); cursor:pointer; line-height:1; user-select:none; }
+  .eval-prog-row { display:flex; align-items:center; gap:10px; padding:5px 0; }
+  .epr-label { flex:1; font-size:13px; color:var(--ink); }
+  .epr-input { width:70px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:var(--font-sans); font-size:13px; text-align:center; background:var(--surface); }
+  .epr-pct { color:var(--muted); font-size:13px; }
+  .eval-yn-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; gap:10px; }
+  .eyn-q { font-size:13px; color:var(--ink); flex:1; }
+  .eyn-btns { display:flex; gap:6px; flex-shrink:0; }
+  .eyn-btn { padding:6px 16px; border:1px solid var(--line); border-radius:8px; background:var(--surface); font-family:var(--font-sans); font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .eyn-btn.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .eval-chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .eval-chip { padding:9px 14px; border:1px solid var(--line); border-radius:20px; background:var(--surface); font-family:var(--font-sans); font-size:13px; color:var(--ink); cursor:pointer; }
+  .eval-chip.on { background:var(--accent-soft); border-color:var(--gold); color:var(--accent); font-weight:600; }
+  .eval-result { margin:16px 18px; padding:20px; border-radius:14px; text-align:center; background:var(--accent-soft); border:2px solid var(--line); transition:all .2s; }
+  .eval-result.good { background:var(--ok-soft); border-color:var(--ok); }
+  .eval-result.mid { background:var(--warn-soft); border-color:var(--warn); }
+  .eval-result.low { background:#f8ecec; border-color:var(--danger); }
+  .er-label { font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .er-value { font-size:26px; font-weight:800; color:var(--accent); }
+  .er-stars { margin-top:8px; }
+  .rs-star { font-size:22px; color:var(--gold); }
+  .rs-star:not(.on) { opacity:.3; }
   /* اختيار قالب الرسالة */
   .tpl-picker-overlay { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:24px; }
   .tpl-picker { background:var(--surface); border-radius:18px; padding:24px 20px; max-width:340px; width:100%; text-align:center; }
@@ -1341,6 +1381,14 @@
       <button class="btn btn-ghost btn-sm" onclick="switchTab('dashboard')">← الرئيسية</button>
     </div>
     <div id="notifList"></div>
+  </section>
+
+  <!-- صفحة تقييم الرادود -->
+  <section id="tab-radoodeval" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeRadoodEval()">← رجوع للجنة العزاء</button>
+    </div>
+    <div id="radoodEvalBody"></div>
   </section>
 
   <!-- اللجنة المالية -->

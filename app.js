@@ -2883,6 +2883,7 @@ function renderRadoods(){
         <div class="radood-meta">${nEval} تقييم${r.note?' · '+escapeHtml(r.note):''}</div>
       </div>
       <div class="radood-actions">
+        <button onclick="openRadoodEval('${r.id}')" title="تقييم جديد" class="rad-eval-btn">⭐ تقييم</button>
         <button onclick="openEditRadood('${r.id}')" title="تعديل">✏️</button>
         <button onclick="deleteRadood('${r.id}')" title="حذف">🗑️</button>
       </div>
@@ -2935,6 +2936,185 @@ async function deleteRadood(id){
   radoodEvals=radoodEvals.filter(e=>e.radoodId!==id);
   await saveRadoods(); await saveRadoodEvals();
   renderRadoods();
+}
+
+/* ═══════════ تقييم الرادود ═══════════ */
+// بنود النجوم مجمّعة
+const EVAL_GROUPS=[
+  { key:'commit', title:'الالتزام', items:[['attendance','الحضور في الوقت'],['duration','الالتزام بمدة القراءة']] },
+  { key:'perf', title:'الأداء', items:[['voice','جودة الصوت'],['clarity','وضوح النطق'],['melody','التحكم باللحن'],['meter','ضبط الوزن'],['variety','التنوع في الأداء']] },
+  { key:'engage', title:'التفاعل', items:[['audience','تفاعل المعزّين'],['response','الرد مع الرادود'],['opener','المستهل'],['poem','القصيدة']] },
+  { key:'poems', title:'القصائد', items:[['selection','اختيار القصائد'],['suitability','مناسبة الشعر للمناسبة'],['quality','جودة الكلمات']] },
+  { key:'mgmt', title:'إدارة المجلس', items:[['admin','التعامل مع الإدارة'],['flexibility','المرونة أثناء التغيير']] },
+];
+const PROGRAM_TYPES=['حماسي','حزين','رثاء','مصيبة','عزاء','دعاء','قصيدة قصيرة','قصيدة طويلة'];
+const AMBIANCE_Q=[
+  ['full','هل امتلأ المجلس؟'],['left','هل خرج أشخاص أثناء القراءة؟'],
+  ['increased','هل زاد الحضور أثناء القراءة؟'],['quiet','هل كان هناك هدوء؟'],['disciplined','هل كان المجلس منضبطاً؟'],
+];
+const STRENGTHS=['مستهل ممتاز','سيطرة على المجلس','صوت قوي','اختيار موفّق للقصائد','تفاعل كبير'];
+const RECOMMENDS=['إعادة دعوته ليلة عاشوراء','إعطاؤه مناسبة أكبر','يحتاج تنويعاً في القصائد','يحتاج تحسين إدارة الوقت','يحتاج رفع مستوى التفاعل'];
+
+let evalRadoodId=null, evalData=null;
+function openRadoodEval(radoodId){
+  const r=radoods.find(x=>x.id===radoodId); if(!r) return;
+  evalRadoodId=radoodId;
+  evalData={ stars:{}, program:{}, ambiance:{}, strengths:[], recommends:[], miqatId:'', occasion:'', duration:'', notes:'' };
+  renderRadoodEvalPage();
+  openFullPage('radoodeval');
+}
+function closeRadoodEval(){ switchTab('meetings'); openIdara('aza'); }
+
+function renderRadoodEvalPage(){
+  const r=radoods.find(x=>x.id===evalRadoodId); if(!r) return;
+  const miqatOpts=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const host=$('#radoodEvalBody');
+  host.innerHTML=`
+  <div class="panel eval-panel">
+    <div class="eval-head">
+      <div class="eval-radood">
+        <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
+        <div class="eval-rname">${escapeHtml(r.name)}</div>
+      </div>
+      <div class="eval-title">⭐ تقييم الرادود</div>
+    </div>
+
+    <!-- معلومات المناسبة -->
+    <div class="eval-sec">
+      <div class="eval-sec-h">📅 معلومات المناسبة</div>
+      <div class="eval-field"><label>الميقات</label>
+        <select id="evMiqat" onchange="evalPickMiqat(this.value)">
+          <option value="">— اختر الميقات —</option>
+          ${miqatOpts.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
+        </select></div>
+      <div class="eval-field"><label>المناسبة</label>
+        <input id="evOccasion" type="text" placeholder="مثال: ليلة السابع من محرم" oninput="evalData.occasion=this.value"></div>
+      <div class="eval-field"><label>مدة القراءة</label>
+        <input id="evDuration" type="text" placeholder="مثال: ساعة و15 دقيقة" oninput="evalData.duration=this.value"></div>
+    </div>
+
+    <!-- بنود النجوم -->
+    ${EVAL_GROUPS.map(g=>`
+      <div class="eval-sec">
+        <div class="eval-sec-h">${g.title}</div>
+        ${g.items.map(([k,label])=>`
+          <div class="eval-star-row">
+            <span class="esr-label">${label}</span>
+            <span class="esr-stars" data-key="${k}">
+              ${[1,2,3,4,5].map(n=>`<span class="star" onclick="setEvalStar('${k}',${n})" data-n="${n}">☆</span>`).join('')}
+            </span>
+          </div>`).join('')}
+      </div>`).join('')}
+
+    <!-- نوع البرنامج -->
+    <div class="eval-sec">
+      <div class="eval-sec-h">🎭 نوع البرنامج <span class="eval-hint">النسبة التقريبية لكل نوع %</span></div>
+      ${PROGRAM_TYPES.map(t=>`
+        <div class="eval-prog-row">
+          <span class="epr-label">${t}</span>
+          <input type="number" min="0" max="100" placeholder="0" class="epr-input" oninput="evalData.program['${t}']=this.value">
+          <span class="epr-pct">%</span>
+        </div>`).join('')}
+    </div>
+
+    <!-- تقييم الأجواء -->
+    <div class="eval-sec">
+      <div class="eval-sec-h">🌙 تقييم الأجواء</div>
+      ${AMBIANCE_Q.map(([k,q])=>`
+        <div class="eval-yn-row">
+          <span class="eyn-q">${q}</span>
+          <span class="eyn-btns">
+            <button class="eyn-btn" data-k="${k}" data-v="yes" onclick="setAmbiance('${k}','yes')">نعم</button>
+            <button class="eyn-btn" data-k="${k}" data-v="no" onclick="setAmbiance('${k}','no')">لا</button>
+          </span>
+        </div>`).join('')}
+    </div>
+
+    <!-- نقاط القوة -->
+    <div class="eval-sec">
+      <div class="eval-sec-h">💪 أبرز نقاط القوة</div>
+      <div class="eval-chips">
+        ${STRENGTHS.map(s=>`<button class="eval-chip" data-s="${escapeHtml(s)}" onclick="toggleStrength('${escapeHtml(s)}',this)">${s}</button>`).join('')}
+      </div>
+    </div>
+
+    <!-- الملاحظات -->
+    <div class="eval-sec">
+      <div class="eval-sec-h">📝 الملاحظات</div>
+      <textarea id="evNotes" rows="4" placeholder="اكتب ملاحظاتك هنا…" oninput="evalData.notes=this.value"></textarea>
+    </div>
+
+    <!-- التوصيات -->
+    <div class="eval-sec">
+      <div class="eval-sec-h">🎯 التوصيات</div>
+      <div class="eval-chips">
+        ${RECOMMENDS.map(s=>`<button class="eval-chip" data-r="${escapeHtml(s)}" onclick="toggleRecommend('${escapeHtml(s)}',this)">${s}</button>`).join('')}
+      </div>
+    </div>
+
+    <!-- النتيجة النهائية -->
+    <div class="eval-result" id="evalResult">
+      <div class="er-label">النتيجة النهائية</div>
+      <div class="er-value" id="evalScore">—</div>
+      <div class="er-stars" id="evalScoreStars"></div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;margin-top:14px;" onclick="saveRadoodEval()">💾 حفظ التقييم</button>
+  </div>`;
+}
+function evalPickMiqat(id){ evalData.miqatId=id; const mq=miqats.find(x=>x.id===id); if(mq && !$('#evOccasion').value){ $('#evOccasion').value=mq.name; evalData.occasion=mq.name; } }
+function setEvalStar(key,n){
+  evalData.stars[key]=n;
+  const wrap=document.querySelector(`.esr-stars[data-key="${key}"]`);
+  if(wrap) wrap.querySelectorAll('.star').forEach(s=>{ s.textContent = (+s.dataset.n<=n)?'★':'☆'; s.classList.toggle('on',+s.dataset.n<=n); });
+  updateEvalScore();
+}
+function setAmbiance(k,v){
+  evalData.ambiance[k]=v;
+  document.querySelectorAll(`.eyn-btn[data-k="${k}"]`).forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+}
+function toggleStrength(s,btn){
+  const i=evalData.strengths.indexOf(s);
+  if(i<0){ evalData.strengths.push(s); btn.classList.add('on'); } else { evalData.strengths.splice(i,1); btn.classList.remove('on'); }
+}
+function toggleRecommend(s,btn){
+  const i=evalData.recommends.indexOf(s);
+  if(i<0){ evalData.recommends.push(s); btn.classList.add('on'); } else { evalData.recommends.splice(i,1); btn.classList.remove('on'); }
+}
+/* حساب النتيجة: متوسط كل النجوم × 20 = نسبة مئوية */
+function computeEvalScore(data){
+  const vals=Object.values(data.stars||{}).map(Number).filter(n=>n>0);
+  if(!vals.length) return { avg:0, pct:0, n:0 };
+  const avg=vals.reduce((s,v)=>s+v,0)/vals.length;
+  return { avg:Math.round(avg*100)/100, pct:Math.round(avg*20), n:vals.length };
+}
+function updateEvalScore(){
+  const {avg,pct,n}=computeEvalScore(evalData);
+  const el=$('#evalScore'), st=$('#evalScoreStars');
+  if(!el) return;
+  if(!n){ el.textContent='—'; if(st) st.textContent=''; return; }
+  el.textContent=`${pct}%  (${avg} / 5)`;
+  const full=Math.round(avg);
+  if(st) st.innerHTML=[1,2,3,4,5].map(i=>`<span class="rs-star ${i<=full?'on':''}">${i<=full?'★':'☆'}</span>`).join('');
+  const res=$('#evalResult');
+  if(res){ res.classList.remove('good','mid','low'); res.classList.add(pct>=80?'good':pct>=60?'mid':'low'); }
+}
+async function saveRadoodEval(){
+  if(!evalData.miqatId){ toast('اختر الميقات'); return; }
+  const {avg,pct,n}=computeEvalScore(evalData);
+  if(!n){ toast('قيّم بنداً واحداً على الأقل'); return; }
+  const mq=miqats.find(x=>x.id===evalData.miqatId);
+  const entry={
+    id:'ev_'+Date.now(), radoodId:evalRadoodId, miqatId:evalData.miqatId,
+    miqatName:mq?mq.name:'', occasion:evalData.occasion||'', duration:evalData.duration||'',
+    stars:evalData.stars, program:evalData.program, ambiance:evalData.ambiance,
+    strengths:evalData.strengths, recommends:evalData.recommends, notes:evalData.notes||'',
+    avg, pct, at:new Date().toISOString()
+  };
+  radoodEvals.push(entry);
+  await saveRadoodEvals();
+  toast('تم حفظ التقييم بنجاح');
+  closeRadoodEval();
 }
 async function enterFinance(){
   const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');
