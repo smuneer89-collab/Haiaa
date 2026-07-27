@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex,nofollow">
+<title>استبيان الرادود — هيئة محبي الحسين</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4efe6;--surface:#fffdf8;--ink:#1a2620;--muted:#8a7c6b;--muted-2:#b3a894;--line:#e6ddcb;--accent:#1c4536;--accent-deep:#123028;--accent-soft:#e6f0ea;--ok:#2f8f5b;--ok-soft:#e6f3ea;--warn:#b5763a;--warn-soft:#f6ecdf;--gold:#c19a3e;--danger:#b85c5c;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;}
+.wrap{max-width:560px;margin:0 auto;padding:0 0 40px;}
+.s-head{background:linear-gradient(150deg,var(--accent-deep),var(--accent));padding:26px 18px;color:#fff;text-align:center;}
+.s-org{font-size:13px;color:var(--gold);margin-bottom:10px;}
+.s-avatar{width:88px;height:88px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:38px;border:3px solid var(--gold);margin:0 auto 12px;}
+.s-avatar img{width:100%;height:100%;object-fit:cover;}
+.s-rname{font-size:22px;font-weight:800;}
+.s-miqat{font-size:14px;color:var(--accent-soft);margin-top:4px;}
+.s-title{font-size:12px;color:var(--gold);margin-top:10px;background:rgba(255,255,255,.1);display:inline-block;padding:5px 16px;border-radius:20px;}
+.panel{background:var(--surface);margin:14px;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.intro-panel{padding:20px 18px;}
+.intro-panel p{font-size:14px;line-height:2;color:var(--ink);margin-bottom:14px;text-align:justify;}
+.intro-panel p:last-child{margin-bottom:0;}
+.s-sec{padding:16px 18px;border-bottom:1px solid var(--line);}
+.s-sec:last-child{border-bottom:none;}
+.s-sec-title{font-size:16px;font-weight:800;color:var(--accent);margin-bottom:4px;}
+.s-sec-sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;}
+.s-q{margin-bottom:18px;}
+.s-q:last-child{margin-bottom:0;}
+.s-q-label{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:10px;line-height:1.6;}
+.rate-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.rate-btn{flex:1;min-width:70px;padding:9px 8px;border:1px solid var(--line);border-radius:9px;background:var(--surface);font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;text-align:center;}
+.rate-btn.r-ex.on{background:var(--ok);color:#fff;border-color:var(--ok);}
+.rate-btn.r-gd.on{background:#3f8f5b;color:#fff;border-color:#3f8f5b;}
+.rate-btn.r-md.on{background:var(--warn);color:#fff;border-color:var(--warn);}
+.rate-btn.r-dv.on{background:var(--danger);color:#fff;border-color:var(--danger);}
+.s-table-row{padding:11px 0;border-bottom:1px dashed var(--line);}
+.s-table-row:last-child{border-bottom:none;}
+.s-table-label{font-size:13.5px;color:var(--ink);margin-bottom:8px;}
+.s-textarea{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--ink);resize:vertical;}
+.s-choice{display:flex;flex-direction:column;gap:8px;}
+.s-choice-btn{padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-family:inherit;font-size:13.5px;color:var(--ink);cursor:pointer;text-align:right;}
+.s-choice-btn.on{background:var(--accent-soft);border-color:var(--gold);color:var(--accent);font-weight:600;}
+.s-golden{background:linear-gradient(135deg,#fbf6ea,#f6efdd);border:1px solid var(--gold);}
+.s-golden .s-sec-title{color:var(--gold);}
+.s-num-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.s-num{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;}
+.s-num-row input{flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:var(--surface);}
+.submit-btn{width:calc(100% - 28px);margin:14px;padding:15px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;}
+.submit-btn:disabled{opacity:.6;}
+.state{text-align:center;padding:50px 24px;}
+.state .ic{font-size:56px;margin-bottom:16px;}
+.state h2{font-size:21px;color:var(--accent);margin-bottom:14px;}
+.state .msg{font-size:14px;color:var(--ink);line-height:2;text-align:justify;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;}
+.state .msg p{margin-bottom:12px;}
+.state .msg p:last-child{margin-bottom:0;}
+.loading{text-align:center;padding:80px 20px;color:var(--muted);}
+.spin{width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 16px;animation:sp 1s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="loading"><div class="spin"></div>جارٍ التحميل…</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG = {
+  apiKey: "AIzaSyBlAxijaUz0OHwCsq5NnvQ90OVOCsr1vKY",
+  authDomain: "haiaa-banijamrah.firebaseapp.com",
+  projectId: "haiaa-banijamrah",
+  storageBucket: "haiaa-banijamrah.firebasestorage.app",
+  messagingSenderId: "499603171369",
+  appId: "1:499603171369:web:19c71e92ca2690cfe61438"
+};
+const RATE=[['ex','ممتاز'],['gd','جيد'],['md','متوسط'],['dv','يحتاج تطوير']];
+// عناصر تقييم المعزّين والتنظيم
+const MOAZ_ITEMS=[['moaz_opener','سرعة الرد في المستهل'],['moaz_interact','التفاعل أثناء القصائد'],['moaz_help','مساعدة الرادود في الردّات'],['moaz_discipline','الانضباط والالتزام داخل المجلس'],['moaz_energy','الحماس العام']];
+const ORG_ITEMS=[['org_order','تنظيم المجلس'],['org_time','الالتزام بوقت البداية'],['org_manage','إدارة المجلس'],['org_hospitality','الضيافة والاستقبال']];
+const SOUND_CHOICES=['ممتاز ومريح للرادود والمستمع','جيد ويؤدي الغرض','يحتاج إلى بعض التحسينات','متعب للرادود ويتطلب جهداً إضافياً'];
+const FUTURE_CHOICES=['نعم','لا','حسب الظروف'];
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function qparam(k){ return new URLSearchParams(location.search).get(k); }
+
+let db=null, session=null, sessionId=null;
+let data={ general:'', moaz:{}, org:{}, sound:'', future:'', texts:{}, golden:['','',''] };
+
+async function init(){
+  sessionId=qparam('s');
+  if(!sessionId){ showState('⚠️','رابط غير صالح','لا يوجد معرّف جلسة في الرابط.'); return; }
+  if(localStorage.getItem('survey_'+sessionId)){
+    showState('✅','تم استبيانك مسبقاً','شكراً لك، لقد سجّلت استبيانك من قبل.'); return;
+  }
+  try{
+    firebase.initializeApp(FB_CONFIG);
+    db=firebase.firestore();
+    const doc=await db.collection('surveySessions').doc(sessionId).get();
+    if(!doc.exists){ showState('⚠️','الجلسة غير موجودة','قد يكون الرابط منتهياً أو غير صحيح.'); return; }
+    session=doc.data();
+    if(session.closed){ showState('🔒','الاستبيان مغلق','انتهت فترة تعبئة هذا الاستبيان.'); return; }
+    renderIntro();
+  }catch(e){ console.error(e); showState('⚠️','تعذّر الاتصال','حدث خطأ في الاتصال. حاول لاحقاً.'); }
+}
+function showState(ic,title,msgHtml){
+  document.getElementById('app').innerHTML=`<div class="state"><div class="ic">${ic}</div><h2>${esc(title)}</h2><div class="msg">${msgHtml}</div></div>`;
+}
+function head(){
+  return `<div class="s-head">
+    <div class="s-org">هيئة محبي الحسين (ع) · لجنة العزاء</div>
+    <div class="s-avatar">${session.radoodImg?`<img src="${session.radoodImg}" alt="">`:'🎤'}</div>
+    <div class="s-rname">${esc(session.radoodName)}</div>
+    <div class="s-miqat">${esc(session.miqatName||'')}</div>
+    <div class="s-title">📋 استبيان تطوير المجلس</div>
+  </div>`;
+}
+// شاشة الترحيب
+function renderIntro(){
+  document.getElementById('app').innerHTML=`
+  ${head()}
+  <div class="panel intro-panel">
+    <p>السلام عليكم ورحمة الله وبركاته</p>
+    <p>أخي الكريم الرادود، حفظكم الله ووفقكم لخدمة سيد الشهداء الإمام الحسين (ع).</p>
+    <p>يسر هيئة محبي الحسين أن تتقدم إليكم بخالص الشكر والتقدير لمشاركتكم في إحياء هذا المجلس المبارك، ونسأل الله تعالى أن يتقبل منكم هذه الخدمة العظيمة.</p>
+    <p>نضع بين أيديكم هذا الاستبيان إيماناً منا بأن التطوير والتميّز لا يتحققان إلا بالاستماع إلى أهل الخبرة والتجربة، وأن الرأي الصادق هو أساس التحسين المستمر.</p>
+    <p>نرجو منكم التكرم بالإجابة بكل شفافية وموضوعية، فملاحظاتكم واقتراحاتكم ستكون بعون الله عوناً لنا في الارتقاء بمجلس اللطم، بما يليق بخدمة الإمام الحسين (ع) وأهل بيته الأطهار (ع).</p>
+    <p>رأيكم أمانة، وملاحظاتكم طريقنا إلى التطوير، وخدمتنا للإمام الحسين (ع) مسؤولية نسعى لإتقانها.</p>
+    <p>نسأل الله أن يجعل كلماتكم ومشاركتكم في ميزان حسناتكم، وأن يوفقنا وإياكم لكل خير، وأن يرزقنا جميعاً الإخلاص في خدمة أهل البيت (ع).</p>
+  </div>
+  <button class="submit-btn" onclick="renderForm()">متابعة ←</button>`;
+  window.scrollTo(0,0);
+}
+// النموذج
+function renderForm(){
+  document.getElementById('app').innerHTML=`
+  ${head()}
+  <div class="panel">
+    <div class="s-sec">
+      <div class="s-sec-title">أولاً: التقييم العام</div>
+      <div class="s-q">
+        <div class="s-q-label">١. كيف تقيّم مستوى مجلس اللطم بشكل عام؟</div>
+        <div class="rate-btns" data-g="general">
+          ${RATE.map(([k,l])=>`<button class="rate-btn r-${k}" data-v="${l}" onclick="setRate('general','${l}',this)">${l}</button>`).join('')}
+        </div>
+      </div>
+      <div class="s-q"><div class="s-q-label">٢. ما الذي يميز مجلس اللطم في الهيئة عن غيره؟</div>
+        <textarea class="s-textarea" rows="3" oninput="data.texts.distinct=this.value"></textarea></div>
+      <div class="s-q"><div class="s-q-label">٣. ما أبرز الأمور التي ترى أنها تحتاج إلى تطوير؟</div>
+        <textarea class="s-textarea" rows="3" oninput="data.texts.improve=this.value"></textarea></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="s-sec">
+      <div class="s-sec-title">ثانياً: تقييم المعزّين</div>
+      <div class="s-sec-sub">كيف تقيّم المعزّين في الجوانب التالية؟</div>
+      ${MOAZ_ITEMS.map(([k,l])=>`
+        <div class="s-table-row">
+          <div class="s-table-label">${l}</div>
+          <div class="rate-btns" data-g="moaz.${k}">
+            ${RATE.map(([rk,rl])=>`<button class="rate-btn r-${rk}" data-v="${rl}" onclick="setRate('moaz.${k}','${rl}',this)">${rl}</button>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="s-sec">
+      <div class="s-sec-title">ثالثاً: تقييم الصوتيات</div>
+      <div class="s-sec-sub">كيف تقيّم نظام الصوت؟</div>
+      <div class="s-choice">
+        ${SOUND_CHOICES.map(c=>`<button class="s-choice-btn" onclick="setChoice('sound','${esc(c)}',this)">${c}</button>`).join('')}
+      </div>
+      <div class="s-q" style="margin-top:14px;"><div class="s-q-label">ملاحظات على الصوتيات:</div>
+        <textarea class="s-textarea" rows="2" oninput="data.texts.sound=this.value"></textarea></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="s-sec">
+      <div class="s-sec-title">رابعاً: تنظيم المجلس</div>
+      ${ORG_ITEMS.map(([k,l])=>`
+        <div class="s-table-row">
+          <div class="s-table-label">${l}</div>
+          <div class="rate-btns" data-g="org.${k}">
+            ${RATE.map(([rk,rl])=>`<button class="rate-btn r-${rk}" data-v="${rl}" onclick="setRate('org.${k}','${rl}',this)">${rl}</button>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="s-sec">
+      <div class="s-sec-title">خامساً: الرؤية المستقبلية</div>
+      <div class="s-q"><div class="s-q-label">ما الذي تتمنى إضافته لمجلس اللطم في الهيئة؟</div>
+        <textarea class="s-textarea" rows="2" oninput="data.texts.wish=this.value"></textarea></div>
+      <div class="s-q"><div class="s-q-label">هل لديك أفكار أو مقترحات جديدة لتطوير المجلس؟</div>
+        <textarea class="s-textarea" rows="2" oninput="data.texts.ideas=this.value"></textarea></div>
+      <div class="s-q"><div class="s-q-label">هل ترغب بالمشاركة معنا في تطوير المجلس مستقبلاً؟</div>
+        <div class="s-choice">
+          ${FUTURE_CHOICES.map(c=>`<button class="s-choice-btn" onclick="setChoice('future','${esc(c)}',this)">${c}</button>`).join('')}
+        </div></div>
+    </div>
+  </div>
+
+  <div class="panel s-golden">
+    <div class="s-sec">
+      <div class="s-sec-title">🌟 سؤال ذهبي</div>
+      <div class="s-sec-sub">لو كنت مسؤولاً عن المجلس لمدة عام، ما أول ثلاثة أمور ستعمل على تطويرها؟</div>
+      ${[0,1,2].map(i=>`
+        <div class="s-num-row">
+          <div class="s-num">${i+1}</div>
+          <input type="text" placeholder="…" oninput="data.golden[${i}]=this.value">
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="s-sec">
+      <div class="s-sec-title">ملاحظة أخيرة</div>
+      <div class="s-q"><div class="s-q-label">أي ملاحظة أخرى تراها مهمة ولم تُذكر في الاستبيان؟</div>
+        <textarea class="s-textarea" rows="3" oninput="data.texts.other=this.value"></textarea></div>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitSurvey()">📌 تثبيت نهاية الاستبيان</button>`;
+  window.scrollTo(0,0);
+}
+function setRate(path,val,btn){
+  setPath(data,path,val);
+  btn.parentElement.querySelectorAll('.rate-btn').forEach(b=>b.classList.toggle('on',b.dataset.v===val));
+}
+function setChoice(field,val,btn){
+  data[field]=val;
+  btn.parentElement.querySelectorAll('.s-choice-btn').forEach(b=>b.classList.toggle('on',b===btn));
+}
+function setPath(obj,path,val){
+  const parts=path.split('.');
+  if(parts.length===1){ obj[parts[0]]=val; return; }
+  if(!obj[parts[0]]) obj[parts[0]]={};
+  obj[parts[0]][parts[1]]=val;
+}
+async function submitSurvey(){
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='جارٍ الإرسال…';
+  const entry={
+    sessionId, radoodId:session.radoodId, miqatId:session.miqatId||'',
+    general:data.general, moaz:data.moaz, org:data.org, sound:data.sound, future:data.future,
+    texts:data.texts, golden:data.golden.filter(x=>x&&x.trim()),
+    at:new Date().toISOString()
+  };
+  try{
+    await db.collection('publicSurveys').add(entry);
+    localStorage.setItem('survey_'+sessionId,'1');
+    showThanks();
+  }catch(e){
+    console.error(e);
+    btn.disabled=false; btn.textContent='📌 تثبيت نهاية الاستبيان';
+    alert('تعذّر إرسال الاستبيان. تأكد من الاتصال وحاول مجدداً.');
+  }
+}
+function showThanks(){
+  document.getElementById('app').innerHTML=`<div class="state"><div class="ic">🌟</div><h2>جزاكم الله خير الجزاء</h2>
+  <div class="msg">
+    <p>نتقدم إليكم بخالص الشكر والتقدير على وقتكم الثمين، وعلى تعاونكم في تعبئة هذا الاستبيان، ونعتز كثيراً بآرائكم وملاحظاتكم القيّمة، فهي تمثل لنا مرجعاً مهماً في مسيرة التطوير والتحسين المستمر.</p>
+    <p>لقد أسهمتم برأيكم في دعم رسالة الهيئة، ونسأل الله أن يوفقنا للعمل بما فيه الخير والصلاح، وأن نرتقي بمجلس الإمام الحسين (ع) بما يحقق الأهداف المرجوة.</p>
+    <p>رأيكم أمانة، وملاحظاتكم طريقنا إلى التطوير، وخدمتنا للإمام الحسين (ع) مسؤولية نسعى لإتقانها.</p>
+    <p>نسأل الله تعالى أن يتقبل منكم خدمة الإمام الحسين (ع)، وأن يكتب لكم أجر كل حرف صدحتم به في ذكر محمد وآل محمد، وأن يبارك في أعماركم وأعمالكم، ويزيدكم توفيقاً وإخلاصاً، ويحفظكم من كل سوء، ويرزقكم شفاعة الإمام الحسين (ع) في الدنيا والآخرة، وأن يجعلكم من خدامه المقبولين.</p>
+    <p>بارك الله فيكم، ونسأل الله أن يجمعنا وإياكم دائماً على خدمة أهل البيت (ع)، وأن يجعل أعمالنا خالصة لوجهه الكريم.</p>
+  </div></div>`;
+  window.scrollTo(0,0);
+}
+init();
+</script>
+</body>
+</html>

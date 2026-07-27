@@ -57,6 +57,9 @@ body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:va
 .state .ic{font-size:56px;margin-bottom:16px;}
 .state h2{font-size:20px;color:var(--accent);margin-bottom:8px;}
 .state p{font-size:14px;color:var(--muted);line-height:1.8;}
+.intro-panel{padding:20px 18px;}
+.intro-panel p{font-size:14px;line-height:2;color:var(--ink);margin-bottom:14px;text-align:justify;}
+.intro-panel p:last-child{margin-bottom:0;}
 .loading{text-align:center;padding:80px 20px;color:var(--muted);}
 .spin{width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 16px;animation:sp 1s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg);}}
@@ -115,15 +118,34 @@ async function init(){
     if(!doc.exists){ showState('⚠️','الجلسة غير موجودة','قد يكون الرابط منتهياً أو غير صحيح.'); return; }
     session=doc.data();
     if(session.closed){ showState('🔒','التقييم مغلق','انتهت فترة التقييم لهذه القراءة.'); return; }
-    renderForm();
+    renderIntro();
   }catch(e){
     console.error(e);
     showState('⚠️','تعذّر الاتصال','حدث خطأ في الاتصال. حاول مرة أخرى لاحقاً.');
   }
 }
 
+// شاشة الترحيب (رسالة القبول) قبل نموذج التقييم
+function renderIntro(){
+  const app=document.getElementById('app');
+  app.innerHTML=`
+  <div class="eval-head">
+    <div class="eval-org">هيئة محبي الحسين (ع) · لجنة العزاء</div>
+    <div class="eval-avatar">${session.radoodImg?`<img src="${session.radoodImg}" alt="">`:'🎤'}</div>
+    <div class="eval-rname">${esc(session.radoodName)}</div>
+    <div class="eval-miqat">${esc(session.miqatName||'')}</div>
+    <div class="eval-title">⭐ تقييم القراءة</div>
+  </div>
+  <div class="panel intro-panel">
+    <p>حرصًا على تطوير مجالس أهل البيت (ع) والارتقاء بمستوى الخدمة الحسينية، أُعدَّ هذا التقييم ليكون أداةً للمراجعة والتحسين المستمر، بهدف تعزيز نقاط القوة ومعالجة جوانب التطوير، بعيدًا عن النقد الشخصي.</p>
+    <p>ونؤكد أن هذا التقييم هو اجتهاد بشري، أما التقييم الحقيقي والقبول الفعلي للمجلس فهو عند مولانا صاحب العصر والزمان (عج)، وعند رسول الله وأهل البيت (ع)، فهم أهل القبول، والله تعالى هو العالم بالإخلاص والنيات.</p>
+    <p>نسأل الله أن يتقبل هذا العمل، وأن يوفقنا لخدمة الإمام الحسين (ع) وإحياء أمر أهل البيت (ع) على الوجه الذي يرضيه.</p>
+  </div>
+  <button class="submit-btn" onclick="renderForm()">متابعة ←</button>`;
+}
+
 function showState(ic,title,msg){
-  document.getElementById('app').innerHTML=`<div class="state"><div class="ic">${ic}</div><h2>${esc(title)}</h2><p>${esc(msg)}</p></div>`;
+  document.getElementById('app').innerHTML=`<div class="state"><div class="ic">${ic}</div><h2>${esc(title)}</h2><p>${msg}</p></div>`;
 }
 
 function renderForm(){

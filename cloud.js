@@ -325,8 +325,30 @@ const CloudSync = (() => {
     return snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
   }
 
+  // ═══ استبيان الرادود ═══
+  async function createSurveySession(payload){
+    if(!db) throw new Error('cloud not ready');
+    const ref = await db.collection('surveySessions').add(Object.assign({ closed:false, at:new Date().toISOString() }, payload));
+    return ref.id;
+  }
+  async function fetchPublicSurveys(sessionId){
+    if(!db) throw new Error('cloud not ready');
+    const snap = await db.collection('publicSurveys').where('sessionId','==',sessionId).get();
+    return snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+  }
+  async function setSurveySessionClosed(sessionId, closed){
+    if(!db) return;
+    await db.collection('surveySessions').doc(sessionId).update({ closed:!!closed });
+  }
+  async function fetchSurveySessions(){
+    if(!db) throw new Error('cloud not ready');
+    const snap = await db.collection('surveySessions').orderBy('at','desc').get();
+    return snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+  }
+
   return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply,
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions,
+           createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };
 })();

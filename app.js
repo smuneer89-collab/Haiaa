@@ -3232,6 +3232,11 @@ function renderRadoodRecord(){
         <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">➕ إنشاء رابط تقييم جديد</button>
         <div id="recSessionsList"><div class="eval-link-loading">جارٍ تحميل الجلسات…</div></div>
       </div>
+      <div class="rec-sec">
+        <div class="rec-sec-h">📋 استبيانات الرادود</div>
+        <button class="btn btn-sm" style="width:100%;background:#7a5c1e;color:#fff;border:none;margin-bottom:10px;" onclick="openSurveyLinkDialog('${r.id}')">➕ إنشاء رابط استبيان جديد</button>
+        <div id="recSurveysList"><div class="eval-link-loading">جارٍ تحميل الاستبيانات…</div></div>
+      </div>
       <div style="padding:14px 18px;text-align:center;border-top:1px solid var(--line);">
         <button class="btn btn-ghost btn-sm" onclick="closeRadoodRecord()">← رجوع للجنة العزاء</button>
       </div>
@@ -3315,6 +3320,13 @@ function renderRadoodRecord(){
       <div id="recSessionsList"><div class="eval-link-loading">جارٍ تحميل الجلسات…</div></div>
     </div>
 
+    <!-- استبيان الرادود -->
+    <div class="rec-sec">
+      <div class="rec-sec-h">📋 استبيانات الرادود</div>
+      <button class="btn btn-sm" style="width:100%;background:#7a5c1e;color:#fff;border:none;margin-bottom:10px;" onclick="openSurveyLinkDialog('${r.id}')">➕ إنشاء رابط استبيان جديد</button>
+      <div id="recSurveysList"><div class="eval-link-loading">جارٍ تحميل الاستبيانات…</div></div>
+    </div>
+
     <div style="padding:16px 18px;text-align:center;">
       <button class="btn btn-ghost" onclick="closeRadoodRecord()">← رجوع للجنة العزاء</button>
     </div>
@@ -3365,6 +3377,24 @@ async function loadRecordSessions(radoodId){
       </div>
       <div id="recRes_${s._id}" class="rec-session-result" style="display:none;"></div>`).join('');
   }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err">تعذّر تحميل الجلسات.</div>'; }
+  loadRecordSurveys(radoodId);
+}
+/* استبيانات الرادود داخل صفحة الرادود */
+async function loadRecordSurveys(radoodId){
+  const host=$('#recSurveysList'); if(!host) return;
+  if(!window.CloudSync || !CloudSync.isReady){ host.innerHTML='<div class="eval-link-note">سجّل الدخول للسحابة لعرض الاستبيانات.</div>'; return; }
+  try{
+    const all=await CloudSync.fetchSurveySessions();
+    const mine=all.filter(s=>s.radoodId===radoodId);
+    if(!mine.length){ host.innerHTML='<div class="eval-link-note">لا توجد استبيانات بعد. أنشئ رابطاً لإرساله للرادود.</div>'; return; }
+    host.innerHTML=mine.map(s=>`
+      <div class="els-row">
+        <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
+          <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلق':'· 🟢 مفتوح'}</div></div>
+        <button class="btn btn-sm" onclick="viewSurveyResults('${s._id}','${escapeHtml(s.miqatName||'')}')">👁️ الإجابات</button>
+      </div>
+      <div id="recSurv_${s._id}" class="rec-session-result" style="display:none;"></div>`).join('');
+  }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err">تعذّر تحميل الاستبيانات.</div>'; }
 }
 async function viewRecordResults(sessionId, miqatName){
   const box=$('#recRes_'+sessionId); if(!box) return;
@@ -3530,6 +3560,78 @@ function evalPageURL(sessionId){
   const base=location.origin + location.pathname.replace(/[^/]*$/, '');
   return base + 'evaluate.html?s=' + sessionId;
 }
+function surveyPageURL(sessionId){
+  const base=location.origin + location.pathname.replace(/[^/]*$/, '');
+  return base + 'survey.html?s=' + sessionId;
+}
+let currentSurveyRadoodId=null;
+function openSurveyLinkDialog(radoodId){
+  currentSurveyRadoodId=radoodId;
+  const r=radoods.find(x=>x.id===radoodId); if(!r) return;
+  const miqatOpts=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  $('#evalLinkBody').innerHTML=`
+    <h3>📋 رابط استبيان الرادود</h3>
+    <div class="subtitle">لـ <b>${escapeHtml(r.name)}</b> — أنشئ رابطاً يرسله للرادود لتعبئة الاستبيان</div>
+    <div class="field full"><label>اختر المناسبة</label>
+      <select id="surveyLinkMiqat">
+        <option value="">— اختر الميقات —</option>
+        ${miqatOpts.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
+      </select></div>
+    <div class="actions-row">
+      <button class="btn btn-primary" onclick="createSurveyLink()">📋 إنشاء الرابط</button>
+    </div>
+    <div id="surveyLinkResult" style="margin-top:14px;"></div>`;
+  $('#evalLinkModal').classList.add('open');
+}
+async function createSurveyLink(){
+  if(!window.CloudSync || !CloudSync.isReady){ toast('يجب الاتصال بالسحابة أولاً (سجّل الدخول)'); return; }
+  const miqatId=$('#surveyLinkMiqat').value;
+  if(!miqatId){ toast('اختر المناسبة'); return; }
+  const r=radoods.find(x=>x.id===currentSurveyRadoodId); if(!r) return;
+  const mq=miqats.find(x=>x.id===miqatId);
+  const res=$('#surveyLinkResult'); res.innerHTML='<div class="eval-link-loading">جارٍ الإنشاء…</div>';
+  try{
+    const sessionId=await CloudSync.createSurveySession({
+      radoodId:r.id, radoodName:r.name, radoodImg:r.img||'', miqatId, miqatName:mq?mq.name:''
+    });
+    const url=surveyPageURL(sessionId);
+    res.innerHTML=`
+      <div class="eval-link-box">
+        <div class="elb-label">✅ الرابط جاهز — أرسله للرادود</div>
+        <div class="elb-url">${escapeHtml(url)}</div>
+        <div class="elb-actions">
+          <button class="btn btn-primary btn-sm" onclick="copyEvalLink('${escapeHtml(url)}')">📋 نسخ</button>
+          <a class="btn btn-sm" style="background:#25d366;color:#fff;" href="https://wa.me/?text=${encodeURIComponent('السلام عليكم، نرجو تكرمكم بتعبئة استبيان تطوير المجلس عبر الرابط: '+url)}" target="_blank">💬 واتساب</a>
+        </div>
+      </div>`;
+    loadRecordSurveys(currentSurveyRadoodId);
+  }catch(e){ console.error(e); res.innerHTML='<div class="eval-link-err">تعذّر إنشاء الرابط.</div>'; }
+}
+async function viewSurveyResults(sessionId, miqatName){
+  const box=$('#recSurv_'+sessionId); if(!box) return;
+  if(box.style.display==='block'){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML='<div class="eval-link-loading">جارٍ جلب الإجابات…</div>';
+  try{
+    const surveys=await CloudSync.fetchPublicSurveys(sessionId);
+    if(!surveys.length){ box.innerHTML='<div class="eval-link-note">لم يصل أي استبيان بعد.</div>'; return; }
+    window.__lastSurveys={ sessionId, miqatName, surveys };
+    box.innerHTML=`
+      <div class="eval-results-box">
+        <div class="erb-h">📋 ${surveys.length} استبيان وصل</div>
+        <div class="erb-actions">
+          <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض الإجابات PDF</button>
+          <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleSurveySession('${sessionId}')">🔒 إغلاق</button>
+        </div>
+      </div>`;
+  }catch(e){ console.error(e); box.innerHTML='<div class="eval-link-err">تعذّر جلب الإجابات.</div>'; }
+}
+async function toggleSurveySession(sessionId){
+  if(!confirm('إغلاق هذا الاستبيان؟ لن يستطيع الرادود تعبئته بعدها.')) return;
+  try{ await CloudSync.setSurveySessionClosed(sessionId, true); toast('أُغلق الاستبيان'); loadRecordSurveys(currentSurveyRadoodId); }
+  catch(e){ toast('تعذّر الإغلاق'); }
+}
+
 let currentEvalRadoodId=null;
 function openEvalLinkDialog(radoodId){
   currentEvalRadoodId=radoodId;
@@ -3711,6 +3813,78 @@ function printGroupEvalPDF(sessionId, miqatName){
   </body></html>`);
   w.document.close(); w.focus();
 }
+
+/* PDF إجابات استبيان الرادود */
+const SURVEY_MOAZ=[['moaz_opener','سرعة الرد في المستهل'],['moaz_interact','التفاعل أثناء القصائد'],['moaz_help','مساعدة الرادود في الردّات'],['moaz_discipline','الانضباط والالتزام'],['moaz_energy','الحماس العام']];
+const SURVEY_ORG=[['org_order','تنظيم المجلس'],['org_time','الالتزام بوقت البداية'],['org_manage','إدارة المجلس'],['org_hospitality','الضيافة والاستقبال']];
+function printSurveyPDF(sessionId, miqatName){
+  const g=window.__lastSurveys; if(!g||g.sessionId!==sessionId) return;
+  const r=radoods.find(x=>x.id===currentSurveyRadoodId);
+  const surveys=g.surveys;
+  const block=(s,idx)=>{
+    const txt=(v)=>v&&v.trim()?escapeHtml(v):'—';
+    const rateRows=(items,obj)=>items.map(([k,l])=>`<tr><td>${l}</td><td>${obj&&obj[k]?escapeHtml(obj[k]):'—'}</td></tr>`).join('');
+    return `<div class="s-block">
+      <div class="s-block-h">استبيان ${idx+1}${surveys.length>1?` من ${surveys.length}`:''}</div>
+      <h3>أولاً: التقييم العام</h3>
+      <p><b>المستوى العام:</b> ${s.general?escapeHtml(s.general):'—'}</p>
+      <p><b>ما يميّز المجلس:</b> ${txt(s.texts&&s.texts.distinct)}</p>
+      <p><b>يحتاج تطوير:</b> ${txt(s.texts&&s.texts.improve)}</p>
+      <h3>ثانياً: تقييم المعزّين</h3>
+      <table>${rateRows(SURVEY_MOAZ,s.moaz)}</table>
+      <h3>ثالثاً: الصوتيات</h3>
+      <p><b>التقييم:</b> ${s.sound?escapeHtml(s.sound):'—'}</p>
+      <p><b>ملاحظات:</b> ${txt(s.texts&&s.texts.sound)}</p>
+      <h3>رابعاً: تنظيم المجلس</h3>
+      <table>${rateRows(SURVEY_ORG,s.org)}</table>
+      <h3>خامساً: الرؤية المستقبلية</h3>
+      <p><b>يتمنى إضافته:</b> ${txt(s.texts&&s.texts.wish)}</p>
+      <p><b>أفكار ومقترحات:</b> ${txt(s.texts&&s.texts.ideas)}</p>
+      <p><b>الرغبة بالمشاركة مستقبلاً:</b> ${s.future?escapeHtml(s.future):'—'}</p>
+      <h3>🌟 السؤال الذهبي (أول ٣ أمور للتطوير)</h3>
+      ${(s.golden&&s.golden.length)?`<ol>${s.golden.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`:'<p>—</p>'}
+      <h3>ملاحظة أخيرة</h3>
+      <p>${txt(s.texts&&s.texts.other)}</p>
+    </div>`;
+  };
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>استبيان الرادود — ${escapeHtml(r?r.name:'')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.9;font-size:14px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:180px;max-height:68px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:16px;}
+  .doc-title{font-family:'Amiri',serif;font-size:21px;font-weight:700;color:#1c4536;margin:8px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:13px;}
+  .s-radood{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:16px;}
+  .s-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #c19a3e;background:#e6f0ea;display:flex;align-items:center;justify-content:center;font-size:28px;}
+  .s-rname{font-size:18px;font-weight:800;color:#1c4536;}
+  .s-block{border:1px solid #e6ddcb;border-radius:12px;padding:16px;margin-bottom:18px;}
+  .s-block-h{font-weight:800;color:#fff;background:#1c4536;padding:6px 14px;border-radius:8px;display:inline-block;margin-bottom:10px;}
+  h3{font-size:14px;color:#1c4536;margin:14px 0 6px;border-right:3px solid #c19a3e;padding-right:8px;}
+  p{margin:4px 0;}p b{color:#1c4536;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0;}
+  th,td{border:1px solid #e6ddcb;padding:6px 10px;text-align:right;}td:last-child{font-weight:600;color:#1c4536;width:120px;}
+  ol{margin:6px 22px;}li{margin:3px 0;}
+  .foot{margin-top:24px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;} .no-print{display:none;} .s-block{page-break-inside:avoid;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">استبيان تطوير المجلس</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · لجنة العزاء · ${hijriToday()}</div></div>
+  <div class="s-radood">
+    <div class="s-avatar">${r&&r.img?`<img src="${r.img}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="">`:'🎤'}</div>
+    <div><div class="s-rname">${escapeHtml(r?r.name:'')}</div><div style="font-size:13px;color:#8a7c6b;">${escapeHtml(miqatName)}</div></div>
+  </div>
+  ${surveys.map((s,i)=>block(s,i)).join('')}
+  <div class="foot">هيئة محبي الحسين (ع) — لجنة العزاء · استبيان الرادود</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
 
 async function enterFinance(){
   const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');
