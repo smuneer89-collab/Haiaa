@@ -379,6 +379,25 @@
   .rer-report p { font-size:13.5px; line-height:1.9; color:var(--ink); margin:0 0 8px; }
   .rer-tags { font-size:12.5px; color:var(--muted); margin-top:6px; line-height:1.7; }
   .rer-tags b { color:var(--accent); }
+  /* رابط التقييم الجماعي */
+  .eval-link-box { background:var(--ok-soft); border:1px solid var(--ok); border-radius:12px; padding:14px; }
+  .elb-label { font-size:13px; font-weight:700; color:var(--ok); margin-bottom:8px; }
+  .elb-url { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:10px; font-size:12px; color:var(--ink); word-break:break-all; margin-bottom:10px; direction:ltr; text-align:left; }
+  .elb-actions { display:flex; gap:8px; }
+  .eval-link-loading, .eval-link-note, .eval-link-err { text-align:center; padding:14px; font-size:13px; color:var(--muted); }
+  .eval-link-err { color:var(--danger); }
+  .els-title { font-size:13px; font-weight:700; color:var(--accent); margin-bottom:8px; }
+  .els-row { display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:7px; gap:8px; }
+  .els-name { font-weight:600; font-size:13.5px; color:var(--ink); }
+  .els-meta { font-size:11px; color:var(--muted); margin-top:2px; }
+  .eval-results-box { background:var(--accent-soft); border:1px solid var(--gold); border-radius:12px; padding:16px; }
+  .erb-h { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:12px; }
+  .erb-main { text-align:center; margin-bottom:10px; }
+  .erb-pct { font-size:36px; font-weight:800; color:var(--accent); }
+  .erb-sub { font-size:13px; color:var(--muted); }
+  .erb-right { text-align:center; font-size:13px; color:var(--ink); background:var(--surface); border-radius:8px; padding:8px; margin-bottom:12px; }
+  .erb-actions { display:flex; flex-wrap:wrap; gap:8px; }
+  .erb-actions .btn { flex:1; min-width:90px; }
   /* اختيار قالب الرسالة */
   .tpl-picker-overlay { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:24px; }
   .tpl-picker { background:var(--surface); border-radius:18px; padding:24px 20px; max-width:340px; width:100%; text-align:center; }
@@ -2378,6 +2397,12 @@
 <div class="toast" id="toast"></div>
 
 <!-- Add photo modal -->
+<!-- نافذة رابط التقييم الجماعي -->
+<div class="modal-backdrop" id="evalLinkModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('evalLinkModal')">×</button>
+  <div id="evalLinkBody"></div>
+</div></div>
+
 <!-- نافذة إضافة/تعديل رادود -->
 <div class="modal-backdrop" id="radoodModal"><div class="modal">
   <button class="modal-close" onclick="closeModal('radoodModal')">×</button>

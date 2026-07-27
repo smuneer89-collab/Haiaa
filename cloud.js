@@ -300,7 +300,33 @@ const CloudSync = (() => {
     }
   }
 
+  // ═══ التقييم الجماعي عبر الرابط ═══
+  // إنشاء جلسة تقييم (يعيد معرّف الجلسة)
+  async function createEvalSession(payload){
+    if(!db) throw new Error('cloud not ready');
+    const ref = await db.collection('evalSessions').add(Object.assign({ closed:false, at:new Date().toISOString() }, payload));
+    return ref.id;
+  }
+  // جلب التقييمات الواردة لجلسة معيّنة (الإدارة فقط)
+  async function fetchPublicEvals(sessionId){
+    if(!db) throw new Error('cloud not ready');
+    const snap = await db.collection('publicEvals').where('sessionId','==',sessionId).get();
+    return snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+  }
+  // إغلاق/فتح جلسة
+  async function setEvalSessionClosed(sessionId, closed){
+    if(!db) return;
+    await db.collection('evalSessions').doc(sessionId).update({ closed:!!closed });
+  }
+  // جلب كل الجلسات (الإدارة)
+  async function fetchEvalSessions(){
+    if(!db) throw new Error('cloud not ready');
+    const snap = await db.collection('evalSessions').orderBy('at','desc').get();
+    return snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+  }
+
   return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply,
+           createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };
 })();

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex,nofollow">
+<title>تقييم الرادود — هيئة محبي الحسين</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4efe6;--surface:#fffdf8;--ink:#1a2620;--muted:#8a7c6b;--muted-2:#b3a894;--line:#e6ddcb;--accent:#1c4536;--accent-deep:#123028;--accent-soft:#e6f0ea;--ok:#2f8f5b;--ok-soft:#e6f3ea;--warn:#b5763a;--warn-soft:#f6ecdf;--gold:#c19a3e;--danger:#b85c5c;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--ink);padding:0;min-height:100vh;}
+.wrap{max-width:520px;margin:0 auto;padding:0 0 40px;}
+.eval-head{background:linear-gradient(150deg,var(--accent-deep),var(--accent));padding:26px 18px;color:#fff;text-align:center;}
+.eval-org{font-size:13px;color:var(--gold);margin-bottom:10px;}
+.eval-avatar{width:88px;height:88px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:38px;border:3px solid var(--gold);margin:0 auto 12px;}
+.eval-avatar img{width:100%;height:100%;object-fit:cover;}
+.eval-rname{font-size:22px;font-weight:800;}
+.eval-miqat{font-size:14px;color:var(--accent-soft);margin-top:4px;}
+.eval-title{font-size:12px;color:var(--gold);margin-top:10px;background:rgba(255,255,255,.1);display:inline-block;padding:5px 16px;border-radius:20px;}
+.panel{background:var(--surface);margin:14px;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.eval-sec{padding:16px 18px;border-bottom:1px solid var(--line);}
+.eval-sec:last-child{border-bottom:none;}
+.eval-sec-h{font-size:15px;font-weight:700;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.eval-hint{font-size:11px;font-weight:400;color:var(--muted-2);}
+.eval-field{margin-bottom:12px;}
+.eval-field label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:6px;}
+.eval-field input,#evNotes,#rightReason{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--ink);}
+.eval-star-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;}
+.esr-label{font-size:13.5px;color:var(--ink);}
+.esr-stars{display:flex;gap:3px;}
+.esr-stars .star{font-size:26px;color:var(--gold);cursor:pointer;line-height:1;user-select:none;opacity:.4;}
+.esr-stars .star.on{opacity:1;}
+.eval-prog-row{display:flex;align-items:center;gap:10px;padding:5px 0;}
+.epr-label{flex:1;font-size:13px;}
+.epr-input{width:70px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;text-align:center;background:var(--surface);}
+.epr-pct{color:var(--muted);font-size:13px;}
+.eval-yn-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;gap:10px;}
+.eyn-q{font-size:13px;flex:1;}
+.eyn-btns{display:flex;gap:6px;flex-shrink:0;}
+.eyn-btn{padding:7px 18px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;}
+.eyn-btn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+.eval-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.eval-chip{padding:9px 14px;border:1px solid var(--line);border-radius:20px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--ink);cursor:pointer;}
+.eval-chip.on{background:var(--accent-soft);border-color:var(--gold);color:var(--accent);font-weight:600;}
+#evNotes,#rightReason{resize:vertical;}
+.submit-btn{width:calc(100% - 28px);margin:14px;padding:15px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;}
+.submit-btn:disabled{opacity:.6;}
+.state{text-align:center;padding:60px 24px;}
+.state .ic{font-size:56px;margin-bottom:16px;}
+.state h2{font-size:20px;color:var(--accent);margin-bottom:8px;}
+.state p{font-size:14px;color:var(--muted);line-height:1.8;}
+.loading{text-align:center;padding:80px 20px;color:var(--muted);}
+.spin{width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 16px;animation:sp 1s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="loading"><div class="spin"></div>جارٍ التحميل…</div>
+</div>
+
+<!-- Firebase (نفس المشروع، صلاحية الكتابة فقط) -->
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG = {
+  apiKey: "AIzaSyBlAxijaUz0OHwCsq5NnvQ90OVOCsr1vKY",
+  authDomain: "haiaa-banijamrah.firebaseapp.com",
+  projectId: "haiaa-banijamrah",
+  storageBucket: "haiaa-banijamrah.firebasestorage.app",
+  messagingSenderId: "499603171369",
+  appId: "1:499603171369:web:19c71e92ca2690cfe61438"
+};
+
+// ثوابت التقييم (نسخة مطابقة للبرنامج)
+const EVAL_GROUPS=[
+  { key:'commit', title:'الالتزام', items:[['attendance','الحضور في الوقت'],['duration','الالتزام بمدة القراءة']] },
+  { key:'perf', title:'الأداء', items:[['voice','جودة الصوت'],['clarity','وضوح النطق'],['melody','التحكم باللحن'],['meter','ضبط الوزن'],['variety','التنوع في الأداء']] },
+  { key:'engage', title:'التفاعل', items:[['audience','تفاعل المعزّين'],['response','الرد مع الرادود'],['opener','المستهل'],['poem','القصيدة']] },
+  { key:'poems', title:'القصائد', items:[['selection','اختيار القصائد'],['suitability','مناسبة الشعر للمناسبة'],['quality','جودة الكلمات']] },
+  { key:'mgmt', title:'إدارة المجلس', items:[['admin','التعامل مع الإدارة'],['flexibility','المرونة أثناء التغيير']] },
+];
+const PROGRAM_TYPES=['حماسي','حزين','رثاء','مصيبة','عزاء','دعاء','قصيدة قصيرة','قصيدة طويلة'];
+const AMBIANCE_Q=[['full','هل امتلأ المجلس؟'],['left','هل خرج أشخاص أثناء القراءة؟'],['increased','هل زاد الحضور أثناء القراءة؟'],['quiet','هل كان هناك هدوء؟'],['disciplined','هل كان المجلس منضبطاً؟']];
+const STRENGTHS=['مستهل ممتاز','سيطرة على المجلس','صوت قوي','اختيار موفّق للقصائد','تفاعل كبير'];
+const RECOMMENDS=['إعادة دعوته ليلة عاشوراء','إعطاؤه مناسبة أكبر','يحتاج تنويعاً في القصائد','يحتاج تحسين إدارة الوقت','يحتاج رفع مستوى التفاعل'];
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function qparam(k){ return new URLSearchParams(location.search).get(k); }
+
+let db=null, session=null, sessionId=null;
+let data={ stars:{}, program:{}, ambiance:{}, strengths:[], recommends:[], gaveRight:'', gaveRightReason:'' };
+
+async function init(){
+  sessionId=qparam('s');
+  if(!sessionId){ showState('⚠️','رابط غير صالح','لا يوجد معرّف جلسة في الرابط.'); return; }
+  // منع التكرار: هل قيّم من قبل على هذا الجهاز؟
+  if(localStorage.getItem('voted_'+sessionId)){
+    showState('✅','تم تقييمك مسبقاً','شكراً لك، لقد سجّلت تقييمك لهذه القراءة من قبل.'); return;
+  }
+  try{
+    firebase.initializeApp(FB_CONFIG);
+    db=firebase.firestore();
+    // اقرأ بيانات الجلسة فقط (مسموح: قراءة جلسة التقييم العامة)
+    const doc=await db.collection('evalSessions').doc(sessionId).get();
+    if(!doc.exists){ showState('⚠️','الجلسة غير موجودة','قد يكون الرابط منتهياً أو غير صحيح.'); return; }
+    session=doc.data();
+    if(session.closed){ showState('🔒','التقييم مغلق','انتهت فترة التقييم لهذه القراءة.'); return; }
+    renderForm();
+  }catch(e){
+    console.error(e);
+    showState('⚠️','تعذّر الاتصال','حدث خطأ في الاتصال. حاول مرة أخرى لاحقاً.');
+  }
+}
+
+function showState(ic,title,msg){
+  document.getElementById('app').innerHTML=`<div class="state"><div class="ic">${ic}</div><h2>${esc(title)}</h2><p>${esc(msg)}</p></div>`;
+}
+
+function renderForm(){
+  const app=document.getElementById('app');
+  app.innerHTML=`
+  <div class="eval-head">
+    <div class="eval-org">هيئة محبي الحسين (ع) · لجنة العزاء</div>
+    <div class="eval-avatar">${session.radoodImg?`<img src="${session.radoodImg}" alt="">`:'🎤'}</div>
+    <div class="eval-rname">${esc(session.radoodName)}</div>
+    <div class="eval-miqat">${esc(session.miqatName||'')}</div>
+    <div class="eval-title">⭐ تقييم القراءة</div>
+  </div>
+
+  <div class="panel">
+    ${EVAL_GROUPS.map(g=>`
+      <div class="eval-sec">
+        <div class="eval-sec-h">${g.title}</div>
+        ${g.items.map(([k,label])=>`
+          <div class="eval-star-row">
+            <span class="esr-label">${label}</span>
+            <span class="esr-stars" data-key="${k}">
+              ${[1,2,3,4,5].map(n=>`<span class="star" onclick="setStar('${k}',${n})" data-n="${n}">★</span>`).join('')}
+            </span>
+          </div>`).join('')}
+      </div>`).join('')}
+  </div>
+
+  <div class="panel">
+    <div class="eval-sec">
+      <div class="eval-sec-h">🎭 نوع البرنامج <span class="eval-hint">النسبة التقريبية %</span></div>
+      ${PROGRAM_TYPES.map(t=>`
+        <div class="eval-prog-row">
+          <span class="epr-label">${t}</span>
+          <input type="number" min="0" max="100" placeholder="0" class="epr-input" oninput="data.program['${t}']=this.value">
+          <span class="epr-pct">%</span>
+        </div>`).join('')}
+    </div>
+    <div class="eval-sec">
+      <div class="eval-sec-h">🌙 تقييم الأجواء</div>
+      ${AMBIANCE_Q.map(([k,q])=>`
+        <div class="eval-yn-row">
+          <span class="eyn-q">${q}</span>
+          <span class="eyn-btns">
+            <button class="eyn-btn" data-k="${k}" data-v="yes" onclick="setAmb('${k}','yes',this)">نعم</button>
+            <button class="eyn-btn" data-k="${k}" data-v="no" onclick="setAmb('${k}','no',this)">لا</button>
+          </span>
+        </div>`).join('')}
+    </div>
+    <div class="eval-sec">
+      <div class="eval-sec-h">💪 أبرز نقاط القوة</div>
+      <div class="eval-chips">${STRENGTHS.map(s=>`<button class="eval-chip" onclick="toggleChip('strengths','${esc(s)}',this)">${s}</button>`).join('')}</div>
+    </div>
+    <div class="eval-sec">
+      <div class="eval-sec-h">🎯 التوصيات</div>
+      <div class="eval-chips">${RECOMMENDS.map(s=>`<button class="eval-chip" onclick="toggleChip('recommends','${esc(s)}',this)">${s}</button>`).join('')}</div>
+    </div>
+    <div class="eval-sec">
+      <div class="eval-sec-h">⚖️ هل أعطى الرادود هذه المناسبة حقّها؟</div>
+      <div class="eyn-btns" style="margin-bottom:10px;">
+        <button class="eyn-btn" id="rY" onclick="setRight('yes')">نعم</button>
+        <button class="eyn-btn" id="rN" onclick="setRight('no')">لا</button>
+      </div>
+      <div id="reasonWrap" style="display:none;"><textarea id="rightReason" rows="2" placeholder="اذكر السبب…" oninput="data.gaveRightReason=this.value"></textarea></div>
+    </div>
+    <div class="eval-sec">
+      <div class="eval-sec-h">📝 ملاحظات <span class="eval-hint">اختياري</span></div>
+      <textarea id="evNotes" rows="3" placeholder="اكتب ملاحظاتك…" oninput="data.notes=this.value"></textarea>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submitBtn" onclick="submitEval()">✅ إرسال التقييم</button>`;
+}
+
+function setStar(key,n){
+  data.stars[key]=n;
+  document.querySelector(`.esr-stars[data-key="${key}"]`).querySelectorAll('.star').forEach(s=>s.classList.toggle('on',+s.dataset.n<=n));
+}
+function setAmb(k,v,btn){
+  data.ambiance[k]=v;
+  document.querySelectorAll(`.eyn-btn[data-k="${k}"]`).forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+}
+function toggleChip(field,val,btn){
+  const i=data[field].indexOf(val);
+  if(i<0){ data[field].push(val); btn.classList.add('on'); } else { data[field].splice(i,1); btn.classList.remove('on'); }
+}
+function setRight(v){
+  data.gaveRight=v;
+  document.getElementById('rY').classList.toggle('on',v==='yes');
+  document.getElementById('rN').classList.toggle('on',v==='no');
+  document.getElementById('reasonWrap').style.display = v==='no'?'block':'none';
+  if(v==='yes') data.gaveRightReason='';
+}
+function computeAvg(){
+  const vals=Object.values(data.stars).map(Number).filter(n=>n>0);
+  if(!vals.length) return 0;
+  return vals.reduce((s,v)=>s+v,0)/vals.length;
+}
+
+async function submitEval(){
+  const avg=computeAvg();
+  if(!avg){ alert('الرجاء تقييم بند واحد على الأقل بالنجوم'); return; }
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='جارٍ الإرسال…';
+  const entry={
+    sessionId, radoodId:session.radoodId, miqatId:session.miqatId||'',
+    stars:data.stars, program:data.program, ambiance:data.ambiance,
+    strengths:data.strengths, recommends:data.recommends,
+    gaveRight:data.gaveRight||'', gaveRightReason:data.gaveRightReason||'',
+    notes:data.notes||'', avg:Math.round(avg*100)/100, pct:Math.round(avg*20),
+    at:new Date().toISOString()
+  };
+  try{
+    // كتابة فقط — إنشاء مستند جديد في المجموعة المعزولة
+    await db.collection('publicEvals').add(entry);
+    localStorage.setItem('voted_'+sessionId,'1');
+    showState('🌟','شكراً لك','تم تسجيل تقييمك بنجاح.<br>نسأل الله أن يتقبّل منكم.');
+  }catch(e){
+    console.error(e);
+    btn.disabled=false; btn.textContent='✅ إرسال التقييم';
+    alert('تعذّر إرسال التقييم. تأكد من الاتصال وحاول مجدداً.');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

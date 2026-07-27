@@ -2,14 +2,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // البريد المسموح له بالدخول — أضف بريد أمين اللجنة المالية هنا لاحقاً
+    // البريد المسموح له بالوصول الكامل (الإدارة)
     function allowed() {
       return request.auth != null
         && request.auth.token.email in [
-          'smuneer89@gmail.com'
+          'smuneer89@gmail.com',
+          'abuyusufjoud@gmail.com'
         ];
     }
 
+    // التحقق من صحة التقييم العام قبل قبوله (حماية من العبث)
+    function isValidPublicEval() {
+      let d = request.resource.data;
+      return d.sessionId is string
+        && d.radoodId is string
+        && d.avg is number && d.avg >= 0 && d.avg <= 5
+        && d.pct is number
+        && exists(/databases/$(database)/documents/evalSessions/$(d.sessionId))
+        && get(/databases/$(database)/documents/evalSessions/$(d.sessionId)).data.closed != true;
+    }
+
+    // ═══ التقييم العام عبر الرابط (معزول) ═══
+
+    // جلسات التقييم: العامة تقرأ فقط (لعرض اسم الرادود والمناسبة)،
+    // والإدارة تنشئ وتعدّل وتحذف.
+    match /evalSessions/{sessionId} {
+      allow read: if true;
+      allow create, update, delete: if allowed();
+    }
+
+    // التقييمات الواردة من الرابط: العامة تُنشئ فقط (لا قراءة/تعديل/حذف)،
+    // والإدارة وحدها تقرأ النتائج وتحذف.
+    match /publicEvals/{evalId} {
+      allow create: if isValidPublicEval();
+      allow read, update, delete: if allowed();
+    }
+
+    // ═══ باقي بيانات الهيئة: الإدارة فقط ═══
     match /{document=**} {
       allow read, write: if allowed();
     }
