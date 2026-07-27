@@ -60,6 +60,8 @@ let reminders = []; // تذكيرات التقويم: {id, title, note, day, mon
 let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
+let radoods = []; // الرواديد: {id, name, img, note, at}
+let radoodEvals = []; // تقييمات الرواديد (دفعة ٢): {id, radoodId, miqatId, ...}
 // كل مصروف: {id, section:'miqat', mood:'farah'|'hzn', miqatId, kind:'mawlid'|'ihtifal', type, subType, cost, date, note, at}
 let uiDark = false;
 let settings = {
@@ -163,6 +165,8 @@ async function loadData(){
   try { const f=await storage.get('financeLog'); if(f) financeLog=JSON.parse(f); } catch(e){ financeLog=[]; }
   try { const fn=await storage.get('finance'); if(fn) finance=Object.assign({total:0,yearStart:0,expenses:[]}, JSON.parse(fn)); } catch(e){ finance={total:0,yearStart:0,expenses:[]}; }
   try { const pt=await storage.get('paidThawab'); if(pt) paidThawab=JSON.parse(pt); } catch(e){ paidThawab=[]; }
+  try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
+  try { const re=await storage.get('radoodEvals'); if(re) radoodEvals=JSON.parse(re); } catch(e){ radoodEvals=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
 }
 function cloudPush(k,v){ if(window.CloudSync) CloudSync.push(k,v); }
@@ -177,6 +181,8 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveRadoods(){ try{ await storage.set('radoods',JSON.stringify(radoods)); }catch(e){} cloudPush('radoods',radoods); }
+async function saveRadoodEvals(){ try{ await storage.set('radoodEvals',JSON.stringify(radoodEvals)); }catch(e){} cloudPush('radoodEvals',radoodEvals); }
 
 /* ═══════════ ألبوم الصور (اللجنة الإعلامية) ═══════════ */
 let albumPhotoData=null;
@@ -2842,7 +2848,7 @@ function renderMeetings(){ renderMeetingStats(); populateMeetingFilters(); rende
 
 /* ─── التنقل داخل قسم الإدارة ─── */
 function idaraShow(view){
-  ['hub','sec','finance','media','admins'].forEach(v=>{
+  ['hub','sec','finance','media','aza','admins'].forEach(v=>{
     const el=document.getElementById('idara-'+v); if(el) el.style.display = (v===view)?'block':'none';
   });
 }
@@ -2856,7 +2862,79 @@ function openIdara(which){
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); }
+  else if(which==='aza'){ idaraShow('aza'); renderRadoods(); }
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ═══════════ لجنة العزاء — الرواديد ═══════════ */
+let radoodPhotoData=null, editingRadoodId=null;
+function renderRadoods(){
+  const q=($('#radoodSearch')?.value||'').trim();
+  const list=radoods.filter(r=>!q||(r.name||'').includes(q)).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar'));
+  const cnt=$('#azaRcount'); if(cnt) cnt.textContent=`${radoods.length} رادود`;
+  const host=$('#radoodList'); if(!host) return;
+  if(!list.length){ host.innerHTML=`<div class="radood-empty"><div class="re-ic">🎤</div><div>${q?'لا نتائج':'لا يوجد رواديد بعد — أضف أول رادود'}</div></div>`; return; }
+  host.innerHTML=list.map(r=>{
+    const nEval=radoodEvals.filter(e=>e.radoodId===r.id).length;
+    return `<div class="radood-card">
+      <div class="radood-avatar">${r.img?`<img class="radood-avatar" src="${r.img}" alt="" style="border:none">`:'🎤'}</div>
+      <div class="radood-info">
+        <div class="radood-name">${escapeHtml(r.name)}</div>
+        <div class="radood-meta">${nEval} تقييم${r.note?' · '+escapeHtml(r.note):''}</div>
+      </div>
+      <div class="radood-actions">
+        <button onclick="openEditRadood('${r.id}')" title="تعديل">✏️</button>
+        <button onclick="deleteRadood('${r.id}')" title="حذف">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function openAddRadood(){
+  editingRadoodId=null; radoodPhotoData=null;
+  $('#radoodModalTitle').textContent='➕ إضافة رادود';
+  $('#radoodName').value=''; $('#radoodNote').value='';
+  $('#radoodPhotoPreview').innerHTML='🎤';
+  $('#radoodPhotoPickLabel').textContent='اختر صورة';
+  $('#radoodModal').classList.add('open');
+}
+function openEditRadood(id){
+  const r=radoods.find(x=>x.id===id); if(!r) return;
+  editingRadoodId=id; radoodPhotoData=null;
+  $('#radoodModalTitle').textContent='✏️ تعديل رادود';
+  $('#radoodName').value=r.name||''; $('#radoodNote').value=r.note||'';
+  $('#radoodPhotoPreview').innerHTML=r.img?`<img src="${r.img}" alt="" />`:'🎤';
+  $('#radoodPhotoPickLabel').textContent='تغيير الصورة (اختياري)';
+  $('#radoodModal').classList.add('open');
+}
+async function handleRadoodPhotoSelect(e){
+  const file=e.target.files[0]; if(!file) return;
+  if(file.size>15*1024*1024){ toast('الصورة كبيرة جداً (أقل من 15 ميجا)'); return; }
+  try{ radoodPhotoData=await processPhoto(file, 500, .8); $('#radoodPhotoPreview').innerHTML=`<img src="${radoodPhotoData}" alt="" />`; }
+  catch(err){ toast('تعذّرت معالجة الصورة'); }
+}
+async function saveRadood(){
+  const name=$('#radoodName').value.trim();
+  if(!name){ toast('أدخل اسم الرادود'); return; }
+  const note=$('#radoodNote').value.trim();
+  if(editingRadoodId){
+    const r=radoods.find(x=>x.id===editingRadoodId);
+    if(r){ r.name=name; r.note=note; if(radoodPhotoData) r.img=radoodPhotoData; }
+    await saveRadoods(); editingRadoodId=null; radoodPhotoData=null;
+    closeModal('radoodModal'); toast('تم تحديث بيانات الرادود'); renderRadoods(); return;
+  }
+  radoods.push({ id:'rad_'+Date.now(), name, note, img:radoodPhotoData||'', at:new Date().toISOString() });
+  await saveRadoods(); radoodPhotoData=null;
+  closeModal('radoodModal'); toast('تمت إضافة الرادود'); renderRadoods();
+}
+async function deleteRadood(id){
+  const r=radoods.find(x=>x.id===id); if(!r) return;
+  const nEval=radoodEvals.filter(e=>e.radoodId===id).length;
+  const warn=nEval?`\n\nتنبيه: لديه ${nEval} تقييم سيُحذف أيضاً.`:'';
+  if(!confirm(`حذف الرادود «${r.name}»؟${warn}`)) return;
+  radoods=radoods.filter(x=>x.id!==id);
+  radoodEvals=radoodEvals.filter(e=>e.radoodId!==id);
+  await saveRadoods(); await saveRadoodEvals();
+  renderRadoods();
 }
 async function enterFinance(){
   const code=prompt('🔒 اللجنة المالية — أدخل الرقم السري:');

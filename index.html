@@ -293,6 +293,17 @@
   .tm-meta { font-size:11.5px; color:var(--muted); margin-top:2px; }
   .tm-amt { font-weight:700; color:var(--accent); font-size:14px; }
   .rep-tbl .rep-sum td { background:var(--accent-soft); font-weight:800; color:var(--accent); }
+  /* لجنة العزاء - الرواديد */
+  .radood-list { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+  .radood-card { display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line); border-right:3px solid var(--gold); border-radius:12px; padding:12px 14px; }
+  .radood-avatar { width:56px; height:56px; border-radius:50%; object-fit:cover; flex-shrink:0; border:2px solid var(--accent-soft); background:var(--accent-soft); display:flex; align-items:center; justify-content:center; font-size:26px; }
+  .radood-info { flex:1; min-width:0; }
+  .radood-name { font-weight:700; font-size:15.5px; color:var(--ink); }
+  .radood-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+  .radood-actions { display:flex; gap:6px; flex-shrink:0; }
+  .radood-actions button { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:7px 9px; cursor:pointer; font-size:14px; }
+  .radood-empty { text-align:center; padding:40px 20px; color:var(--muted-2); }
+  .radood-empty .re-ic { font-size:40px; margin-bottom:10px; }
   /* اختيار قالب الرسالة */
   .tpl-picker-overlay { position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:24px; }
   .tpl-picker { background:var(--surface); border-radius:18px; padding:24px 20px; max-width:340px; width:100%; text-align:center; }
@@ -1589,6 +1600,11 @@
             <div class="ic-name">اللجنة الإعلامية</div>
             <div class="ic-sub">قريباً</div>
           </div>
+          <div class="idara-card" onclick="openIdara('aza')">
+            <div class="ic-ico">🕯️</div>
+            <div class="ic-name">لجنة العزاء</div>
+            <div class="ic-sub" id="idaraAzaCount">تقييم الرواديد وسجل الأداء</div>
+          </div>
           <div class="idara-card" onclick="openIdara('admins')">
             <div class="ic-ico">👥</div>
             <div class="ic-name">أعضاء الإدارة</div>
@@ -1772,6 +1788,20 @@
           <button class="btn btn-primary" onclick="openAddPhoto()">➕ إضافة صورة</button>
         </div>
         <div id="albumGrid" class="album-grid"></div>
+      </div>
+    </div>
+
+    <!-- AZA COMMITTEE -->
+    <div id="idara-aza" style="display:none">
+      <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+      <div class="panel">
+        <div class="panel-header">
+          <div><h2 class="panel-title">🕯️ لجنة العزاء</h2>
+            <div class="panel-sub" id="azaRcount">0 رادود</div></div>
+          <button class="btn btn-primary" onclick="openAddRadood()">➕ إضافة رادود</button>
+        </div>
+        <input type="text" class="tath-search" id="radoodSearch" placeholder="🔍 ابحث عن رادود…" oninput="renderRadoods()" />
+        <div id="radoodList" class="radood-list"></div>
       </div>
     </div>
 
@@ -2257,6 +2287,28 @@
 <div class="toast" id="toast"></div>
 
 <!-- Add photo modal -->
+<!-- نافذة إضافة/تعديل رادود -->
+<div class="modal-backdrop" id="radoodModal"><div class="modal">
+  <button class="modal-close" onclick="closeModal('radoodModal')">×</button>
+  <h3 id="radoodModalTitle">➕ إضافة رادود</h3>
+  <div class="field full"><label>صورة الرادود</label>
+    <div class="photo-row">
+      <div class="photo-preview" id="radoodPhotoPreview">🎤</div>
+      <div>
+        <input type="file" id="radoodPhotoInput" accept="image/*" style="display:none" onchange="handleRadoodPhotoSelect(event)">
+        <button type="button" class="photo-btn" id="radoodPhotoPickLabel" onclick="document.getElementById('radoodPhotoInput').click()">اختر صورة</button>
+        <div class="photo-hint">تُصغَّر تلقائياً للحفظ</div>
+      </div>
+    </div>
+  </div>
+  <div class="field full"><label>اسم الرادود</label><input id="radoodName" type="text" placeholder="الاسم الكامل"></div>
+  <div class="field full"><label>ملاحظة <span class="opt">اختياري</span></label><input id="radoodNote" type="text" placeholder="مثال: من البحرين"></div>
+  <div class="actions-row">
+    <button class="btn btn-primary" onclick="saveRadood()">حفظ</button>
+    <button class="btn btn-ghost" onclick="closeModal('radoodModal')">إلغاء</button>
+  </div>
+</div></div>
+
 <div class="modal-backdrop" id="addPhotoModal"><div class="modal">
   <button class="modal-close" onclick="closeModal('addPhotoModal')">×</button>
   <h3 id="addPhotoTitle">➕ إضافة صورة</h3>
