@@ -323,6 +323,15 @@
   .esr-label { font-size:13.5px; color:var(--ink); }
   .esr-stars { display:flex; gap:3px; }
   .esr-stars .star { font-size:24px; color:var(--gold); cursor:pointer; line-height:1; user-select:none; }
+  /* أزرار التقييم سيء/جيد/ممتاز */
+  .eval-rate-row { display:flex; justify-content:space-between; align-items:center; padding:9px 0; gap:10px; flex-wrap:wrap; }
+  .err-label { font-size:13.5px; color:var(--ink); flex:1; min-width:110px; }
+  .rate-btns { display:flex; gap:5px; }
+  .rate-btn { padding:6px 13px; border:1px solid var(--line); border-radius:8px; background:var(--surface); font-family:var(--font-sans); font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .rate-btn.r-bad.on { background:var(--danger); color:#fff; border-color:var(--danger); }
+  .rate-btn.r-good.on { background:var(--warn); color:#fff; border-color:var(--warn); }
+  .rate-btn.r-excellent.on { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .score-label { font-size:16px; font-weight:700; color:var(--accent); }
   .eval-prog-row { display:flex; align-items:center; gap:10px; padding:5px 0; }
   .epr-label { flex:1; font-size:13px; color:var(--ink); }
   .epr-input { width:70px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:var(--font-sans); font-size:13px; text-align:center; background:var(--surface); }

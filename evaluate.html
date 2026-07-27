@@ -31,6 +31,13 @@ body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:va
 .esr-stars{display:flex;gap:3px;}
 .esr-stars .star{font-size:26px;color:var(--gold);cursor:pointer;line-height:1;user-select:none;opacity:.4;}
 .esr-stars .star.on{opacity:1;}
+.eval-rate-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;gap:10px;flex-wrap:wrap;}
+.err-label{font-size:13.5px;color:var(--ink);flex:1;min-width:110px;}
+.rate-btns{display:flex;gap:5px;}
+.rate-btn{padding:7px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-family:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;}
+.rate-btn.r-bad.on{background:var(--danger);color:#fff;border-color:var(--danger);}
+.rate-btn.r-good.on{background:var(--warn);color:#fff;border-color:var(--warn);}
+.rate-btn.r-excellent.on{background:var(--ok);color:#fff;border-color:var(--ok);}
 .eval-prog-row{display:flex;align-items:center;gap:10px;padding:5px 0;}
 .epr-label{flex:1;font-size:13px;}
 .epr-input{width:70px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;text-align:center;background:var(--surface);}
@@ -81,16 +88,17 @@ const EVAL_GROUPS=[
   { key:'poems', title:'القصائد', items:[['selection','اختيار القصائد'],['suitability','مناسبة الشعر للمناسبة'],['quality','جودة الكلمات']] },
   { key:'mgmt', title:'إدارة المجلس', items:[['admin','التعامل مع الإدارة'],['flexibility','المرونة أثناء التغيير']] },
 ];
-const PROGRAM_TYPES=['حماسي','حزين','رثاء','مصيبة','عزاء','دعاء','قصيدة قصيرة','قصيدة طويلة'];
+const PROGRAM_TYPES=['حماسي','حزين','ولائي','عقائدي','تاريخي'];
 const AMBIANCE_Q=[['full','هل امتلأ المجلس؟'],['left','هل خرج أشخاص أثناء القراءة؟'],['increased','هل زاد الحضور أثناء القراءة؟'],['quiet','هل كان هناك هدوء؟'],['disciplined','هل كان المجلس منضبطاً؟']];
 const STRENGTHS=['مستهل ممتاز','سيطرة على المجلس','صوت قوي','اختيار موفّق للقصائد','تفاعل كبير'];
-const RECOMMENDS=['إعادة دعوته ليلة عاشوراء','إعطاؤه مناسبة أكبر','يحتاج تنويعاً في القصائد','يحتاج تحسين إدارة الوقت','يحتاج رفع مستوى التفاعل'];
+const RECOMMENDS=['إعادة دعوته ليلة عاشوراء','إعطاؤه مناسبة أكبر','إعطاؤه مناسبة أخرى','يحتاج تنويعاً في القصائد','يحتاج تحسين إدارة الوقت','يحتاج التدريب أكثر'];
+const RATING_LEVELS=[['bad','سيء',1],['good','جيد',2],['excellent','ممتاز',3]];
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function qparam(k){ return new URLSearchParams(location.search).get(k); }
 
 let db=null, session=null, sessionId=null;
-let data={ stars:{}, program:{}, ambiance:{}, strengths:[], recommends:[], gaveRight:'', gaveRightReason:'' };
+let data={ stars:{}, program:{}, programList:[], ambiance:{}, strengths:[], recommends:[], gaveRight:'', gaveRightReason:'' };
 
 async function init(){
   sessionId=qparam('s');
@@ -134,10 +142,10 @@ function renderForm(){
       <div class="eval-sec">
         <div class="eval-sec-h">${g.title}</div>
         ${g.items.map(([k,label])=>`
-          <div class="eval-star-row">
-            <span class="esr-label">${label}</span>
-            <span class="esr-stars" data-key="${k}">
-              ${[1,2,3,4,5].map(n=>`<span class="star" onclick="setStar('${k}',${n})" data-n="${n}">★</span>`).join('')}
+          <div class="eval-rate-row">
+            <span class="err-label">${label}</span>
+            <span class="rate-btns" data-key="${k}">
+              ${RATING_LEVELS.map(([rk,rlabel,rval])=>`<button class="rate-btn r-${rk}" data-v="${rval}" onclick="setRating('${k}',${rval})">${rlabel}</button>`).join('')}
             </span>
           </div>`).join('')}
       </div>`).join('')}
@@ -145,13 +153,8 @@ function renderForm(){
 
   <div class="panel">
     <div class="eval-sec">
-      <div class="eval-sec-h">🎭 نوع البرنامج <span class="eval-hint">النسبة التقريبية %</span></div>
-      ${PROGRAM_TYPES.map(t=>`
-        <div class="eval-prog-row">
-          <span class="epr-label">${t}</span>
-          <input type="number" min="0" max="100" placeholder="0" class="epr-input" oninput="data.program['${t}']=this.value">
-          <span class="epr-pct">%</span>
-        </div>`).join('')}
+      <div class="eval-sec-h">🎭 نوع البرنامج العام <span class="eval-hint">تستطيع اختيار خيارين فقط</span></div>
+      <div class="eval-chips">${PROGRAM_TYPES.map(t=>`<button class="eval-chip" onclick="toggleProgram('${esc(t)}',this)">${t}</button>`).join('')}</div>
     </div>
     <div class="eval-sec">
       <div class="eval-sec-h">🌙 تقييم الأجواء</div>
@@ -169,8 +172,8 @@ function renderForm(){
       <div class="eval-chips">${STRENGTHS.map(s=>`<button class="eval-chip" onclick="toggleChip('strengths','${esc(s)}',this)">${s}</button>`).join('')}</div>
     </div>
     <div class="eval-sec">
-      <div class="eval-sec-h">🎯 التوصيات</div>
-      <div class="eval-chips">${RECOMMENDS.map(s=>`<button class="eval-chip" onclick="toggleChip('recommends','${esc(s)}',this)">${s}</button>`).join('')}</div>
+      <div class="eval-sec-h">🎯 التوصيات <span class="eval-hint">تستطيع اختيار أكثر من توصية (حتى ٣)</span></div>
+      <div class="eval-chips">${RECOMMENDS.map(s=>`<button class="eval-chip" onclick="toggleRec('${esc(s)}',this)">${s}</button>`).join('')}</div>
     </div>
     <div class="eval-sec">
       <div class="eval-sec-h">⚖️ هل أعطى الرادود هذه المناسبة حقّها؟</div>
@@ -189,9 +192,9 @@ function renderForm(){
   <button class="submit-btn" id="submitBtn" onclick="submitEval()">✅ إرسال التقييم</button>`;
 }
 
-function setStar(key,n){
-  data.stars[key]=n;
-  document.querySelector(`.esr-stars[data-key="${key}"]`).querySelectorAll('.star').forEach(s=>s.classList.toggle('on',+s.dataset.n<=n));
+function setRating(key,val){
+  data.stars[key]=val;
+  document.querySelectorAll(`.rate-btns[data-key="${key}"] .rate-btn`).forEach(b=>b.classList.toggle('on',+b.dataset.v===val));
 }
 function setAmb(k,v,btn){
   data.ambiance[k]=v;
@@ -200,6 +203,16 @@ function setAmb(k,v,btn){
 function toggleChip(field,val,btn){
   const i=data[field].indexOf(val);
   if(i<0){ data[field].push(val); btn.classList.add('on'); } else { data[field].splice(i,1); btn.classList.remove('on'); }
+}
+function toggleProgram(t,btn){
+  const i=data.programList.indexOf(t);
+  if(i<0){ if(data.programList.length>=2){ alert('تستطيع اختيار خيارين فقط'); return; } data.programList.push(t); btn.classList.add('on'); }
+  else { data.programList.splice(i,1); btn.classList.remove('on'); }
+}
+function toggleRec(val,btn){
+  const i=data.recommends.indexOf(val);
+  if(i<0){ if(data.recommends.length>=3){ alert('الحد الأقصى ٣ توصيات'); return; } data.recommends.push(val); btn.classList.add('on'); }
+  else { data.recommends.splice(i,1); btn.classList.remove('on'); }
 }
 function setRight(v){
   data.gaveRight=v;
@@ -211,24 +224,23 @@ function setRight(v){
 function computeAvg(){
   const vals=Object.values(data.stars).map(Number).filter(n=>n>0);
   if(!vals.length) return 0;
-  return vals.reduce((s,v)=>s+v,0)/vals.length;
+  return vals.reduce((s,v)=>s+v,0)/vals.length; // من 3
 }
 
 async function submitEval(){
   const avg=computeAvg();
-  if(!avg){ alert('الرجاء تقييم بند واحد على الأقل بالنجوم'); return; }
+  if(!avg){ alert('الرجاء تقييم بند واحد على الأقل'); return; }
   const btn=document.getElementById('submitBtn');
   btn.disabled=true; btn.textContent='جارٍ الإرسال…';
   const entry={
     sessionId, radoodId:session.radoodId, miqatId:session.miqatId||'',
-    stars:data.stars, program:data.program, ambiance:data.ambiance,
+    stars:data.stars, program:data.program, programList:data.programList, ambiance:data.ambiance,
     strengths:data.strengths, recommends:data.recommends,
     gaveRight:data.gaveRight||'', gaveRightReason:data.gaveRightReason||'',
-    notes:data.notes||'', avg:Math.round(avg*100)/100, pct:Math.round(avg*20),
+    notes:data.notes||'', avg:Math.round(avg*100)/100, pct:Math.round(avg/3*100),
     at:new Date().toISOString()
   };
   try{
-    // كتابة فقط — إنشاء مستند جديد في المجموعة المعزولة
     await db.collection('publicEvals').add(entry);
     localStorage.setItem('voted_'+sessionId,'1');
     showState('🌟','شكراً لك','تم تسجيل تقييمك بنجاح.<br>نسأل الله أن يتقبّل منكم.');

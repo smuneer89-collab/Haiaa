@@ -2967,19 +2967,20 @@ const EVAL_GROUPS=[
   { key:'poems', title:'القصائد', items:[['selection','اختيار القصائد'],['suitability','مناسبة الشعر للمناسبة'],['quality','جودة الكلمات']] },
   { key:'mgmt', title:'إدارة المجلس', items:[['admin','التعامل مع الإدارة'],['flexibility','المرونة أثناء التغيير']] },
 ];
-const PROGRAM_TYPES=['حماسي','حزين','رثاء','مصيبة','عزاء','دعاء','قصيدة قصيرة','قصيدة طويلة'];
+const PROGRAM_TYPES=['حماسي','حزين','ولائي','عقائدي','تاريخي'];
 const AMBIANCE_Q=[
   ['full','هل امتلأ المجلس؟'],['left','هل خرج أشخاص أثناء القراءة؟'],
   ['increased','هل زاد الحضور أثناء القراءة؟'],['quiet','هل كان هناك هدوء؟'],['disciplined','هل كان المجلس منضبطاً؟'],
 ];
 const STRENGTHS=['مستهل ممتاز','سيطرة على المجلس','صوت قوي','اختيار موفّق للقصائد','تفاعل كبير'];
-const RECOMMENDS=['إعادة دعوته ليلة عاشوراء','إعطاؤه مناسبة أكبر','يحتاج تنويعاً في القصائد','يحتاج تحسين إدارة الوقت','يحتاج رفع مستوى التفاعل'];
+const RECOMMENDS=['إعادة دعوته ليلة عاشوراء','إعطاؤه مناسبة أكبر','إعطاؤه مناسبة أخرى','يحتاج تنويعاً في القصائد','يحتاج تحسين إدارة الوقت','يحتاج التدريب أكثر'];
+const RATING_LEVELS=[['bad','سيء',1],['good','جيد',2],['excellent','ممتاز',3]]; // من 3: سيء=33% جيد=67% ممتاز=100%
 
 let evalRadoodId=null, evalData=null;
 function openRadoodEval(radoodId){
   const r=radoods.find(x=>x.id===radoodId); if(!r) return;
   evalRadoodId=radoodId;
-  evalData={ stars:{}, program:{}, ambiance:{}, strengths:[], recommends:[], miqatId:'', occasion:'', duration:'', notes:'', gaveRight:'', gaveRightReason:'' };
+  evalData={ stars:{}, program:{}, programList:[], ambiance:{}, strengths:[], recommends:[], miqatId:'', occasion:'', duration:'', notes:'', gaveRight:'', gaveRightReason:'' };
   renderRadoodEvalPage();
   openFullPage('radoodeval');
 }
@@ -3013,28 +3014,25 @@ function renderRadoodEvalPage(){
         <input id="evDuration" type="text" placeholder="مثال: ساعة و15 دقيقة" oninput="evalData.duration=this.value"></div>
     </div>
 
-    <!-- بنود النجوم -->
+    <!-- بنود التقييم (سيء/جيد/ممتاز) -->
     ${EVAL_GROUPS.map(g=>`
       <div class="eval-sec">
         <div class="eval-sec-h">${g.title}</div>
         ${g.items.map(([k,label])=>`
-          <div class="eval-star-row">
-            <span class="esr-label">${label}</span>
-            <span class="esr-stars" data-key="${k}">
-              ${[1,2,3,4,5].map(n=>`<span class="star" onclick="setEvalStar('${k}',${n})" data-n="${n}">☆</span>`).join('')}
+          <div class="eval-rate-row">
+            <span class="err-label">${label}</span>
+            <span class="rate-btns" data-key="${k}">
+              ${RATING_LEVELS.map(([rk,rlabel,rval])=>`<button class="rate-btn r-${rk}" data-v="${rval}" onclick="setRating('${k}',${rval})">${rlabel}</button>`).join('')}
             </span>
           </div>`).join('')}
       </div>`).join('')}
 
-    <!-- نوع البرنامج -->
+    <!-- نوع البرنامج العام -->
     <div class="eval-sec">
-      <div class="eval-sec-h">🎭 نوع البرنامج <span class="eval-hint">النسبة التقريبية لكل نوع %</span></div>
-      ${PROGRAM_TYPES.map(t=>`
-        <div class="eval-prog-row">
-          <span class="epr-label">${t}</span>
-          <input type="number" min="0" max="100" placeholder="0" class="epr-input" oninput="evalData.program['${t}']=this.value">
-          <span class="epr-pct">%</span>
-        </div>`).join('')}
+      <div class="eval-sec-h">🎭 نوع البرنامج العام <span class="eval-hint">تستطيع اختيار خيارين فقط</span></div>
+      <div class="eval-chips">
+        ${PROGRAM_TYPES.map(t=>`<button class="eval-chip" onclick="toggleProgram('${escapeHtml(t)}',this)">${t}</button>`).join('')}
+      </div>
     </div>
 
     <!-- تقييم الأجواء -->
@@ -3066,7 +3064,7 @@ function renderRadoodEvalPage(){
 
     <!-- التوصيات -->
     <div class="eval-sec">
-      <div class="eval-sec-h">🎯 التوصيات</div>
+      <div class="eval-sec-h">🎯 التوصيات <span class="eval-hint">تستطيع اختيار أكثر من توصية (حتى ٣)</span></div>
       <div class="eval-chips">
         ${RECOMMENDS.map(s=>`<button class="eval-chip" data-r="${escapeHtml(s)}" onclick="toggleRecommend('${escapeHtml(s)}',this)">${s}</button>`).join('')}
       </div>
@@ -3095,10 +3093,9 @@ function renderRadoodEvalPage(){
   </div>`;
 }
 function evalPickMiqat(id){ evalData.miqatId=id; const mq=miqats.find(x=>x.id===id); if(mq && !$('#evOccasion').value){ $('#evOccasion').value=mq.name; evalData.occasion=mq.name; } }
-function setEvalStar(key,n){
-  evalData.stars[key]=n;
-  const wrap=document.querySelector(`.esr-stars[data-key="${key}"]`);
-  if(wrap) wrap.querySelectorAll('.star').forEach(s=>{ s.textContent = (+s.dataset.n<=n)?'★':'☆'; s.classList.toggle('on',+s.dataset.n<=n); });
+function setRating(key,val){
+  evalData.stars[key]=val;
+  document.querySelectorAll(`.rate-btns[data-key="${key}"] .rate-btn`).forEach(b=>b.classList.toggle('on',+b.dataset.v===val));
   updateEvalScore();
 }
 function setAmbiance(k,v){
@@ -3111,7 +3108,17 @@ function toggleStrength(s,btn){
 }
 function toggleRecommend(s,btn){
   const i=evalData.recommends.indexOf(s);
-  if(i<0){ evalData.recommends.push(s); btn.classList.add('on'); } else { evalData.recommends.splice(i,1); btn.classList.remove('on'); }
+  if(i<0){
+    if(evalData.recommends.length>=3){ toast('الحد الأقصى ٣ توصيات'); return; }
+    evalData.recommends.push(s); btn.classList.add('on');
+  } else { evalData.recommends.splice(i,1); btn.classList.remove('on'); }
+}
+function toggleProgram(t,btn){
+  const i=evalData.programList.indexOf(t);
+  if(i<0){
+    if(evalData.programList.length>=2){ toast('تستطيع اختيار خيارين فقط'); return; }
+    evalData.programList.push(t); btn.classList.add('on');
+  } else { evalData.programList.splice(i,1); btn.classList.remove('on'); }
 }
 function setGaveRight(v){
   evalData.gaveRight=v;
@@ -3120,23 +3127,23 @@ function setGaveRight(v){
   const wrap=$('#rightReasonWrap'); if(wrap) wrap.style.display = v==='no' ? 'block' : 'none';
   if(v==='yes') evalData.gaveRightReason='';
 }
-/* حساب النتيجة: متوسط كل النجوم × 20 = نسبة مئوية */
+/* حساب النتيجة: متوسط التقييمات (من 3) → نسبة مئوية */
 function computeEvalScore(data){
   const vals=Object.values(data.stars||{}).map(Number).filter(n=>n>0);
   if(!vals.length) return { avg:0, pct:0, n:0 };
-  const avg=vals.reduce((s,v)=>s+v,0)/vals.length;
-  return { avg:Math.round(avg*100)/100, pct:Math.round(avg*20), n:vals.length };
+  const avg=vals.reduce((s,v)=>s+v,0)/vals.length; // من 3
+  return { avg:Math.round(avg*100)/100, pct:Math.round(avg/3*100), n:vals.length };
 }
 function updateEvalScore(){
   const {avg,pct,n}=computeEvalScore(evalData);
   const el=$('#evalScore'), st=$('#evalScoreStars');
   if(!el) return;
   if(!n){ el.textContent='—'; if(st) st.textContent=''; return; }
-  el.textContent=`${pct}%  (${avg} / 5)`;
-  const full=Math.round(avg);
-  if(st) st.innerHTML=[1,2,3,4,5].map(i=>`<span class="rs-star ${i<=full?'on':''}">${i<=full?'★':'☆'}</span>`).join('');
+  const label = pct>=84?'ممتاز':pct>=50?'جيد':'يحتاج تطوير';
+  el.textContent=`${pct}%`;
+  if(st) st.innerHTML=`<span class="score-label">${label}</span>`;
   const res=$('#evalResult');
-  if(res){ res.classList.remove('good','mid','low'); res.classList.add(pct>=80?'good':pct>=60?'mid':'low'); }
+  if(res){ res.classList.remove('good','mid','low'); res.classList.add(pct>=80?'good':pct>=50?'mid':'low'); }
 }
 async function saveRadoodEval(){
   if(!evalData.miqatId){ toast('اختر الميقات'); return; }
@@ -3146,7 +3153,7 @@ async function saveRadoodEval(){
   const entry={
     id:'ev_'+Date.now(), radoodId:evalRadoodId, miqatId:evalData.miqatId,
     miqatName:mq?mq.name:'', occasion:evalData.occasion||'', duration:evalData.duration||'',
-    stars:evalData.stars, program:evalData.program, ambiance:evalData.ambiance,
+    stars:evalData.stars, program:evalData.program, programList:evalData.programList||[], ambiance:evalData.ambiance,
     strengths:evalData.strengths, recommends:evalData.recommends, notes:evalData.notes||'',
     gaveRight:evalData.gaveRight||'', gaveRightReason:evalData.gaveRightReason||'',
     avg, pct, at:new Date().toISOString()
@@ -3367,7 +3374,10 @@ function printRadoodProfile(id){
   @media print{body{padding:24px;} .no-print{display:none;}}
   .no-print{position:fixed;top:12px;left:12px;background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;}
   </style></head><body>
-  <button class="no-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
     <div class="doc-title">ملف تقييم الرادود</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · لجنة العزاء · ${hijriToday()}</div></div>
@@ -3399,7 +3409,7 @@ function printRadoodMiqatPDF(evalId){
     const rows=g.items.filter(([k])=>e.stars&&e.stars[k]).map(([k,label])=>`<tr><td>${label}</td><td>${'★'.repeat(e.stars[k])}${'☆'.repeat(5-e.stars[k])} (${e.stars[k]}/5)</td></tr>`).join('');
     return rows?`<tr class="grp"><td colspan="2">${g.title}</td></tr>${rows}`:'';
   }).join('');
-  const prog=Object.entries(e.program||{}).filter(([_,v])=>v&&Number(v)>0).map(([k,v])=>`${k}: ${v}%`).join(' · ');
+  const prog=(e.programList&&e.programList.length)?e.programList.join(' · '):Object.entries(e.program||{}).filter(([_,v])=>v&&Number(v)>0).map(([k,v])=>`${k}: ${v}%`).join(' · ');
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(r?r.name:'')} — ${escapeHtml(e.miqatName||'')}</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
@@ -3427,7 +3437,10 @@ function printRadoodMiqatPDF(evalId){
   @media print{body{padding:24px;} .no-print{display:none;}}
   .no-print{position:fixed;top:12px;left:12px;background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;}
   </style></head><body>
-  <button class="no-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
     <div class="doc-title">تقييم مناسبة</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · لجنة العزاء · ${hijriToday()}</div></div>
@@ -3438,7 +3451,7 @@ function printRadoodMiqatPDF(evalId){
   </div>
   <h2>تفاصيل التقييم</h2>
   <table>${starRows}</table>
-  ${prog?`<div class="box"><b>نوع البرنامج:</b> ${escapeHtml(prog)}</div>`:''}
+  ${prog?`<div class="box"><b>نوع البرنامج العام:</b> ${escapeHtml(prog)}</div>`:''}
   ${e.strengths&&e.strengths.length?`<div class="box"><b>نقاط القوة:</b> ${e.strengths.map(escapeHtml).join('، ')}</div>`:''}
   ${e.recommends&&e.recommends.length?`<div class="box"><b>التوصيات:</b> ${e.recommends.map(escapeHtml).join('، ')}</div>`:''}
   <div class="box"><b>هل أعطى المناسبة حقّها؟</b> ${e.gaveRight==='yes'?'نعم':e.gaveRight==='no'?'لا':'—'}${e.gaveRight==='no'&&e.gaveRightReason?' — '+escapeHtml(e.gaveRightReason):''}</div>
@@ -3602,7 +3615,10 @@ function printGroupEvalPDF(sessionId, miqatName){
   @media print{body{padding:24px;} .no-print{display:none;}}
   .no-print{position:fixed;top:12px;left:12px;background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;}
   </style></head><body>
-  <button class="no-print" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
     <div class="doc-title">نتيجة التقييم الجماعي</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · لجنة العزاء · ${hijriToday()}</div></div>
