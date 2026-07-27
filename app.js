@@ -3214,8 +3214,18 @@ function renderRadoodRecord(){
   if(!evs.length){
     host.innerHTML=`<div class="panel"><div class="rec-head">
       <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
-      <div class="rec-name">${escapeHtml(r.name)}</div></div>
-      <div class="radood-empty"><div class="re-ic">📋</div><div>لا توجد تقييمات لهذا الرادود بعد</div></div></div>`;
+      <div class="rec-name">${escapeHtml(r.name)}</div>
+      <button class="btn btn-sm" style="margin-top:8px;background:#25604a;color:#fff;border:none;" onclick="openEvalLinkDialog('${r.id}')">🔗 رابط تقييم جماعي</button>
+    </div>
+      <div class="radood-empty"><div class="re-ic">📋</div><div>لا توجد تقييمات لهذا الرادود بعد</div>
+        <div style="margin-top:14px;">
+          <button class="btn btn-primary btn-sm" onclick="openRadoodEval('${r.id}')">⭐ إضافة تقييم</button>
+        </div>
+      </div>
+      <div style="padding:14px 18px;text-align:center;border-top:1px solid var(--line);">
+        <button class="btn btn-ghost btn-sm" onclick="closeRadoodRecord()">← رجوع للجنة العزاء</button>
+      </div>
+    </div>`;
     return;
   }
   const n=evs.length;
@@ -3285,6 +3295,10 @@ function renderRadoodRecord(){
           </div>
         </div>`;
       }).join('')}
+    </div>
+
+    <div style="padding:16px 18px;text-align:center;">
+      <button class="btn btn-ghost" onclick="closeRadoodRecord()">← رجوع للجنة العزاء</button>
     </div>
   </div>`;
 }
