@@ -349,10 +349,28 @@ const CloudSync = (() => {
     arr.sort((a,b)=>(b.at||'').localeCompare(a.at||''));
     return arr;
   }
+  // حذف جلسة استبيان مع كل إجاباتها
+  async function deleteSurveySession(sessionId){
+    if(!db) throw new Error('cloud not ready');
+    const snap = await db.collection('publicSurveys').where('sessionId','==',sessionId).get();
+    const batch = db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    batch.delete(db.collection('surveySessions').doc(sessionId));
+    await batch.commit();
+  }
+  // حذف جلسة تقييم مع كل إجاباتها
+  async function deleteEvalSession(sessionId){
+    if(!db) throw new Error('cloud not ready');
+    const snap = await db.collection('publicEvals').where('sessionId','==',sessionId).get();
+    const batch = db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    batch.delete(db.collection('evalSessions').doc(sessionId));
+    await batch.commit();
+  }
 
   return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply,
-           createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions,
-           createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions,
+           createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
+           createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };
 })();

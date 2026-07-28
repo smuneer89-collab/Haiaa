@@ -3374,6 +3374,7 @@ async function loadRecordSessions(radoodId){
         <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
           <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلقة':'· 🟢 مفتوحة'}</div></div>
         <button class="btn btn-sm" onclick="viewRecordResults('${s._id}','${escapeHtml(s.miqatName||'')}')">👁️ النتائج</button>
+        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteEvalSessionRec('${s._id}')">🗑️</button>
       </div>
       <div id="recRes_${s._id}" class="rec-session-result" style="display:none;"></div>`).join('');
   }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err">تعذّر تحميل الجلسات.</div>'; }
@@ -3395,6 +3396,7 @@ async function loadRecordSurveys(radoodId){
         <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
           <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلق':'· 🟢 مفتوح'}</div></div>
         <button class="btn btn-sm" onclick="viewSurveyResults('${s._id}','${escapeHtml(s.miqatName||'')}')">👁️ الإجابات</button>
+        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteSurveySession('${s._id}')">🗑️</button>
       </div>
       <div id="recSurv_${s._id}" class="rec-session-result" style="display:none;"></div>`).join('');
   }catch(e){ console.error('survey load error:',e);
@@ -3433,6 +3435,11 @@ async function toggleEvalSessionRec(sessionId){
   if(!confirm('إغلاق هذه الجلسة؟ لن يستطيع أحد التقييم بعدها.')) return;
   try{ await CloudSync.setEvalSessionClosed(sessionId, true); toast('أُغلقت الجلسة'); loadRecordSessions(recordRadoodId); }
   catch(e){ toast('تعذّر الإغلاق'); }
+}
+async function deleteEvalSessionRec(sessionId){
+  if(!confirm('حذف هذه الجلسة نهائياً مع كل تقييماتها؟ لا يمكن التراجع.')) return;
+  try{ await CloudSync.deleteEvalSession(sessionId); toast('حُذفت الجلسة'); loadRecordSessions(recordRadoodId); }
+  catch(e){ console.error(e); toast('تعذّر الحذف'); }
 }
 
 /* PDF ملف الرادود الكامل (بصورته + كل مشاركاته) */
@@ -3642,8 +3649,13 @@ async function viewSurveyResults(sessionId, miqatName){
 }
 async function toggleSurveySession(sessionId){
   if(!confirm('إغلاق هذا الاستبيان؟ لن يستطيع الرادود تعبئته بعدها.')) return;
-  try{ await CloudSync.setSurveySessionClosed(sessionId, true); toast('أُغلق الاستبيان'); loadRecordSurveys(currentSurveyRadoodId); }
+  try{ await CloudSync.setSurveySessionClosed(sessionId, true); toast('أُغلق الاستبيان'); loadRecordSurveys(currentSurveyRadoodId||recordRadoodId); }
   catch(e){ toast('تعذّر الإغلاق'); }
+}
+async function deleteSurveySession(sessionId){
+  if(!confirm('حذف هذا الاستبيان نهائياً مع كل إجاباته؟ لا يمكن التراجع.')) return;
+  try{ await CloudSync.deleteSurveySession(sessionId); toast('حُذف الاستبيان'); loadRecordSurveys(currentSurveyRadoodId||recordRadoodId); }
+  catch(e){ console.error(e); toast('تعذّر الحذف'); }
 }
 
 let currentEvalRadoodId=null;
