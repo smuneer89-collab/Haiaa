@@ -25,6 +25,7 @@ const CLOUD_COLLECTIONS = {
   reminders:  () => reminders,
   financeLog: () => financeLog,
   paidThawab: () => paidThawab,
+  projects:   () => projects,
   radoods:    () => radoods,
   radoodEvals:() => radoodEvals
 };
@@ -192,6 +193,7 @@ const CloudSync = (() => {
         case 'reminders':  reminders=arr;  storage.set('reminders',JSON.stringify(arr)); break;
         case 'financeLog': financeLog=arr; storage.set('financeLog',JSON.stringify(arr)); break;
         case 'paidThawab':  paidThawab=arr;  storage.set('paidThawab',JSON.stringify(arr)); break;
+        case 'projects':    projects=arr;    storage.set('projects',JSON.stringify(arr)); break;
         case 'radoods':     radoods=arr;     storage.set('radoods',JSON.stringify(arr)); break;
         case 'radoodEvals': radoodEvals=arr; storage.set('radoodEvals',JSON.stringify(arr)); break;
       }

@@ -199,6 +199,22 @@
   .fin-cell.mood.hzn { border-bottom-color:#5a6b7a; }
   .fin-field { margin-bottom:14px; }
   .fin-hint { font-size:13px; color:var(--muted); text-align:center; padding:16px; background:var(--accent-soft); border-radius:10px; }
+  /* المشاريع */
+  .proj-list { display:flex; flex-direction:column; gap:12px; }
+  .proj-card { background:var(--surface); border:1px solid var(--line); border-right:3px solid var(--gold); border-radius:12px; padding:14px 16px; }
+  .proj-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .proj-title { font-size:16px; font-weight:700; color:var(--ink); flex:1; }
+  .proj-src { font-size:11px; padding:4px 10px; border-radius:20px; color:#fff; white-space:nowrap; flex-shrink:0; }
+  .proj-src.budget { background:#8a5a5a; } .proj-src.donor { background:var(--ok); }
+  .proj-meta { font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .proj-submitter { font-size:12.5px; color:var(--ink); margin-bottom:6px; }
+  .proj-submitter b { color:var(--accent); }
+  .proj-desc { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:8px; }
+  .proj-warn { background:var(--warn-soft); border:1px solid #e0b088; border-radius:8px; padding:8px 12px; font-size:12px; color:#8a5a2a; font-weight:600; margin:8px 0; }
+  .proj-actions { display:flex; gap:8px; margin-top:8px; }
+  .proj-src-btns { display:flex; gap:10px; }
+  .proj-src-btn { flex:1; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); font-family:var(--font-sans); font-size:13.5px; font-weight:600; color:var(--muted); cursor:pointer; }
+  .proj-src-btn.on { background:var(--accent); color:#fff; border-color:var(--accent); }
   .fin-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
   .fin-field select, .fin-field input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
   .fin-ctx { background:var(--accent-soft); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--accent); font-size:14px; margin-bottom:14px; text-align:center; }

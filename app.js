@@ -60,6 +60,7 @@ let reminders = []; // تذكيرات التقويم: {id, title, note, day, mon
 let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
+let projects = []; // المشاريع: {id, title, date, description, goal, cost, source('donor'/'budget'), donorName, submitter, committee, viaLink, at}
 let radoods = []; // الرواديد: {id, name, img, note, at}
 let radoodEvals = []; // تقييمات الرواديد (دفعة ٢): {id, radoodId, miqatId, ...}
 // كل مصروف: {id, section:'miqat', mood:'farah'|'hzn', miqatId, kind:'mawlid'|'ihtifal', type, subType, cost, date, note, at}
@@ -165,6 +166,7 @@ async function loadData(){
   try { const f=await storage.get('financeLog'); if(f) financeLog=JSON.parse(f); } catch(e){ financeLog=[]; }
   try { const fn=await storage.get('finance'); if(fn) finance=Object.assign({total:0,yearStart:0,expenses:[]}, JSON.parse(fn)); } catch(e){ finance={total:0,yearStart:0,expenses:[]}; }
   try { const pt=await storage.get('paidThawab'); if(pt) paidThawab=JSON.parse(pt); } catch(e){ paidThawab=[]; }
+  try { const pr=await storage.get('projects'); if(pr) projects=JSON.parse(pr); } catch(e){ projects=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
   try { const re=await storage.get('radoodEvals'); if(re) radoodEvals=JSON.parse(re); } catch(e){ radoodEvals=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
@@ -181,6 +183,7 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveProjects(){ try{ await storage.set('projects',JSON.stringify(projects)); }catch(e){} cloudPush('projects',projects); }
 async function saveRadoods(){ try{ await storage.set('radoods',JSON.stringify(radoods)); }catch(e){} cloudPush('radoods',radoods); }
 async function saveRadoodEvals(){ try{ await storage.set('radoodEvals',JSON.stringify(radoodEvals)); }catch(e){} cloudPush('radoodEvals',radoodEvals); }
 
@@ -3920,7 +3923,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expHzn','expEntry','reports','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
+const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -3950,6 +3953,8 @@ function renderFinancePage(page, opts){
   else if(page==='expMiqat') host.innerHTML=finExpMiqatHTML();
   else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
   else if(page==='expHzn') host.innerHTML=finExpHznHTML(opts);
+  else if(page==='projects') host.innerHTML=finProjectsHTML();
+  else if(page==='projectAdd') host.innerHTML=finProjectAddHTML(opts);
   else if(page==='expEntry') host.innerHTML=finExpEntryHTML(opts);
   else if(page==='reports') host.innerHTML=finReportsHTML();
   else if(page==='tathwib') host.innerHTML=finTathwibHTML();
@@ -4022,7 +4027,7 @@ function finExpensesHTML(){
   <div class="fin-grid one">
     <button class="fin-cell big" onclick="openFinancePage('expMiqat')">مصروفات المواقيت</button>
     <button class="fin-cell big" onclick="openFinancePage('soon',{title:'مصروفات غير متعلقة بالإحياء'})">مصروفات غير متعلقة بالإحياء</button>
-    <button class="fin-cell big" onclick="openFinancePage('soon',{title:'مشاريع'})">مشاريع</button>
+    <button class="fin-cell big" onclick="openFinancePage('projects')">مشاريع</button>
   </div>`;
 }
 
@@ -4234,6 +4239,143 @@ function printMiqatExpenseReport(opts){
   </body></html>`);
   w.document.close(); w.focus();
 }
+
+/* ═══════════ لجنة المشاريع ═══════════ */
+const PROJECT_COMMITTEES=['اللجنة الإعلامية','لجنة العزاء','أمانة السر','اللجنة المالية','لجنة الاستقبال','لجنة الخدمات','أخرى'];
+function finProjectsHTML(){
+  const list=[...projects].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  return `
+  <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="openFinancePage('projectAdd',{})">➕ إضافة مشروع جديد</button>
+  <div class="fin-hint" style="margin-bottom:14px;">📎 لاستقبال مشاريع من أعضاء الإدارة عبر رابط، استخدم زر «تقديم مشروع للهيئة» في الصفحة الرئيسية للجنة المالية</div>
+  ${list.length?`<div class="proj-list">${list.map(p=>projectCardHTML(p)).join('')}</div>`
+    :'<div class="fel-empty">لا توجد مشاريع مسجّلة بعد</div>'}`;
+}
+function projectCardHTML(p){
+  const srcLbl = p.source==='budget' ? '🏛️ ميزانية الهيئة' : '🎁 متبرّع';
+  const srcClass = p.source==='budget' ? 'budget' : 'donor';
+  return `<div class="proj-card">
+    <div class="proj-head">
+      <div class="proj-title">${escapeHtml(p.title||'—')}</div>
+      <span class="proj-src ${srcClass}">${srcLbl}</span>
+    </div>
+    <div class="proj-meta">
+      ${p.date?`📅 ${fmtDate(p.date)}`:''}
+      ${p.cost?` · 💰 ${finMoney(p.cost)}`:''}
+      ${p.viaLink?' · 📎 عبر الرابط':''}
+    </div>
+    ${p.submitter?`<div class="proj-submitter">مقدّم الطلب: <b>${escapeHtml(p.submitter)}</b>${p.committee?' — '+escapeHtml(p.committee):''}</div>`:''}
+    ${p.description?`<div class="proj-desc">${escapeHtml(p.description)}</div>`:''}
+    ${p.source==='budget'?`<div class="proj-warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+    <div class="proj-actions">
+      <button class="btn btn-accent btn-sm" onclick="printProjectPDF('${p.id}')">🖨️ طباعة PDF</button>
+      <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteProject('${p.id}')">🗑️ حذف</button>
+    </div>
+  </div>`;
+}
+function finProjectAddHTML(opts){
+  return `
+  <div class="fin-ctx">إضافة مشروع جديد</div>
+  <div class="fin-add-exp">
+    <div class="fin-field"><label>عنوان المشروع</label>
+      <input id="projTitle" type="text" placeholder="عنوان المشروع" /></div>
+    <div class="fin-field"><label>تاريخ المشروع</label>
+      <input id="projDate" type="date" value="${today()}" /></div>
+    <div class="fin-field"><label>وصف المشروع</label>
+      <textarea id="projDesc" rows="3" placeholder="وصف تفصيلي للمشروع"></textarea></div>
+    <div class="fin-field"><label>الهدف من المشروع</label>
+      <textarea id="projGoal" rows="2" placeholder="الهدف المرجو من المشروع"></textarea></div>
+    <div class="fin-field"><label>مبلغ التكلفة (د.ب)</label>
+      <input id="projCost" type="number" min="0" step="0.001" placeholder="0.000" /></div>
+    <div class="fin-field"><label>تمويل المشروع</label>
+      <div class="proj-src-btns">
+        <button type="button" class="proj-src-btn" id="srcDonor" onclick="setProjectSource('donor')">🎁 متبرّع</button>
+        <button type="button" class="proj-src-btn" id="srcBudget" onclick="setProjectSource('budget')">🏛️ ميزانية الهيئة</button>
+      </div>
+    </div>
+    <div class="fin-field" id="donorNameWrap" style="display:none"><label>اسم المتبرّع (اختياري)</label>
+      <input id="projDonor" type="text" placeholder="اسم المتبرّع" /></div>
+    <div id="budgetWarn" class="proj-warn" style="display:none;margin-bottom:14px;">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>
+    <button class="btn btn-primary" onclick="saveProject()">💾 حفظ المشروع</button>
+  </div>`;
+}
+let projectSource='';
+function setProjectSource(s){
+  projectSource=s;
+  $('#srcDonor')?.classList.toggle('on', s==='donor');
+  $('#srcBudget')?.classList.toggle('on', s==='budget');
+  const dw=$('#donorNameWrap'); if(dw) dw.style.display = s==='donor'?'block':'none';
+  const bw=$('#budgetWarn'); if(bw) bw.style.display = s==='budget'?'block':'none';
+}
+async function saveProject(){
+  const title=$('#projTitle').value.trim();
+  if(!title){ toast('أدخل عنوان المشروع'); return; }
+  if(!projectSource){ toast('اختر تمويل المشروع'); return; }
+  const p={
+    id:'prj_'+Date.now(), title,
+    date:$('#projDate').value||today(),
+    description:$('#projDesc').value.trim(),
+    goal:$('#projGoal').value.trim(),
+    cost:parseFloat($('#projCost').value)||0,
+    source:projectSource,
+    donorName: projectSource==='donor' ? $('#projDonor').value.trim() : '',
+    submitter:'', committee:'', viaLink:false,
+    at:new Date().toISOString()
+  };
+  projects.push(p);
+  await saveProjects();
+  projectSource='';
+  toast('تم حفظ المشروع');
+  openFinancePage('projects');
+}
+async function deleteProject(id){
+  const p=projects.find(x=>x.id===id); if(!p) return;
+  if(!confirm(`حذف المشروع «${p.title}»؟`)) return;
+  projects=projects.filter(x=>x.id!==id);
+  await saveProjects();
+  renderFinancePage('projects',{});
+}
+function printProjectPDF(id){
+  const p=projects.find(x=>x.id===id); if(!p) return;
+  const srcLbl = p.source==='budget' ? 'ميزانية الهيئة' : 'متبرّع'+(p.donorName?` (${p.donorName})`:'');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>مشروع — ${escapeHtml(p.title)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.9;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:185px;max-height:70px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:20px;}
+  .doc-title{font-family:'Amiri',serif;font-size:22px;font-weight:700;color:#1c4536;margin:8px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:13px;}
+  .proj-title-big{font-size:22px;font-weight:800;color:#1c4536;text-align:center;background:#f6f2ea;border-radius:12px;padding:18px;margin-bottom:20px;}
+  .row{display:flex;border:1px solid #e6ddcb;border-radius:10px;margin-bottom:10px;overflow:hidden;}
+  .row .k{background:#1c4536;color:#fff;padding:12px 16px;font-weight:700;width:150px;flex-shrink:0;}
+  .row .v{padding:12px 16px;flex:1;}
+  .block{border:1px solid #e6ddcb;border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+  .block .bk{font-weight:700;color:#1c4536;margin-bottom:6px;}
+  .src-badge{display:inline-block;padding:4px 16px;border-radius:20px;font-size:14px;font-weight:600;color:#fff;background:${p.source==='budget'?'#8a5a5a':'#3f8f5b'};}
+  .warn{background:#fbf0e6;border:1px solid #e0b088;border-radius:10px;padding:14px;margin-top:14px;color:#8a5a2a;font-weight:600;text-align:center;}
+  .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;} .no-print{display:none;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">تقرير مشروع</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
+  <div class="proj-title-big">${escapeHtml(p.title)}</div>
+  <div class="row"><div class="k">📅 التاريخ</div><div class="v">${p.date?fmtDate(p.date):'—'}${p.date?' — '+escapeHtml(gregToHijri(p.date)):''}</div></div>
+  <div class="row"><div class="k">💰 التكلفة</div><div class="v">${finMoney(p.cost)}</div></div>
+  <div class="row"><div class="k">💵 التمويل</div><div class="v"><span class="src-badge">${escapeHtml(srcLbl)}</span></div></div>
+  ${p.submitter?`<div class="row"><div class="k">👤 مقدّم الطلب</div><div class="v">${escapeHtml(p.submitter)}${p.committee?' — '+escapeHtml(p.committee):''}</div></div>`:''}
+  ${p.description?`<div class="block"><div class="bk">📝 وصف المشروع</div><div>${escapeHtml(p.description)}</div></div>`:''}
+  ${p.goal?`<div class="block"><div class="bk">🎯 الهدف من المشروع</div><div>${escapeHtml(p.goal)}</div></div>`:''}
+  ${p.source==='budget'?`<div class="warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+  <div class="foot">هيئة محبي الحسين (ع) — اللجنة المالية · تقرير مشروع</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
 
 /* صفحة قريباً */
 function finSoonHTML(opts){
