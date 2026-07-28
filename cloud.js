@@ -321,8 +321,10 @@ const CloudSync = (() => {
   // جلب كل الجلسات (الإدارة)
   async function fetchEvalSessions(){
     if(!db) throw new Error('cloud not ready');
-    const snap = await db.collection('evalSessions').orderBy('at','desc').get();
-    return snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+    const snap = await db.collection('evalSessions').get();
+    const arr = snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+    arr.sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+    return arr;
   }
 
   // ═══ استبيان الرادود ═══
@@ -342,8 +344,10 @@ const CloudSync = (() => {
   }
   async function fetchSurveySessions(){
     if(!db) throw new Error('cloud not ready');
-    const snap = await db.collection('surveySessions').orderBy('at','desc').get();
-    return snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+    const snap = await db.collection('surveySessions').get();
+    const arr = snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+    arr.sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+    return arr;
   }
 
   return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply,

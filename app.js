@@ -3384,7 +3384,10 @@ async function loadRecordSurveys(radoodId){
   const host=$('#recSurveysList'); if(!host) return;
   if(!window.CloudSync || !CloudSync.isReady){ host.innerHTML='<div class="eval-link-note">سجّل الدخول للسحابة لعرض الاستبيانات.</div>'; return; }
   try{
-    const all=await CloudSync.fetchSurveySessions();
+    const all=await Promise.race([
+      CloudSync.fetchSurveySessions(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),12000))
+    ]);
     const mine=all.filter(s=>s.radoodId===radoodId);
     if(!mine.length){ host.innerHTML='<div class="eval-link-note">لا توجد استبيانات بعد. أنشئ رابطاً لإرساله للرادود.</div>'; return; }
     host.innerHTML=mine.map(s=>`
@@ -3394,7 +3397,10 @@ async function loadRecordSurveys(radoodId){
         <button class="btn btn-sm" onclick="viewSurveyResults('${s._id}','${escapeHtml(s.miqatName||'')}')">👁️ الإجابات</button>
       </div>
       <div id="recSurv_${s._id}" class="rec-session-result" style="display:none;"></div>`).join('');
-  }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err">تعذّر تحميل الاستبيانات.</div>'; }
+  }catch(e){ console.error('survey load error:',e);
+    const msg = e.message==='timeout' ? 'تأخّر الاتصال — تأكد من قواعد Firebase (مجموعة surveySessions) والاتصال.' : 'تعذّر تحميل الاستبيانات. تأكد من نشر قواعد Firebase.';
+    host.innerHTML=`<div class="eval-link-err">${msg}</div>`;
+  }
 }
 async function viewRecordResults(sessionId, miqatName){
   const box=$('#recRes_'+sessionId); if(!box) return;
