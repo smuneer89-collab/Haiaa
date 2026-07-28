@@ -370,9 +370,28 @@ const CloudSync = (() => {
     await batch.commit();
   }
 
+  // ═══ تقديم المشاريع عبر الرابط ═══
+  async function submitPublicProject(payload){
+    if(!db) throw new Error('cloud not ready');
+    const ref = await db.collection('publicProjects').add(Object.assign({ at:new Date().toISOString() }, payload));
+    return ref.id;
+  }
+  async function fetchPublicProjects(){
+    if(!db) throw new Error('cloud not ready');
+    const snap = await db.collection('publicProjects').get();
+    const arr = snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+    arr.sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+    return arr;
+  }
+  async function deletePublicProject(id){
+    if(!db) throw new Error('cloud not ready');
+    await db.collection('publicProjects').doc(id).delete();
+  }
+
   return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply,
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
+           submitPublicProject, fetchPublicProjects, deletePublicProject,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };
 })();

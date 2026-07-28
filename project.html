@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex,nofollow">
+<title>تقديم مشروع — هيئة محبي الحسين</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4efe6;--surface:#fffdf8;--ink:#1a2620;--muted:#8a7c6b;--muted-2:#b3a894;--line:#e6ddcb;--accent:#1c4536;--accent-deep:#123028;--accent-soft:#e6f0ea;--ok:#2f8f5b;--ok-soft:#e6f3ea;--warn:#b5763a;--gold:#c19a3e;--danger:#b85c5c;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;}
+.wrap{max-width:540px;margin:0 auto;padding:0 0 40px;}
+.p-head{background:linear-gradient(150deg,var(--accent-deep),var(--accent));padding:26px 18px;color:#fff;text-align:center;}
+.p-org{font-size:13px;color:var(--gold);margin-bottom:8px;}
+.p-title{font-size:22px;font-weight:800;}
+.p-sub{font-size:13px;color:var(--accent-soft);margin-top:6px;}
+.panel{background:var(--surface);margin:14px;border:1px solid var(--line);border-radius:14px;padding:18px;}
+.p-field{margin-bottom:16px;}
+.p-field:last-child{margin-bottom:0;}
+.p-field label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:7px;}
+.p-field .req{color:var(--danger);}
+.p-field input,.p-field textarea,.p-field select{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--ink);}
+.p-field textarea{resize:vertical;}
+.src-btns{display:flex;gap:10px;}
+.src-btn{flex:1;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-family:inherit;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;}
+.src-btn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+.warn{background:#fbf0e6;border:1px solid #e0b088;border-radius:10px;padding:12px;font-size:12.5px;color:#8a5a2a;font-weight:600;margin-top:10px;}
+.submit-btn{width:calc(100% - 28px);margin:14px;padding:15px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;}
+.submit-btn:disabled{opacity:.6;}
+.state{text-align:center;padding:60px 24px;}
+.state .ic{font-size:56px;margin-bottom:16px;}
+.state h2{font-size:21px;color:var(--accent);margin-bottom:10px;}
+.state p{font-size:14px;color:var(--ink);line-height:1.9;}
+.loading{text-align:center;padding:80px 20px;color:var(--muted);}
+.spin{width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 16px;animation:sp 1s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="loading"><div class="spin"></div>جارٍ التحميل…</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG = {
+  apiKey: "AIzaSyBlAxijaUz0OHwCsq5NnvQ90OVOCsr1vKY",
+  authDomain: "haiaa-banijamrah.firebaseapp.com",
+  projectId: "haiaa-banijamrah",
+  storageBucket: "haiaa-banijamrah.firebasestorage.app",
+  messagingSenderId: "499603171369",
+  appId: "1:499603171369:web:19c71e92ca2690cfe61438"
+};
+const COMMITTEES=['اللجنة الإعلامية','لجنة العزاء','أمانة السر','اللجنة المالية','لجنة الاستقبال','لجنة الخدمات','أخرى'];
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+let db=null, source='';
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+async function init(){
+  try{
+    firebase.initializeApp(FB_CONFIG);
+    db=firebase.firestore();
+    renderForm();
+  }catch(e){ console.error(e); showState('⚠️','تعذّر الاتصال','حدث خطأ في الاتصال. حاول لاحقاً.'); }
+}
+function showState(ic,title,msg){
+  document.getElementById('app').innerHTML=`<div class="state"><div class="ic">${ic}</div><h2>${esc(title)}</h2><p>${msg}</p></div>`;
+}
+function renderForm(){
+  document.getElementById('app').innerHTML=`
+  <div class="p-head">
+    <div class="p-org">هيئة محبي الحسين (ع)</div>
+    <div class="p-title">📋 تقديم مشروع للهيئة</div>
+    <div class="p-sub">يُرجى تعبئة بيانات المشروع بدقّة</div>
+  </div>
+  <div class="panel">
+    <div class="p-field"><label>اسم مقدّم الطلب <span class="req">*</span></label>
+      <input id="fSubmitter" type="text" placeholder="الاسم الكامل"></div>
+    <div class="p-field"><label>اللجنة</label>
+      <select id="fCommittee">
+        <option value="">— اختر اللجنة —</option>
+        ${COMMITTEES.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select></div>
+  </div>
+  <div class="panel">
+    <div class="p-field"><label>عنوان المشروع <span class="req">*</span></label>
+      <input id="fTitle" type="text" placeholder="عنوان المشروع"></div>
+    <div class="p-field"><label>تاريخ المشروع</label>
+      <input id="fDate" type="date" value="${todayISO()}"></div>
+    <div class="p-field"><label>وصف المشروع</label>
+      <textarea id="fDesc" rows="3" placeholder="وصف تفصيلي للمشروع"></textarea></div>
+    <div class="p-field"><label>الهدف من المشروع</label>
+      <textarea id="fGoal" rows="2" placeholder="الهدف المرجو"></textarea></div>
+    <div class="p-field"><label>مبلغ التكلفة (د.ب)</label>
+      <input id="fCost" type="number" min="0" step="0.001" placeholder="0.000"></div>
+    <div class="p-field"><label>تمويل المشروع</label>
+      <div class="src-btns">
+        <button type="button" class="src-btn" id="sDonor" onclick="setSource('donor')">🎁 متبرّع</button>
+        <button type="button" class="src-btn" id="sBudget" onclick="setSource('budget')">🏛️ ميزانية الهيئة</button>
+      </div>
+      <div class="p-field" id="donorWrap" style="display:none;margin-top:12px;margin-bottom:0;"><label>اسم المتبرّع (اختياري)</label>
+        <input id="fDonor" type="text" placeholder="اسم المتبرّع"></div>
+      <div id="budgetWarn" class="warn" style="display:none;">⚠️ في حال التمويل من ميزانية الهيئة، يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>
+    </div>
+  </div>
+  <button class="submit-btn" id="submitBtn" onclick="submitProject()">📤 إرسال الطلب</button>`;
+}
+function setSource(s){
+  source=s;
+  document.getElementById('sDonor').classList.toggle('on',s==='donor');
+  document.getElementById('sBudget').classList.toggle('on',s==='budget');
+  document.getElementById('donorWrap').style.display = s==='donor'?'block':'none';
+  document.getElementById('budgetWarn').style.display = s==='budget'?'block':'none';
+}
+async function submitProject(){
+  const submitter=document.getElementById('fSubmitter').value.trim();
+  const title=document.getElementById('fTitle').value.trim();
+  if(!submitter){ alert('أدخل اسم مقدّم الطلب'); return; }
+  if(!title){ alert('أدخل عنوان المشروع'); return; }
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='جارٍ الإرسال…';
+  const payload={
+    submitter, committee:document.getElementById('fCommittee').value||'',
+    title, date:document.getElementById('fDate').value||todayISO(),
+    description:document.getElementById('fDesc').value.trim(),
+    goal:document.getElementById('fGoal').value.trim(),
+    cost:parseFloat(document.getElementById('fCost').value)||0,
+    source:source||'', donorName: source==='donor' ? document.getElementById('fDonor').value.trim() : ''
+  };
+  try{
+    await db.collection('publicProjects').add(Object.assign({ at:new Date().toISOString() }, payload));
+    showState('✅','تم إرسال طلبك','شكراً لك، تم استلام مشروعك بنجاح.<br>سيُعرض على الإدارة للمراجعة.<br>وفّقكم الله لخدمة الإمام الحسين (ع).');
+  }catch(e){
+    console.error(e);
+    btn.disabled=false; btn.textContent='📤 إرسال الطلب';
+    alert('تعذّر إرسال الطلب. تأكد من الاتصال وحاول مجدداً.');
+  }
+}
+init();
+</script>
+</body>
+</html>

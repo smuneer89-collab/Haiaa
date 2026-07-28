@@ -3953,7 +3953,7 @@ function renderFinancePage(page, opts){
   else if(page==='expMiqat') host.innerHTML=finExpMiqatHTML();
   else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
   else if(page==='expHzn') host.innerHTML=finExpHznHTML(opts);
-  else if(page==='projects') host.innerHTML=finProjectsHTML();
+  else if(page==='projects'){ host.innerHTML=finProjectsHTML(); loadIncomingProjects(); }
   else if(page==='projectAdd') host.innerHTML=finProjectAddHTML(opts);
   else if(page==='expEntry') host.innerHTML=finExpEntryHTML(opts);
   else if(page==='reports') host.innerHTML=finReportsHTML();
@@ -3990,7 +3990,23 @@ function finHomeHTML(){
   </div>
   <button class="fin-reports-btn" onclick="openFinancePage('reports')">
     📊 التقارير الذكية للمصروفات
+  </button>
+  <button class="fin-reports-btn" style="background:#7a5c1e;margin-top:10px;" onclick="copyProjectLink()">
+    📎 تقديم مشروع للهيئة (نسخ الرابط)
   </button>`;
+}
+function projectPageURL(){
+  const base=location.origin + location.pathname.replace(/[^/]*$/, '');
+  return base + 'project.html';
+}
+function copyProjectLink(){
+  const url=projectPageURL();
+  const done=()=>toast('تم نسخ رابط تقديم المشروع — أرسله لعضو الإدارة');
+  navigator.clipboard?.writeText(url).then(done).catch(()=>{
+    const t=document.createElement('textarea'); t.value=url; document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); done(); }catch(_){}
+    document.body.removeChild(t);
+  });
 }
 async function editFinanceTotal(){
   const v=prompt('المبلغ الكلي لهيئة محبي الحسين (د.ب):', finance.total||0);
@@ -4246,9 +4262,56 @@ function finProjectsHTML(){
   const list=[...projects].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
   return `
   <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="openFinancePage('projectAdd',{})">➕ إضافة مشروع جديد</button>
-  <div class="fin-hint" style="margin-bottom:14px;">📎 لاستقبال مشاريع من أعضاء الإدارة عبر رابط، استخدم زر «تقديم مشروع للهيئة» في الصفحة الرئيسية للجنة المالية</div>
-  ${list.length?`<div class="proj-list">${list.map(p=>projectCardHTML(p)).join('')}</div>`
+  <div class="proj-incoming" id="projIncoming"><div class="eval-link-loading">جارٍ فحص الطلبات الواردة…</div></div>
+  ${list.length?`<div class="proj-list-title">📋 المشاريع المسجّلة</div><div class="proj-list">${list.map(p=>projectCardHTML(p)).join('')}</div>`
     :'<div class="fel-empty">لا توجد مشاريع مسجّلة بعد</div>'}`;
+}
+async function loadIncomingProjects(){
+  const host=$('#projIncoming'); if(!host) return;
+  if(!window.CloudSync || !CloudSync.isReady){ host.innerHTML=''; return; }
+  try{
+    const incoming=await Promise.race([
+      CloudSync.fetchPublicProjects(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),12000))
+    ]);
+    if(!incoming.length){ host.innerHTML=''; return; }
+    host.innerHTML=`<div class="proj-incoming-title">📥 طلبات واردة عبر الرابط (${incoming.length})</div>`+
+      incoming.map(p=>{
+        const srcLbl = p.source==='budget' ? '🏛️ ميزانية الهيئة' : (p.source==='donor'?'🎁 متبرّع':'—');
+        return `<div class="proj-card incoming">
+          <div class="proj-head"><div class="proj-title">${escapeHtml(p.title||'—')}</div>
+            <span class="proj-src ${p.source==='budget'?'budget':'donor'}">${srcLbl}</span></div>
+          <div class="proj-submitter">مقدّم الطلب: <b>${escapeHtml(p.submitter||'—')}</b>${p.committee?' — '+escapeHtml(p.committee):''}</div>
+          <div class="proj-meta">${p.date?'📅 '+fmtDate(p.date):''}${p.cost?' · 💰 '+finMoney(p.cost):''}</div>
+          ${p.description?`<div class="proj-desc">${escapeHtml(p.description)}</div>`:''}
+          ${p.goal?`<div class="proj-desc"><b>الهدف:</b> ${escapeHtml(p.goal)}</div>`:''}
+          ${p.source==='budget'?`<div class="proj-warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+          <div class="proj-actions">
+            <button class="btn btn-primary btn-sm" onclick='acceptIncomingProject(${JSON.stringify(p)})'>✅ اعتماد وحفظ</button>
+            <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="rejectIncomingProject('${p._id}')">🗑️ رفض</button>
+          </div>
+        </div>`;
+      }).join('');
+  }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err" style="margin-bottom:12px;">تعذّر جلب الطلبات الواردة.</div>'; }
+}
+async function acceptIncomingProject(p){
+  projects.push({
+    id:'prj_'+Date.now(), title:p.title||'', date:p.date||today(),
+    description:p.description||'', goal:p.goal||'', cost:Number(p.cost)||0,
+    source:p.source||'', donorName:p.donorName||'',
+    submitter:p.submitter||'', committee:p.committee||'', viaLink:true,
+    at:new Date().toISOString()
+  });
+  await saveProjects();
+  try{ await CloudSync.deletePublicProject(p._id); }catch(e){}
+  toast('تم اعتماد المشروع وحفظه');
+  renderFinancePage('projects',{});
+}
+async function rejectIncomingProject(id){
+  if(!confirm('رفض هذا الطلب وحذفه؟')) return;
+  try{ await CloudSync.deletePublicProject(id); }catch(e){}
+  toast('تم رفض الطلب');
+  renderFinancePage('projects',{});
 }
 function projectCardHTML(p){
   const srcLbl = p.source==='budget' ? '🏛️ ميزانية الهيئة' : '🎁 متبرّع';
