@@ -3616,11 +3616,19 @@ async function viewSurveyResults(sessionId, miqatName){
     const surveys=await CloudSync.fetchPublicSurveys(sessionId);
     if(!surveys.length){ box.innerHTML='<div class="eval-link-note">لم يصل أي استبيان بعد.</div>'; return; }
     window.__lastSurveys={ sessionId, miqatName, surveys };
+    // ملخّص سريع: توزيع التقييم العام + الرغبة بالمشاركة
+    const genCount={}; surveys.forEach(s=>{ if(s.general) genCount[s.general]=(genCount[s.general]||0)+1; });
+    const genSummary=Object.entries(genCount).map(([k,v])=>`${escapeHtml(k)}: ${v}`).join(' · ')||'—';
+    const wantYes=surveys.filter(s=>s.future==='نعم').length;
     box.innerHTML=`
       <div class="eval-results-box">
         <div class="erb-h">📋 ${surveys.length} استبيان وصل</div>
+        <div class="erb-right" style="text-align:right;line-height:1.9;">
+          <div><b>التقييم العام:</b> ${genSummary}</div>
+          <div><b>يرغب بالمشاركة مستقبلاً:</b> ${wantYes} من ${surveys.length}</div>
+        </div>
         <div class="erb-actions">
-          <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض الإجابات PDF</button>
+          <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض كل الإجابات PDF</button>
           <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleSurveySession('${sessionId}')">🔒 إغلاق</button>
         </div>
       </div>`;
@@ -3894,7 +3902,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expEntry','reports','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
+const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expHzn','expEntry','reports','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -3923,6 +3931,7 @@ function renderFinancePage(page, opts){
   else if(page==='expenses') host.innerHTML=finExpensesHTML();
   else if(page==='expMiqat') host.innerHTML=finExpMiqatHTML();
   else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
+  else if(page==='expHzn') host.innerHTML=finExpHznHTML(opts);
   else if(page==='expEntry') host.innerHTML=finExpEntryHTML(opts);
   else if(page==='reports') host.innerHTML=finReportsHTML();
   else if(page==='tathwib') host.innerHTML=finTathwibHTML();
@@ -4004,7 +4013,7 @@ function finExpMiqatHTML(){
   return `
   <div class="fin-grid">
     <button class="fin-cell mood farah" onclick="openFinancePage('expMood',{mood:'farah'})">🎉 مناسبة فرح</button>
-    <button class="fin-cell mood hzn" onclick="openFinancePage('soon',{title:'مناسبة حزن'})">🕯️ مناسبة حزن</button>
+    <button class="fin-cell mood hzn" onclick="openFinancePage('expHzn',{mood:'hzn'})">🕯️ مناسبة حزن</button>
   </div>`;
 }
 
@@ -4035,12 +4044,31 @@ function finGoEntry(kind){
   openFinancePage('expEntry',{mood:'farah',miqatId,kind});
 }
 
+/* مناسبة حزن: اختيار ميقات ثم مباشرة لتقسيم المصروفات (بلا مولد/احتفال) */
+function finExpHznHTML(opts){
+  const sorted=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  return `
+  <div class="fin-field">
+    <label>اختر الميقات</label>
+    <select id="finHznMiqatSel" onchange="finHznGoEntry()">
+      <option value="">— اختر ميقاتاً —</option>
+      ${sorted.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
+    </select>
+  </div>
+  <div class="fin-hint">اختر الميقات لتدخل مباشرة إلى تقسيم المصروفات</div>`;
+}
+function finHznGoEntry(){
+  const miqatId=$('#finHznMiqatSel').value; if(!miqatId) return;
+  openFinancePage('expEntry',{mood:'hzn',miqatId,kind:'hzn'});
+}
+
 /* صفحة إضافة المصروف */
 const EXP_TYPES=['خطيب المساء','خطيب الظهر','وجبة العشاء','وجبة الغداء','الرادود','السواد','زينة','موكب','أجار زنجيل','أجار سماعات','جوائز','متفرقات','أخرى'];
 const EXP_MISC=['ماء','مناديل','صابون','غاز','قفازات','بارسلات','أخرى'];
 function finExpEntryHTML(opts){
   const mq=miqats.find(x=>x.id===opts.miqatId);
-  const kindLbl = opts.kind==='mawlid'?'قراءة مولد':'احتفال';
+  const isHzn = opts.mood==='hzn';
+  const kindLbl = isHzn ? 'مناسبة حزن' : (opts.kind==='mawlid'?'قراءة مولد':'احتفال');
   const rows=(finance.expenses||[]).filter(e=>e.miqatId===opts.miqatId && e.kind===opts.kind && e.mood===opts.mood)
     .sort((a,b)=>(b.at||'').localeCompare(a.at||''));
   const total=rows.reduce((s,e)=>s+(Number(e.cost)||0),0);
@@ -4071,7 +4099,8 @@ function finExpEntryHTML(opts){
         <div class="fel-meta">${e.date?fmtDate(e.date):''}${e.note?' · '+escapeHtml(e.note):''}</div></div>
       <div class="fel-cost">${finMoney(e.cost)}<button class="fel-del" onclick="deleteExpense('${e.id}')">×</button></div>
     </div>`).join(''):'<div class="fel-empty">لا توجد مصروفات بعد</div>'}
-  </div>`;
+  </div>
+  ${rows.length?`<button class="btn btn-accent" style="width:100%;margin-top:12px;" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>🖨️ تقرير المناسبة PDF</button>`:''}`;
 }
 function expTypeChange(){
   const t=$('#expType').value;
@@ -4095,6 +4124,97 @@ async function deleteExpense(id){
   await saveFinance();
   const cur=finNav[finNav.length-1];
   renderFinancePage(cur.page, cur.opts);
+}
+
+/* تحويل تاريخ ميلادي (YYYY-MM-DD) إلى هجري */
+function gregToHijri(iso){
+  if(!iso) return '';
+  try{
+    const d=new Date(iso+'T12:00:00');
+    let p=new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura',{day:'numeric',month:'long',year:'numeric'}).format(d);
+    return p.replace(/\s*هـ\s*$/,'')+' هـ';
+  }catch(e){ return ''; }
+}
+
+/* تقرير ذكي لمصروفات مناسبة (PDF بالتاريخين + أزرار) */
+function printMiqatExpenseReport(opts){
+  const mq=miqats.find(x=>x.id===opts.miqatId);
+  const isHzn=opts.mood==='hzn';
+  const kindLbl = isHzn ? 'مناسبة حزن' : (opts.kind==='mawlid'?'قراءة مولد':'احتفال');
+  const rows=(finance.expenses||[]).filter(e=>e.miqatId===opts.miqatId && e.kind===opts.kind && e.mood===opts.mood)
+    .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const total=rows.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  // تجميع حسب النوع
+  const byType={};
+  rows.forEach(e=>{ const k=e.type+(e.subType?' — '+e.subType:''); byType[k]=(byType[k]||0)+(Number(e.cost)||0); });
+  const typeArr=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+  const topType=typeArr[0];
+  const avgPerItem = rows.length ? total/rows.length : 0;
+  // تحليل ذكي
+  const insights=[];
+  if(topType) insights.push(`أعلى بند إنفاق هو «${topType[0]}» بمبلغ ${finMoney(topType[1])}، أي ما نسبته ${Math.round(topType[1]/total*100)}% من إجمالي المصروفات.`);
+  insights.push(`بلغ عدد بنود الصرف ${rows.length} بنداً، بمتوسط ${finMoney(avgPerItem)} للبند الواحد.`);
+  if(typeArr.length>=3) insights.push(`توزّعت المصروفات على ${typeArr.length} أنواع مختلفة، مما يعكس تنوّع احتياجات المناسبة.`);
+  const dates=rows.map(e=>e.date).filter(Boolean).sort();
+  if(dates.length){ insights.push(`امتدّ الصرف من ${fmtDate(dates[0])} إلى ${fmtDate(dates[dates.length-1])}.`); }
+
+  // الميقات مخزّن بالهجري (day/month هجريان). نحسب السنة الهجرية والميلادي المقابل.
+  const hYear = (typeof miqatTargetHijriYear==='function') ? miqatTargetHijriYear(mq) : (parseInt(hijriParts().year,10)||1448);
+  const hijriDateStr = mq ? `${mq.day} ${HIJRI_MONTHS[mq.month]} ${hYear} هـ` : '—';
+  let gregDateStr = '—';
+  if(mq){ try{ const g=hijriToGregorian(mq.day, mq.month, hYear); if(g) gregDateStr=new Date(g).toLocaleDateString('ar',{day:'numeric',month:'long',year:'numeric'}); }catch(e){} }
+
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير مصروفات — ${escapeHtml(mq?mq.name:'')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:14.5px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:185px;max-height:70px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:18px;}
+  .doc-title{font-family:'Amiri',serif;font-size:22px;font-weight:700;color:#1c4536;margin:8px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:13px;}
+  .mq-banner{background:#f6f2ea;border-radius:12px;padding:16px;margin-bottom:18px;text-align:center;}
+  .mq-name{font-size:19px;font-weight:800;color:#1c4536;}
+  .mq-kind{display:inline-block;font-size:12px;color:#fff;background:${isHzn?'#8a5a5a':'#3f8f5b'};padding:3px 14px;border-radius:20px;margin:6px 0;}
+  .mq-dates{font-size:13px;color:#6a6055;margin-top:6px;line-height:1.9;}
+  .total-card{text-align:center;background:#e6f0ea;border-radius:14px;padding:20px;margin-bottom:18px;}
+  .total-card .v{font-size:34px;font-weight:800;color:#1c4536;}
+  .total-card .l{font-size:13px;color:#8a7c6b;}
+  h2{font-size:15px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 18px;border-radius:0 16px 16px 0;margin:18px 0 10px;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}th,td{border:1px solid #e6ddcb;padding:8px 11px;text-align:right;}th{background:#1c4536;color:#fff;}
+  tr:nth-child(even){background:#faf7f0;}
+  .sum-row td{background:#e6f0ea;font-weight:800;color:#1c4536;}
+  .insights{background:#fbf6ea;border:1px solid #e5d5a8;border-radius:12px;padding:16px;margin:14px 0;}
+  .insights h3{font-size:14px;color:#7a5c1e;margin-bottom:8px;}
+  .insights li{margin:6px 0;font-size:13.5px;line-height:1.8;}
+  .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;} .no-print{display:none;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">تقرير مصروفات المناسبة</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
+  <div class="mq-banner">
+    <div class="mq-name">${escapeHtml(mq?mq.name:'')}</div>
+    <div class="mq-kind">${kindLbl}</div>
+    <div class="mq-dates">🌙 التاريخ الهجري: ${hijriDateStr}<br>📅 الموافق ميلادياً: ${gregDateStr}</div>
+  </div>
+  <div class="total-card"><div class="v">${finMoney(total)}</div><div class="l">إجمالي مصروفات المناسبة</div></div>
+  <h2>تفصيل المصروفات حسب النوع</h2>
+  <table><tr><th>نوع المصروف</th><th>المبلغ</th><th>النسبة</th></tr>
+    ${typeArr.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${Math.round(v/total*100)}%</td></tr>`).join('')}
+    <tr class="sum-row"><td>الإجمالي</td><td>${finMoney(total)}</td><td>100%</td></tr>
+  </table>
+  <h2>سجل المصروفات بالتفصيل</h2>
+  <table><tr><th>#</th><th>النوع</th><th>التاريخ الميلادي</th><th>التاريخ الهجري</th><th>المبلغ</th></tr>
+    ${rows.map((e,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(e.type)}${e.subType?' — '+escapeHtml(e.subType):''}</td><td>${e.date?fmtDate(e.date):'—'}</td><td>${e.date?escapeHtml(gregToHijri(e.date)):'—'}</td><td>${finMoney(e.cost)}</td></tr>`).join('')}
+  </table>
+  <div class="insights"><h3>💡 قراءة ذكية للمصروفات</h3><ul>${insights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul></div>
+  <div class="foot">هيئة محبي الحسين (ع) — اللجنة المالية · تقرير مصروفات المناسبة</div>
+  </body></html>`);
+  w.document.close(); w.focus();
 }
 
 /* صفحة قريباً */
