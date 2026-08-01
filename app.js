@@ -3336,8 +3336,8 @@ function radoodParticipationList(radoodId){
     const mq=miqats.find(x=>x.id===e.miqatId);
     add(e.miqatId, e.miqatName||(mq?mq.name:''), 'تقييم');
   });
-  (window.__azaSessions||[]).filter(s=>s.radoodId===radoodId).forEach(s=>add(s.miqatId, s.miqatName, 'جلسة تقييم'));
-  (window.__azaSurveys||[]).filter(s=>s.radoodId===radoodId).forEach(s=>add(s.miqatId, s.miqatName, 'استبيان'));
+  (window.__azaSessions||[]).filter(s=>s.radoodId===radoodId).forEach(s=>{ add(s.miqatId, s.miqatName, 'جلسة تقييم'); const k=s.miqatId||('name:'+(s.miqatName||'—')); const it=map.get(k); if(it) it.evalSessionId=s._id; });
+  (window.__azaSurveys||[]).filter(s=>s.radoodId===radoodId).forEach(s=>{ add(s.miqatId, s.miqatName, 'استبيان'); const k=s.miqatId||('name:'+(s.miqatName||'—')); const it=map.get(k); if(it) it.surveySessionId=s._id; });
   (radoodParts||[]).filter(p=>p.radoodId===radoodId).forEach(p=>{
     const mq=miqats.find(x=>x.id===p.miqatId);
     add(p.miqatId, p.miqatName||(mq?mq.name:''), 'يدوي', p.id);
@@ -3851,15 +3851,58 @@ function renderPartsList(radoodId){
   if(!list.length) return '<div class="eval-link-note">لا مشاركات مسجّلة بعد.</div>';
   return list.map(p=>{
     const srcs=[...p.sources].join(' · ');
-    const canEdit = !!p.manualId;
-    return `<div class="els-row">
+    const btns=[];
+    if(p.surveySessionId) btns.push(`<button class="btn btn-sm" style="background:#7a5c1e;color:#fff;border:none;" onclick="viewPartSurvey('${p.surveySessionId}','${escapeHtml(p.miqatName||'')}')">📋 الاستبيان</button>`);
+    if(p.evalSessionId) btns.push(`<button class="btn btn-sm" style="background:#25604a;color:#fff;border:none;" onclick="viewPartEval('${p.evalSessionId}','${escapeHtml(p.miqatName||'')}')">⭐ التقييم</button>`);
+    if(p.manualId){
+      btns.push(`<button class="btn btn-sm" onclick="editParticipation('${p.manualId}')">✏️</button>`);
+      btns.push(`<button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteParticipation('${p.manualId}')">🗑️</button>`);
+    }
+    return `<div class="els-row part-row">
       <div class="els-body"><div class="els-name">${escapeHtml(p.miqatName||'—')}</div>
         <div class="els-meta">${escapeHtml(srcs)}</div></div>
-      ${canEdit?`<button class="btn btn-sm" onclick="editParticipation('${p.manualId}')">✏️</button>
-      <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteParticipation('${p.manualId}')">🗑️</button>`
-      :`<span class="els-auto" title="محسوبة تلقائياً">🔒</span>`}
-    </div>`;
+      <div class="part-btns">${btns.join('')}</div>
+    </div>
+    <div id="partRes_${(p.surveySessionId||p.evalSessionId||p.manualId||'x')}" class="rec-session-result" style="display:none;"></div>`;
   }).join('');
+}
+/* عرض نتائج الاستبيان/التقييم من داخل المشاركة */
+async function viewPartSurvey(sessionId, miqatName){
+  const box=document.getElementById('partRes_'+sessionId); if(!box) return;
+  if(box.style.display==='block'){ box.style.display='none'; return; }
+  box.style.display='block'; box.innerHTML='<div class="eval-link-loading">جارٍ جلب الإجابات…</div>';
+  try{
+    const surveys=await CloudSync.fetchPublicSurveys(sessionId);
+    if(!surveys.length){ box.innerHTML='<div class="eval-link-note">لم يصل أي استبيان لهذه المشاركة بعد.</div>'; return; }
+    window.__lastSurveys={ sessionId, miqatName, surveys, radoodId:(surveys[0]&&surveys[0].radoodId)||recordRadoodId };
+    const genCount={}; surveys.forEach(x=>{ if(x.general) genCount[x.general]=(genCount[x.general]||0)+1; });
+    const gen=Object.entries(genCount).map(([k,v])=>`${escapeHtml(k)}: ${v}`).join(' · ')||'—';
+    box.innerHTML=`<div class="eval-results-box">
+      <div class="erb-h">📋 ${surveys.length} استبيان</div>
+      <div class="erb-right" style="text-align:right;">التقييم العام: ${gen}</div>
+      <div class="erb-actions">
+        <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض كامل PDF</button>
+      </div></div>`;
+  }catch(e){ console.error(e); box.innerHTML='<div class="eval-link-err">تعذّر جلب الإجابات.</div>'; }
+}
+async function viewPartEval(sessionId, miqatName){
+  const box=document.getElementById('partRes_'+sessionId); if(!box) return;
+  if(box.style.display==='block'){ box.style.display='none'; return; }
+  box.style.display='block'; box.innerHTML='<div class="eval-link-loading">جارٍ جلب النتائج…</div>';
+  try{
+    const evals=await CloudSync.fetchPublicEvals(sessionId);
+    if(!evals.length){ box.innerHTML='<div class="eval-link-note">لم يصل أي تقييم لهذه المشاركة بعد.</div>'; return; }
+    const n=evals.length, avg=evals.reduce((s2,e)=>s2+(e.avg||0),0)/n, pct=Math.round(avg/3*100);
+    window.__lastGroupEvals={ sessionId, miqatName, evals, avg, pct, n, radoodId:(evals[0]&&evals[0].radoodId)||recordRadoodId };
+    const yes=evals.filter(e=>e.gaveRight==='yes').length, no=evals.filter(e=>e.gaveRight==='no').length;
+    box.innerHTML=`<div class="eval-results-box">
+      <div class="erb-main"><div class="erb-pct">${pct}%</div><div class="erb-sub">${n} مقيّم</div></div>
+      <div class="erb-right">أعطى المناسبة حقّها: ${yes} نعم · ${no} لا</div>
+      <div class="erb-actions">
+        <button class="btn btn-accent btn-sm" onclick="printGroupEvalPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض كامل PDF</button>
+        <button class="btn btn-primary btn-sm" onclick="saveGroupEvalToRecord('${sessionId}','${escapeHtml(miqatName)}')">💾 حفظ في السجل</button>
+      </div></div>`;
+  }catch(e){ console.error(e); box.innerHTML='<div class="eval-link-err">تعذّر جلب النتائج.</div>'; }
 }
 let editingPartId=null;
 function openAddParticipation(radoodId){
