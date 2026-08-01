@@ -246,6 +246,12 @@
   .mai-caption { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:var(--font-sans); font-size:12.5px; background:var(--surface); }
   /* عرض الهاتف موحّد (عرض فقط) */
   .phone-disp { direction:ltr; unicode-bidi:isolate; display:inline-block; font-variant-numeric:tabular-nums; letter-spacing:.3px; }
+  /* حالة قرار المشروع */
+  .proj-status { border-radius:9px; padding:9px 12px; font-size:13px; font-weight:700; margin:8px 0; text-align:center; }
+  .proj-status.ok { background:var(--ok-soft); color:var(--ok); border:1px solid var(--ok); }
+  .proj-status.no { background:#f8ecec; color:var(--danger); border:1px solid var(--danger); }
+  .proj-status.wait { background:var(--warn-soft); color:var(--warn); border:1px solid #e0b088; }
+  .ps-reason { font-weight:400; font-size:12.5px; margin-top:5px; line-height:1.6; }
   .fin-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
   .fin-field select, .fin-field input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
   .fin-ctx { background:var(--accent-soft); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--accent); font-size:14px; margin-bottom:14px; text-align:center; }

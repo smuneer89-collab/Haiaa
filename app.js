@@ -4464,6 +4464,12 @@ async function rejectIncomingProject(id){
 function projectCardHTML(p){
   const srcLbl = p.source==='budget' ? '🏛️ ميزانية الهيئة' : '🎁 متبرّع';
   const srcClass = p.source==='budget' ? 'budget' : 'donor';
+  const st = p.status || 'pending';
+  const stBox = st==='approved'
+    ? `<div class="proj-status ok">✅ تمت الموافقة على المشروع${p.decisionDate?` · ${fmtDate(p.decisionDate)}`:''}</div>`
+    : st==='rejected'
+    ? `<div class="proj-status no">❌ تم رفض المشروع${p.decisionDate?` · ${fmtDate(p.decisionDate)}`:''}${p.rejectReason?`<div class="ps-reason">السبب: ${escapeHtml(p.rejectReason)}</div>`:''}</div>`
+    : `<div class="proj-status wait">⏳ بانتظار القرار</div>`;
   return `<div class="proj-card">
     <div class="proj-head">
       <div class="proj-title">${escapeHtml(p.title||'—')}</div>
@@ -4476,12 +4482,56 @@ function projectCardHTML(p){
     </div>
     ${p.submitter?`<div class="proj-submitter">مقدّم الطلب: <b>${escapeHtml(p.submitter)}</b>${p.committee?' — '+escapeHtml(p.committee):''}</div>`:''}
     ${p.description?`<div class="proj-desc">${escapeHtml(p.description)}</div>`:''}
-    ${p.source==='budget'?`<div class="proj-warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+    ${(p.source==='budget'&&st==='pending')?`<div class="proj-warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+    ${stBox}
+    ${st==='pending'?`
+      <div class="proj-actions">
+        <button class="btn btn-sm" style="background:var(--ok);color:#fff;border:none;" onclick="decideProject('${p.id}','approved')">✅ موافقة</button>
+        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="decideProject('${p.id}','rejected')">❌ رفض</button>
+      </div>`:''}
     <div class="proj-actions">
-      <button class="btn btn-accent btn-sm" onclick="printProjectPDF('${p.id}')">🖨️ طباعة PDF</button>
-      <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteProject('${p.id}')">🗑️ حذف</button>
+      <button class="btn btn-accent btn-sm" onclick="printProjectPDF('${p.id}')">🖨️ ${st==='pending'?'طباعة PDF':'أمر القرار PDF'}</button>
+      ${st!=='pending'?`<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" onclick="sendProjectDecisionWA('${p.id}')">💬 واتساب</button>`:''}
+      ${st!=='pending'?`<button class="btn btn-ghost btn-sm" onclick="decideProject('${p.id}','pending')">↺ تراجع</button>`:''}
+      <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteProject('${p.id}')">🗑️</button>
     </div>
   </div>`;
+}
+/* قرار المشروع: موافقة / رفض / تراجع */
+async function decideProject(id, status){
+  const p=projects.find(x=>x.id===id); if(!p) return;
+  if(status==='rejected'){
+    const reason=prompt('اذكر أسباب رفض المشروع:', p.rejectReason||'');
+    if(reason===null) return;
+    p.rejectReason=reason.trim();
+  } else if(status==='approved'){
+    if(!confirm(`تأكيد الموافقة على المشروع «${p.title}»؟`)) return;
+    p.rejectReason='';
+  } else {
+    if(!confirm('التراجع عن القرار وإعادة المشروع لحالة الانتظار؟')) return;
+    p.rejectReason='';
+  }
+  p.status=status;
+  p.decisionDate = status==='pending' ? '' : today();
+  await saveProjects();
+  toast(status==='approved'?'تمت الموافقة على المشروع':status==='rejected'?'تم رفض المشروع':'أُعيد المشروع للانتظار');
+  renderFinancePage('projects',{});
+}
+/* إرسال أمر القرار عبر واتساب (نص) */
+function sendProjectDecisionWA(id){
+  const p=projects.find(x=>x.id===id); if(!p||!p.status||p.status==='pending') return;
+  const approved = p.status==='approved';
+  let txt = `*هيئة محبي الحسين (ع) — اللجنة المالية*\n\n`;
+  txt += approved ? `✅ *تمت الموافقة على المشروع*\n\n` : `❌ *تم رفض المشروع*\n\n`;
+  txt += `*المشروع:* ${p.title||'—'}\n`;
+  if(p.submitter) txt += `*مقدّم الطلب:* ${p.submitter}${p.committee?' — '+p.committee:''}\n`;
+  txt += `*تاريخ استلام الطلب:* ${p.date?fmtDate(p.date):'—'}\n`;
+  txt += `*تاريخ القرار:* ${p.decisionDate?fmtDate(p.decisionDate):'—'}\n`;
+  if(p.cost) txt += `*التكلفة:* ${finMoney(p.cost)}\n`;
+  txt += `*التمويل:* ${p.source==='budget'?'ميزانية الهيئة':'متبرّع'+(p.donorName?' ('+p.donorName+')':'')}\n`;
+  if(!approved && p.rejectReason) txt += `\n*أسباب الرفض:*\n${p.rejectReason}\n`;
+  txt += `\nوفّقكم الله لخدمة الإمام الحسين (ع).`;
+  window.open('https://wa.me/?text='+encodeURIComponent(txt), '_blank');
 }
 function finProjectAddHTML(opts){
   return `
@@ -4548,6 +4598,9 @@ async function deleteProject(id){
 function printProjectPDF(id){
   const p=projects.find(x=>x.id===id); if(!p) return;
   const srcLbl = p.source==='budget' ? 'ميزانية الهيئة' : 'متبرّع'+(p.donorName?` (${p.donorName})`:'');
+  const st = p.status || 'pending';
+  const isApp = st==='approved', isRej = st==='rejected';
+  const docTitle = isApp ? 'أمر الموافقة على مشروع' : isRej ? 'أمر رفض مشروع' : 'تقرير مشروع';
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>مشروع — ${escapeHtml(p.title)}</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
@@ -4564,25 +4617,48 @@ function printProjectPDF(id){
   .block .bk{font-weight:700;color:#1c4536;margin-bottom:6px;}
   .src-badge{display:inline-block;padding:4px 16px;border-radius:20px;font-size:14px;font-weight:600;color:#fff;background:${p.source==='budget'?'#8a5a5a':'#3f8f5b'};}
   .warn{background:#fbf0e6;border:1px solid #e0b088;border-radius:10px;padding:14px;margin-top:14px;color:#8a5a2a;font-weight:600;text-align:center;}
+  .reject-reason{border-color:#e0a8a8;background:#fdf3f3;}
+  .reject-reason .bk{color:#b02c2c;}
+  .stamp-area{display:flex;justify-content:center;margin:38px 0 10px;}
+  .stamp{border:5px double;border-radius:16px;padding:18px 34px;text-align:center;transform:rotate(-6deg);opacity:.95;}
+  .stamp.ok{border-color:#1f8a4c;color:#1f8a4c;background:rgba(31,138,76,.05);}
+  .stamp.no{border-color:#c62828;color:#c62828;background:rgba(198,40,40,.05);}
+  .stamp-logo{display:block;margin:0 auto 8px;max-width:120px;max-height:46px;opacity:.85;}
+  .stamp.ok .stamp-logo{filter:invert(31%) sepia(58%) saturate(560%) hue-rotate(101deg) brightness(92%) contrast(90%);}
+  .stamp.no .stamp-logo{filter:invert(19%) sepia(70%) saturate(3800%) hue-rotate(353deg) brightness(88%) contrast(95%);}
+  .stamp-text{font-family:'Amiri',serif;font-size:30px;font-weight:700;letter-spacing:1px;line-height:1.3;}
+  .stamp-sub{font-size:12px;margin-top:6px;opacity:.85;}
+  .stamp-date{font-size:12px;margin-top:3px;opacity:.75;}
   .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
-  @media print{body{padding:24px;} .no-print{display:none;}}
+  @media print{body{padding:24px;} .no-print{display:none;} .stamp{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
   </style></head><body>
   <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
     <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
     <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
   </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
-    <div class="doc-title">تقرير مشروع</div>
+    <div class="doc-title">${docTitle}</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
   <div class="proj-title-big">${escapeHtml(p.title)}</div>
-  <div class="row"><div class="k">📅 التاريخ</div><div class="v">${p.date?fmtDate(p.date):'—'}${p.date?' — '+escapeHtml(gregToHijri(p.date)):''}</div></div>
+  <div class="row"><div class="k">📅 تاريخ استلام الطلب</div><div class="v">${p.date?fmtDate(p.date):'—'}${p.date?' — '+escapeHtml(gregToHijri(p.date)):''}</div></div>
+  ${p.decisionDate?`<div class="row"><div class="k">📌 تاريخ القرار</div><div class="v">${fmtDate(p.decisionDate)} — ${escapeHtml(gregToHijri(p.decisionDate))}</div></div>`:''}
   <div class="row"><div class="k">💰 التكلفة</div><div class="v">${finMoney(p.cost)}</div></div>
   <div class="row"><div class="k">💵 التمويل</div><div class="v"><span class="src-badge">${escapeHtml(srcLbl)}</span></div></div>
   ${p.submitter?`<div class="row"><div class="k">👤 مقدّم الطلب</div><div class="v">${escapeHtml(p.submitter)}${p.committee?' — '+escapeHtml(p.committee):''}</div></div>`:''}
   ${p.description?`<div class="block"><div class="bk">📝 وصف المشروع</div><div>${escapeHtml(p.description)}</div></div>`:''}
   ${p.goal?`<div class="block"><div class="bk">🎯 الهدف من المشروع</div><div>${escapeHtml(p.goal)}</div></div>`:''}
-  ${p.source==='budget'?`<div class="warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
-  <div class="foot">هيئة محبي الحسين (ع) — اللجنة المالية · تقرير مشروع</div>
+  ${(p.source==='budget'&&st==='pending')?`<div class="warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+  ${isRej&&p.rejectReason?`<div class="block reject-reason"><div class="bk">📌 أسباب الرفض</div><div>${escapeHtml(p.rejectReason)}</div></div>`:''}
+  ${(isApp||isRej)?`
+  <div class="stamp-area">
+    <div class="stamp ${isApp?'ok':'no'}">
+      <img class="stamp-logo" src="${HAIAA_LOGO}" alt="" />
+      <div class="stamp-text">${isApp?'تمت الموافقة':'تم رفض المشروع'}</div>
+      <div class="stamp-sub">اللجنة المالية — هيئة محبي الحسين (ع)</div>
+      <div class="stamp-date">${p.decisionDate?fmtDate(p.decisionDate):''}</div>
+    </div>
+  </div>`:''}
+  <div class="foot">هيئة محبي الحسين (ع) — اللجنة المالية · ${docTitle}</div>
   </body></html>`);
   w.document.close(); w.focus();
 }
