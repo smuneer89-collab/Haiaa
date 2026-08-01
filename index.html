@@ -298,6 +298,7 @@
   .stat-card.warn::before { background:var(--warn); } .stat-card.warn .sc-val { color:var(--warn); }
   .stat-card.danger::before { background:var(--danger); } .stat-card.danger .sc-val { color:var(--danger); }
   .stats-sec-title { font-size:13.5px; font-weight:700; color:var(--accent); margin:18px 0 10px; padding-right:10px; border-right:3px solid var(--gold); }
+  .els-auto { font-size:14px; opacity:.5; padding:0 6px; }
   .fin-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
   .fin-field select, .fin-field input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
   .fin-ctx { background:var(--accent-soft); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--accent); font-size:14px; margin-bottom:14px; text-align:center; }
@@ -1851,15 +1852,6 @@
     <div id="idara-sec" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
 
-      <!-- التقرير السنوي الشامل -->
-      <div class="panel" style="background:linear-gradient(150deg,#f8f4ec,#fdfaf3);border-color:var(--gold);">
-        <div class="panel-header"><div><h2 class="panel-title">📑 التقرير السنوي الشامل</h2>
-          <div class="panel-sub">ملف واحد يجمع كل نشاط الهيئة — للجمعية العمومية</div></div></div>
-        <div class="actions-row" style="margin-top:0;">
-          <select id="annualYear" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-family:var(--font-sans);font-size:14px;background:var(--surface);"></select>
-          <button class="btn btn-primary" onclick="printAnnualReport()">🖨️ إصدار التقرير PDF</button>
-        </div>
-      </div>
 
       <!-- Collapsible dashboard -->
       <div class="panel mtg-dash-panel">

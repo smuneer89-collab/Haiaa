@@ -60,6 +60,7 @@ let reminders = []; // تذكيرات التقويم: {id, title, note, day, mon
 let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
+let radoodParts = []; // مشاركات مسجّلة يدوياً: {id, radoodId, miqatId, miqatName, note, at}
 let auditLog = []; // سجل التغييرات: {id, at, who, act, cat, what}
 let projects = []; // المشاريع: {id, title, date, description, goal, cost, source('donor'/'budget'), donorName, submitter, committee, viaLink, at}
 let radoods = []; // الرواديد: {id, name, img, note, at}
@@ -170,6 +171,8 @@ async function loadData(){
   try { const pr=await storage.get('projects'); if(pr) projects=JSON.parse(pr); } catch(e){ projects=[]; }
   try { window.__lastBackupAt = await storage.get('lastBackupAt') || ''; } catch(e){ window.__lastBackupAt=''; }
   try { const al=await storage.get('auditLog'); if(al) auditLog=JSON.parse(al); } catch(e){ auditLog=[]; }
+  try { const rp=await storage.get('radoodParts'); if(rp) radoodParts=JSON.parse(rp); } catch(e){ radoodParts=[]; }
+  try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
   try { const re=await storage.get('radoodEvals'); if(re) radoodEvals=JSON.parse(re); } catch(e){ radoodEvals=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
@@ -186,6 +189,7 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveRadoodParts(){ try{ await storage.set('radoodParts',JSON.stringify(radoodParts)); }catch(e){} cloudPush('radoodParts',radoodParts); }
 async function saveAuditLog(){ try{ await storage.set('auditLog',JSON.stringify(auditLog)); }catch(e){} cloudPush('auditLog',auditLog); }
 /* تسجيل عملية في سجل التغييرات */
 function logAudit(act, cat, what){
@@ -1080,6 +1084,8 @@ async function checkNewAzaSubmissions(){
     const svCounts = await Promise.all(svSess.map(s=>CloudSync.fetchPublicSurveys(s._id).catch(()=>[])));
     svCounts.forEach(a=>svTotal+=a.length);
     window.__newEvalCount=evTotal; window.__newSurveyCount=svTotal;
+    window.__azaSessions=evSess; window.__azaSurveys=svSess;
+    try{ await storage.set('azaSessionsCache', JSON.stringify({ ev:evSess, sv:svSess })); }catch(e){}
     try{
       window.__seenEvalCount = Number(await storage.get('seenEvalCount')||0);
       window.__seenSurveyCount = Number(await storage.get('seenSurveyCount')||0);
@@ -3100,7 +3106,7 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects, auditLog
+    radoods, radoodEvals, projects, auditLog, radoodParts
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -3139,10 +3145,11 @@ async function backupImport(e){
     if(Array.isArray(backup.radoodEvals)) radoodEvals=backup.radoodEvals;
     if(Array.isArray(backup.projects)) projects=backup.projects;
     if(Array.isArray(backup.auditLog)) auditLog=backup.auditLog;
+    if(Array.isArray(backup.radoodParts)) radoodParts=backup.radoodParts;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
-    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog();
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
@@ -3308,18 +3315,36 @@ function openIdara(which){
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); }
-  else if(which==='aza'){ idaraShow('aza'); renderRadoods(); markAzaSeen(); }
+  else if(which==='aza'){ idaraShow('aza'); renderRadoods(); markAzaSeen(); checkNewAzaSubmissions().then(()=>renderRadoods()); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
 /* ═══════════ لجنة العزاء — الرواديد ═══════════ */
 let radoodPhotoData=null, editingRadoodId=null;
-function radoodParticipations(radoodId){
-  // عدد المناسبات المختلفة التي قُيّم فيها الرادود
-  const evs=radoodEvals.filter(e=>e.radoodId===radoodId);
-  const miqatSet=new Set(evs.map(e=>e.miqatId));
-  return miqatSet.size;
+/* مشاركات الرادود: من التقييمات + جلسات التقييم + الاستبيانات + المُدخل يدوياً */
+function radoodParticipationList(radoodId){
+  const map=new Map();   // miqatId -> {miqatId, miqatName, sources:Set, manualId}
+  const add=(miqatId, miqatName, src, manualId)=>{
+    const key = miqatId || ('name:'+(miqatName||'—'));
+    if(!map.has(key)) map.set(key,{ key, miqatId:miqatId||'', miqatName:miqatName||'', sources:new Set(), manualId:null });
+    const it=map.get(key);
+    it.sources.add(src);
+    if(!it.miqatName && miqatName) it.miqatName=miqatName;
+    if(manualId) it.manualId=manualId;
+  };
+  radoodEvals.filter(e=>e.radoodId===radoodId).forEach(e=>{
+    const mq=miqats.find(x=>x.id===e.miqatId);
+    add(e.miqatId, e.miqatName||(mq?mq.name:''), 'تقييم');
+  });
+  (window.__azaSessions||[]).filter(s=>s.radoodId===radoodId).forEach(s=>add(s.miqatId, s.miqatName, 'جلسة تقييم'));
+  (window.__azaSurveys||[]).filter(s=>s.radoodId===radoodId).forEach(s=>add(s.miqatId, s.miqatName, 'استبيان'));
+  (radoodParts||[]).filter(p=>p.radoodId===radoodId).forEach(p=>{
+    const mq=miqats.find(x=>x.id===p.miqatId);
+    add(p.miqatId, p.miqatName||(mq?mq.name:''), 'يدوي', p.id);
+  });
+  return [...map.values()];
 }
+function radoodParticipations(radoodId){ return radoodParticipationList(radoodId).length; }
 function radoodOverallAvg(radoodId){
   const evs=radoodEvals.filter(e=>e.radoodId===radoodId);
   if(!evs.length) return 0;
@@ -3675,6 +3700,11 @@ function renderRadoodRecord(){
         </div>
       </div>
       <div class="rec-sec">
+        <div class="rec-sec-h">🎤 مشاركات الرادود في الهيئة</div>
+        <button class="btn btn-sm" style="width:100%;background:var(--accent);color:#fff;border:none;margin-bottom:10px;" onclick="openAddParticipation('${r.id}')">➕ تسجيل مشاركة</button>
+        <div id="recPartsList">${renderPartsList(r.id)}</div>
+      </div>
+      <div class="rec-sec">
         <div class="rec-sec-h">🔗 جلسات التقييم الجماعي</div>
         <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">➕ إنشاء رابط تقييم جديد</button>
         <div id="recSessionsList"><div class="eval-link-loading">جارٍ تحميل الجلسات…</div></div>
@@ -3760,6 +3790,13 @@ function renderRadoodRecord(){
       }).join('')}
     </div>
 
+    <!-- مشاركات الرادود -->
+    <div class="rec-sec">
+      <div class="rec-sec-h">🎤 مشاركات الرادود في الهيئة</div>
+      <button class="btn btn-sm" style="width:100%;background:var(--accent);color:#fff;border:none;margin-bottom:10px;" onclick="openAddParticipation('${r.id}')">➕ تسجيل مشاركة</button>
+      <div id="recPartsList">${renderPartsList(r.id)}</div>
+    </div>
+
     <!-- جلسات التقييم الجماعي -->
     <div class="rec-sec">
       <div class="rec-sec-h">🔗 جلسات التقييم الجماعي</div>
@@ -3806,6 +3843,62 @@ function renderEvalChart(data){
     <path d="${line}" fill="none" stroke="#1c4536" stroke-width="2.5" stroke-linejoin="round"/>
     ${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#c19a3e"/><text x="${p.x.toFixed(1)}" y="${(p.y-9).toFixed(1)}" text-anchor="middle" font-size="10" fill="#1c4536" font-weight="700">${p.v}</text>`).join('')}
   </svg>`;
+}
+
+/* عرض قائمة المشاركات */
+function renderPartsList(radoodId){
+  const list=radoodParticipationList(radoodId);
+  if(!list.length) return '<div class="eval-link-note">لا مشاركات مسجّلة بعد.</div>';
+  return list.map(p=>{
+    const srcs=[...p.sources].join(' · ');
+    const canEdit = !!p.manualId;
+    return `<div class="els-row">
+      <div class="els-body"><div class="els-name">${escapeHtml(p.miqatName||'—')}</div>
+        <div class="els-meta">${escapeHtml(srcs)}</div></div>
+      ${canEdit?`<button class="btn btn-sm" onclick="editParticipation('${p.manualId}')">✏️</button>
+      <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteParticipation('${p.manualId}')">🗑️</button>`
+      :`<span class="els-auto" title="محسوبة تلقائياً">🔒</span>`}
+    </div>`;
+  }).join('');
+}
+let editingPartId=null;
+function openAddParticipation(radoodId){
+  editingPartId=null;
+  const opts=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const sel=prompt('اكتب رقم الميقات:\n\n'+opts.map((mq,i)=>`${i+1}. ${mq.name} (${fmtMiqatDate(mq)})`).join('\n'));
+  if(sel===null) return;
+  const idx=parseInt(sel,10)-1;
+  if(isNaN(idx)||idx<0||idx>=opts.length){ toast('اختيار غير صحيح'); return; }
+  const mq=opts[idx];
+  radoodParts.push({ id:'rp_'+Date.now(), radoodId, miqatId:mq.id, miqatName:mq.name, note:'', at:new Date().toISOString() });
+  saveRadoodParts();
+  const r=radoods.find(x=>x.id===radoodId);
+  logAudit('إضافة','لجنة العزاء',`مشاركة للرادود «${r?r.name:''}» في «${mq.name}»`);
+  toast('سُجّلت المشاركة');
+  renderRadoodRecord(); renderRadoods();
+}
+function editParticipation(partId){
+  const p=radoodParts.find(x=>x.id===partId); if(!p) return;
+  const opts=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const cur=opts.findIndex(m=>m.id===p.miqatId);
+  const sel=prompt('غيّر الميقات — اكتب الرقم:\n\n'+opts.map((mq,i)=>`${i+1}. ${mq.name} (${fmtMiqatDate(mq)})`).join('\n'), cur>=0?String(cur+1):'');
+  if(sel===null) return;
+  const idx=parseInt(sel,10)-1;
+  if(isNaN(idx)||idx<0||idx>=opts.length){ toast('اختيار غير صحيح'); return; }
+  const mq=opts[idx];
+  p.miqatId=mq.id; p.miqatName=mq.name;
+  saveRadoodParts();
+  logAudit('تعديل','لجنة العزاء',`مشاركة إلى «${mq.name}»`);
+  toast('تم التعديل');
+  renderRadoodRecord(); renderRadoods();
+}
+function deleteParticipation(partId){
+  const p=radoodParts.find(x=>x.id===partId); if(!p) return;
+  if(!confirm(`حذف المشاركة في «${p.miqatName}»؟`)) return;
+  radoodParts=radoodParts.filter(x=>x.id!==partId);
+  saveRadoodParts();
+  logAudit('حذف','لجنة العزاء',`مشاركة في «${p.miqatName}»`);
+  renderRadoodRecord(); renderRadoods();
 }
 
 /* جلسات التقييم الجماعي داخل صفحة الرادود */
@@ -6565,6 +6658,37 @@ function renderAsmDecCard(){
 }
 function printAssemblyReport(){
   const a=getAssembly(); if(!a) return; const r=a.report||{};
+  // ── أرقام تلقائية من بيانات البرنامج ──
+  const asmYear = parseInt(a.year,10) || parseInt(hijriParts().year,10) || 1448;
+  const S_totalMembers=members.length;
+  const S_minors=members.filter(m=>m.isMinor).length;
+  const S_paidCount=members.filter(m=>memberPaid(m)>0).length;
+  const S_subsTotal=members.reduce((s,m)=>s+memberPaid(m),0);
+  const S_yearMiqats=miqats.filter(mq=>miqatTargetHijriYear(mq)===asmYear);
+  const S_mqRows=S_yearMiqats.map(mq=>{
+    const bs=mq.bookings||[];
+    return { name:mq.name, date:fmtMiqatDate(mq), n:bs.length,
+             agreed:bs.reduce((x,b)=>x+bookingAgreed(b),0), paid:bs.reduce((x,b)=>x+bookingPaid(b),0) };
+  });
+  const S_mqAgreed=S_mqRows.reduce((x,q)=>x+q.agreed,0);
+  const S_mqPaid=S_mqRows.reduce((x,q)=>x+q.paid,0);
+  const S_balance=Number(finance.total)||0;
+  const S_exps=(finance.expenses||[]);
+  const S_expTotal=S_exps.reduce((x,e)=>x+(Number(e.cost)||0),0);
+  const S_byType={}; S_exps.forEach(e=>{ S_byType[e.type]=(S_byType[e.type]||0)+(Number(e.cost)||0); });
+  const S_topExp=Object.entries(S_byType).sort((x,y)=>y[1]-x[1]).slice(0,6);
+  const S_radRows=radoods.map(rd=>{
+    const evs=radoodEvals.filter(e=>e.radoodId===rd.id);
+    const av=evs.length?evs.reduce((x,e)=>x+(e.avg||0),0)/evs.length:0;
+    return { name:rd.name, parts:radoodParticipations(rd.id), n:evs.length, pct:evs.length?Math.round(av/3*100):null };
+  }).filter(x=>x.parts>0).sort((x,y)=>(y.pct||0)-(x.pct||0));
+  const S_projApp=projects.filter(p=>p.status==='approved');
+  const S_projRej=projects.filter(p=>p.status==='rejected');
+  const S_projPend=projects.filter(p=>!p.status||p.status==='pending');
+  const S_projCost=S_projApp.reduce((x,p)=>x+(Number(p.cost)||0),0);
+  const S_nMeetings=meetings.length;
+  const S_nTasks=meetings.reduce((x,m)=>x+((m.tasks||[]).length),0);
+  const S_doneTasks=meetings.reduce((x,m)=>x+((m.tasks||[]).filter(t=>t.done).length),0);
   const present=a.attendees.map(id=>members.find(m=>m.id===id)).filter(Boolean);
   const active=present.filter(isActive).length, inactive=present.length-active;
   const pct=present.length?Math.round(active/present.length*100):0;
@@ -6587,6 +6711,15 @@ function printAssemblyReport(){
     .c{border:1px solid #e0dccf;border-radius:10px;padding:14px 8px;text-align:center;} .c .n{font-size:26px;font-weight:700;color:#1c4536;} .c .l{font-size:11px;color:#94908a;margin-top:3px;}
     .att{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0;}
     ul{margin:2px 20px;padding:0;} li{font-size:14px;margin-bottom:3px;} .mut{color:#94908a;}
+    .kpis{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 6px;}
+    .kpi{flex:1;min-width:120px;text-align:center;border:1px solid #e6ddcb;border-radius:12px;padding:13px 10px;background:#faf7f0;}
+    .kpi .v{font-size:19px;font-weight:800;color:#1c4536;line-height:1.3;}
+    .kpi .l{font-size:11.5px;color:#8a7c6b;margin-top:3px;}
+    .rep-tbl{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0 14px;}
+    .rep-tbl th,.rep-tbl td{border:1px solid #e6ddcb;padding:8px 11px;text-align:right;}
+    .rep-tbl th{background:#1c4536;color:#fff;}
+    .rep-tbl tr:nth-child(even){background:#faf7f0;}
+    .rep-tbl .sumr td{background:#e6f0ea;font-weight:800;color:#1c4536;}
     .bar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin-top:6px;} .bar>i{display:block;height:100%;background:#4f9d4d;}
     ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
     <h1>هيئة محبي الحسين</h1><div class="sub">التقرير الأدبي — الجمعية العمومية ${a.year}</div>
@@ -6611,6 +6744,51 @@ function printAssemblyReport(){
     <h2>المشاريع المنجزة حسب اللجنة</h2>${projHTML}
     ${sec('التحديات التي واجهت الهيئة', r.challenges)}
     ${sec('التكريم الحسيني لخادم الإمام الحسين', r.honoring)}
+
+    <h2>👥 الأعضاء بالأرقام</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${S_totalMembers}</div><div class="l">إجمالي الأعضاء</div></div>
+      <div class="kpi"><div class="v">${S_paidCount}</div><div class="l">سدّدوا الاشتراك</div></div>
+      <div class="kpi"><div class="v">${S_minors}</div><div class="l">تحت السن</div></div>
+      <div class="kpi"><div class="v">${finMoney(S_subsTotal)}</div><div class="l">محصّل الاشتراكات</div></div>
+    </div>
+
+    <h2>🕌 المواقيت والمساهمات</h2>
+    ${S_mqRows.length?`<table class="rep-tbl"><tr><th>الميقات</th><th>التاريخ</th><th>الحجوزات</th><th>المتفق</th><th>المستلم</th></tr>
+      ${S_mqRows.map(q=>`<tr><td>${escapeHtml(q.name)}</td><td>${q.date}</td><td>${q.n}</td><td>${finMoney(q.agreed)}</td><td>${finMoney(q.paid)}</td></tr>`).join('')}
+      <tr class="sumr"><td colspan="2">الإجمالي</td><td>${S_mqRows.reduce((x,q)=>x+q.n,0)}</td><td>${finMoney(S_mqAgreed)}</td><td>${finMoney(S_mqPaid)}</td></tr>
+    </table>`:'<p class="mut">لا مواقيت مسجّلة لهذا العام.</p>'}
+
+    <h2>💰 الموقف المالي</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${finMoney(S_balance)}</div><div class="l">رصيد الهيئة</div></div>
+      <div class="kpi"><div class="v">${finMoney(S_expTotal)}</div><div class="l">إجمالي المصروفات</div></div>
+      <div class="kpi"><div class="v">${S_exps.length}</div><div class="l">بنود الصرف</div></div>
+    </div>
+    ${S_topExp.length?`<table class="rep-tbl"><tr><th>أعلى بنود الصرف</th><th>المبلغ</th><th>النسبة</th></tr>
+      ${S_topExp.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${S_expTotal?Math.round(v/S_expTotal*100):0}%</td></tr>`).join('')}
+    </table>`:''}
+
+    <h2>🕯️ لجنة العزاء — الرواديد</h2>
+    ${S_radRows.length?`<table class="rep-tbl"><tr><th>#</th><th>الرادود</th><th>المشاركات</th><th>التقييمات</th><th>المعدّل</th></tr>
+      ${S_radRows.map((rd,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(rd.name)}</td><td>${rd.parts}</td><td>${rd.n}</td><td>${rd.pct!=null?rd.pct+'%':'—'}</td></tr>`).join('')}
+    </table>`:'<p class="mut">لا مشاركات مسجّلة.</p>'}
+
+    <h2>📋 المشاريع</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${S_projApp.length}</div><div class="l">معتمدة</div></div>
+      <div class="kpi"><div class="v">${S_projRej.length}</div><div class="l">مرفوضة</div></div>
+      <div class="kpi"><div class="v">${S_projPend.length}</div><div class="l">بانتظار القرار</div></div>
+      <div class="kpi"><div class="v">${finMoney(S_projCost)}</div><div class="l">تكلفة المعتمد</div></div>
+    </div>
+
+    <h2>🗓️ اجتماعات الإدارة</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${S_nMeetings}</div><div class="l">اجتماع</div></div>
+      <div class="kpi"><div class="v">${dec.total}</div><div class="l">قرار</div></div>
+      <div class="kpi"><div class="v">${S_nTasks}</div><div class="l">مهمة</div></div>
+      <div class="kpi"><div class="v">${S_doneTasks}</div><div class="l">مهمة منجزة</div></div>
+    </div>
     </body></html>`);
   w.document.close(); w.focus();
 }
