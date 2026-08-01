@@ -4333,24 +4333,94 @@ async function loadIncomingProjects(){
       new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),12000))
     ]);
     if(!incoming.length){ host.innerHTML=''; return; }
+    window.__incomingProjects = incoming;
     host.innerHTML=`<div class="proj-incoming-title">📥 طلبات واردة عبر الرابط (${incoming.length})</div>`+
-      incoming.map(p=>{
-        const srcLbl = p.source==='budget' ? '🏛️ ميزانية الهيئة' : (p.source==='donor'?'🎁 متبرّع':'—');
-        return `<div class="proj-card incoming">
-          <div class="proj-head"><div class="proj-title">${escapeHtml(p.title||'—')}</div>
-            <span class="proj-src ${p.source==='budget'?'budget':'donor'}">${srcLbl}</span></div>
-          <div class="proj-submitter">مقدّم الطلب: <b>${escapeHtml(p.submitter||'—')}</b>${p.committee?' — '+escapeHtml(p.committee):''}</div>
-          <div class="proj-meta">${p.date?'📅 '+fmtDate(p.date):''}${p.cost?' · 💰 '+finMoney(p.cost):''}</div>
-          ${p.description?`<div class="proj-desc">${escapeHtml(p.description)}</div>`:''}
-          ${p.goal?`<div class="proj-desc"><b>الهدف:</b> ${escapeHtml(p.goal)}</div>`:''}
-          ${p.source==='budget'?`<div class="proj-warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
-          <div class="proj-actions">
-            <button class="btn btn-primary btn-sm" onclick='acceptIncomingProject(${JSON.stringify(p)})'>✅ اعتماد وحفظ</button>
-            <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="rejectIncomingProject('${p._id}')">🗑️ رفض</button>
+      `<div class="inc-list">`+incoming.map(p=>`
+        <div class="inc-row" onclick="openIncomingProject('${p._id}')">
+          <div class="inc-body">
+            <div class="inc-name">${escapeHtml(p.title||'—')}</div>
+            <div class="inc-date">${p.date?fmtDate(p.date):(p.at?new Date(p.at).toLocaleDateString('ar'):'')}</div>
           </div>
-        </div>`;
-      }).join('');
+          <div class="inc-arrow">›</div>
+        </div>`).join('')+`</div>`;
   }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err" style="margin-bottom:12px;">تعذّر جلب الطلبات الواردة.</div>'; }
+}
+/* صفحة تفاصيل الطلب الوارد */
+let currentIncoming=null;
+function openIncomingProject(id){
+  const p=(window.__incomingProjects||[]).find(x=>x._id===id); if(!p) return;
+  currentIncoming=p;
+  renderIncomingDetail();
+  openFullPage('incomingproj');
+}
+function closeIncomingProject(){ switchTab('finance'); openFinancePage('projects'); }
+function renderIncomingDetail(){
+  const p=currentIncoming; if(!p) return;
+  const srcLbl = p.source==='budget' ? '🏛️ ميزانية الهيئة' : (p.source==='donor'?('🎁 متبرّع'+(p.donorName?' — '+escapeHtml(p.donorName):'')):'—');
+  $('#incomingProjBody').innerHTML=`
+  <div class="panel inc-panel">
+    <div class="inc-head">
+      <div class="inc-h-title">${escapeHtml(p.title||'—')}</div>
+      <div class="inc-h-badge ${p.source==='budget'?'budget':'donor'}">${srcLbl}</div>
+    </div>
+    <div class="inc-sec"><div class="inc-k">👤 مقدّم الطلب</div><div class="inc-v">${escapeHtml(p.submitter||'—')}${p.committee?' — '+escapeHtml(p.committee):''}</div></div>
+    <div class="inc-sec"><div class="inc-k">📅 تاريخ المشروع</div><div class="inc-v">${p.date?fmtDate(p.date):'—'}${p.date?'<br><span class="inc-hijri">'+escapeHtml(gregToHijri(p.date))+'</span>':''}</div></div>
+    <div class="inc-sec"><div class="inc-k">💰 التكلفة</div><div class="inc-v">${finMoney(p.cost||0)}</div></div>
+    ${p.description?`<div class="inc-sec col"><div class="inc-k">📝 وصف المشروع</div><div class="inc-v">${escapeHtml(p.description)}</div></div>`:''}
+    ${p.goal?`<div class="inc-sec col"><div class="inc-k">🎯 الهدف من المشروع</div><div class="inc-v">${escapeHtml(p.goal)}</div></div>`:''}
+    ${p.source==='budget'?`<div class="proj-warn" style="margin:14px 16px;">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+    <div class="inc-actions">
+      <button class="btn btn-accent" onclick="printIncomingProjectPDF()">🖨️ طباعة PDF</button>
+      <button class="btn btn-primary" onclick='acceptIncomingProject(window.__incomingCurrent)'>✅ اعتماد وحفظ</button>
+      <button class="btn" style="background:var(--danger);color:#fff;border:none;" onclick="rejectIncomingProject('${p._id}')">🗑️ رفض</button>
+    </div>
+    <div style="padding:14px 16px;text-align:center;border-top:1px solid var(--line);">
+      <button class="btn btn-ghost btn-sm" onclick="closeIncomingProject()">← رجوع لقائمة الطلبات</button>
+    </div>
+  </div>`;
+  window.__incomingCurrent=p;
+}
+function printIncomingProjectPDF(){
+  const p=currentIncoming; if(!p) return;
+  const srcLbl = p.source==='budget' ? 'ميزانية الهيئة' : ('متبرّع'+(p.donorName?` (${p.donorName})`:''));
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>طلب مشروع — ${escapeHtml(p.title||'')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.9;font-size:15px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:185px;max-height:70px;}
+  .pdf-head{text-align:center;padding-bottom:14px;border-bottom:3px double #c19a3e;margin-bottom:20px;}
+  .doc-title{font-family:'Amiri',serif;font-size:22px;font-weight:700;color:#1c4536;margin:8px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:13px;}
+  .p-title{font-size:22px;font-weight:800;color:#1c4536;text-align:center;background:#f6f2ea;border-radius:12px;padding:18px;margin-bottom:20px;}
+  .row{display:flex;border:1px solid #e6ddcb;border-radius:10px;margin-bottom:10px;overflow:hidden;}
+  .row .k{background:#1c4536;color:#fff;padding:12px 16px;font-weight:700;width:160px;flex-shrink:0;}
+  .row .v{padding:12px 16px;flex:1;}
+  .block{border:1px solid #e6ddcb;border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+  .block .bk{font-weight:700;color:#1c4536;margin-bottom:6px;}
+  .src-badge{display:inline-block;padding:4px 16px;border-radius:20px;font-size:14px;font-weight:600;color:#fff;background:${p.source==='budget'?'#8a5a5a':'#3f8f5b'};}
+  .warn{background:#fbf0e6;border:1px solid #e0b088;border-radius:10px;padding:14px;margin-top:14px;color:#8a5a2a;font-weight:600;text-align:center;}
+  .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:24px;} .no-print{display:none;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#7a5c1e;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ قائمة الطلبات</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🏠 الرئيسية</button>
+  </div>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">طلب مشروع مقدَّم للهيئة</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
+  <div class="p-title">${escapeHtml(p.title||'—')}</div>
+  <div class="row"><div class="k">👤 مقدّم الطلب</div><div class="v">${escapeHtml(p.submitter||'—')}${p.committee?' — '+escapeHtml(p.committee):''}</div></div>
+  <div class="row"><div class="k">📅 التاريخ</div><div class="v">${p.date?fmtDate(p.date):'—'}${p.date?' — '+escapeHtml(gregToHijri(p.date)):''}</div></div>
+  <div class="row"><div class="k">💰 التكلفة</div><div class="v">${finMoney(p.cost||0)}</div></div>
+  <div class="row"><div class="k">💵 التمويل</div><div class="v"><span class="src-badge">${escapeHtml(srcLbl)}</span></div></div>
+  ${p.description?`<div class="block"><div class="bk">📝 وصف المشروع</div><div>${escapeHtml(p.description)}</div></div>`:''}
+  ${p.goal?`<div class="block"><div class="bk">🎯 الهدف من المشروع</div><div>${escapeHtml(p.goal)}</div></div>`:''}
+  ${p.source==='budget'?`<div class="warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+  <div class="foot">هيئة محبي الحسين (ع) — اللجنة المالية · طلب مشروع</div>
+  </body></html>`);
+  w.document.close(); w.focus();
 }
 async function acceptIncomingProject(p){
   projects.push({
@@ -4363,13 +4433,13 @@ async function acceptIncomingProject(p){
   await saveProjects();
   try{ await CloudSync.deletePublicProject(p._id); }catch(e){}
   toast('تم اعتماد المشروع وحفظه');
-  renderFinancePage('projects',{});
+  closeIncomingProject();
 }
 async function rejectIncomingProject(id){
   if(!confirm('رفض هذا الطلب وحذفه؟')) return;
   try{ await CloudSync.deletePublicProject(id); }catch(e){}
   toast('تم رفض الطلب');
-  renderFinancePage('projects',{});
+  closeIncomingProject();
 }
 function projectCardHTML(p){
   const srcLbl = p.source==='budget' ? '🏛️ ميزانية الهيئة' : '🎁 متبرّع';
@@ -5376,7 +5446,11 @@ async function handleMeetingAttach(e){
   const files=[...e.target.files]; if(!files.length) return;
   for(const f of files){
     if(f.size>4*1024*1024){ toast(`«${f.name}» أكبر من 4 ميجا`); continue; }
-    try{ const data=await fileToDataURL(f); mtgDraft.attachments.push({id:uid('at'), name:f.name, type:f.type, data}); }
+    try{
+      const isImg=(f.type||'').startsWith('image/');
+      const data = isImg ? await processPhoto(f, 1100, .82) : await fileToDataURL(f);
+      mtgDraft.attachments.push({id:uid('at'), name:f.name, type:f.type, data, isImage:isImg, caption:''});
+    }
     catch(_){ toast('تعذّر إرفاق '+f.name); }
   }
   e.target.value=''; renderMeetingAttachments();
@@ -5384,7 +5458,25 @@ async function handleMeetingAttach(e){
 function renderMeetingAttachments(){
   const el=$('#mtgAttachments'); const list=(mtgDraft&&mtgDraft.attachments)||[];
   if(!list.length){ el.innerHTML='<div class="mtg-block-help" style="margin:0">لا مرفقات</div>'; return; }
-  el.innerHTML=list.map(a=>`<div class="mtg-attach-row"><a href="${a.data}" download="${escapeHtml(a.name)}" target="_blank">📎 ${escapeHtml(a.name)}</a><button type="button" class="remove-btn" onclick="removeMeetingAttach('${a.id}')">×</button></div>`).join('');
+  el.innerHTML=list.map(a=>{
+    const isImg = a.isImage || (a.type||'').startsWith('image/');
+    if(isImg){
+      return `<div class="mtg-attach-img">
+        <div class="mai-top">
+          <img class="mai-thumb" src="${a.data}" alt="" onclick="window.open('${a.data}','_blank')" />
+          <div class="mai-info">
+            <div class="mai-name">🖼️ ${escapeHtml(a.name)}</div>
+            <input class="mai-caption" type="text" placeholder="اكتب تعليقاً على الصورة…" value="${escapeHtml(a.caption||'')}" oninput="setAttachCaption('${a.id}',this.value)" />
+          </div>
+          <button type="button" class="remove-btn" onclick="removeMeetingAttach('${a.id}')">×</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="mtg-attach-row"><a href="${a.data}" download="${escapeHtml(a.name)}" target="_blank">📎 ${escapeHtml(a.name)}</a><button type="button" class="remove-btn" onclick="removeMeetingAttach('${a.id}')">×</button></div>`;
+  }).join('');
+}
+function setAttachCaption(id,val){
+  const a=(mtgDraft.attachments||[]).find(x=>x.id===id); if(a) a.caption=val;
 }
 function removeMeetingAttach(id){ mtgDraft.attachments=mtgDraft.attachments.filter(a=>a.id!==id); renderMeetingAttachments(); }
 
@@ -5638,6 +5730,10 @@ function printMeetingMinutes(id){
     .doc-title{text-align:center;font-family:'Amiri',serif;font-size:26px;font-weight:700;color:#1c4536;margin:14px 0 4px;}
     .doc-sub{text-align:center;color:#8a7d75;font-size:15px;margin-bottom:26px;letter-spacing:.3px;}
     .info-card{background:#faf6ef;border:1px solid #ece3d4;border-radius:14px;padding:18px 22px;margin-bottom:28px;}
+    .mtg-imgs{display:flex;flex-direction:column;gap:18px;margin:14px 0;}
+    .mtg-fig{margin:0;border:1px solid #ece3d4;border-radius:12px;padding:12px;background:#fdfbf7;page-break-inside:avoid;}
+    .mtg-fig img{width:100%;max-height:420px;object-fit:contain;border-radius:8px;display:block;}
+    .mtg-fig figcaption{margin-top:10px;font-size:14px;color:#5a4d42;text-align:center;line-height:1.7;}
     .info{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;font-size:16px;}
     .info .item{display:flex;flex-direction:column;gap:2px;}
     .info .lbl{color:#a08d7a;font-size:13px;font-weight:600;}
@@ -5684,6 +5780,9 @@ function printMeetingMinutes(id){
     <h2>القرارات <span class="cnt">(${(m.decisions||[]).length})</span></h2>${listHTML(m.decisions||[])}
     <h2>المهام <span class="cnt">(${(m.tasks||[]).length})</span></h2>${listHTML(m.tasks||[])}
     ${m.minutes?`<h2>نص المحضر</h2><div class="txt">${escapeHtml(m.minutes)}</div>`:''}
+    ${(()=>{ const imgs=(m.attachments||[]).filter(a=>a.isImage||(a.type||'').startsWith('image/'));
+      return imgs.length?`<h2>المرفقات المصوّرة <span class="cnt">(${imgs.length})</span></h2>
+        <div class="mtg-imgs">${imgs.map(a=>`<figure class="mtg-fig"><img src="${a.data}" alt="" /><figcaption>${a.caption?escapeHtml(a.caption):escapeHtml(a.name)}</figcaption></figure>`).join('')}</div>`:''; })()}
     <div class="signature-block">
       <img class="sig-img" src="${HAIAA_SIGNATURE}" alt="التوقيع" />
       <div class="sig-line"></div>
