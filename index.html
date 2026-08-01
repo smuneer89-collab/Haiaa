@@ -280,6 +280,24 @@
   .au-what { font-size:13px; color:var(--ink); line-height:1.6; }
   .au-meta { font-size:11px; color:var(--muted); margin-top:3px; }
   .audit-empty { text-align:center; padding:24px; color:var(--muted-2); font-size:13px; }
+  /* لوحة الإحصائيات */
+  .stats-head { text-align:center; margin-bottom:16px; }
+  .stats-head h2 { font-size:19px; color:var(--accent); margin:0 0 4px; }
+  .stats-head .sh-sub { font-size:12.5px; color:var(--muted); }
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .stat-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:15px 13px; text-align:center; cursor:pointer; position:relative; overflow:hidden; }
+  .stat-card:active { transform:scale(.98); }
+  .stat-card::before { content:''; position:absolute; top:0; right:0; width:3px; height:100%; background:var(--gold); }
+  .stat-card.wide { grid-column:1 / -1; }
+  .sc-ic { font-size:22px; margin-bottom:5px; }
+  .sc-val { font-size:24px; font-weight:800; color:var(--accent); line-height:1.2; }
+  .sc-val.sm { font-size:17px; }
+  .sc-lbl { font-size:11.5px; color:var(--muted); margin-top:4px; }
+  .sc-extra { font-size:11px; color:var(--muted-2); margin-top:3px; }
+  .stat-card.ok::before { background:var(--ok); } .stat-card.ok .sc-val { color:var(--ok); }
+  .stat-card.warn::before { background:var(--warn); } .stat-card.warn .sc-val { color:var(--warn); }
+  .stat-card.danger::before { background:var(--danger); } .stat-card.danger .sc-val { color:var(--danger); }
+  .stats-sec-title { font-size:13.5px; font-weight:700; color:var(--accent); margin:18px 0 10px; padding-right:10px; border-right:3px solid var(--gold); }
   .fin-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
   .fin-field select, .fin-field input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
   .fin-ctx { background:var(--accent-soft); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--accent); font-size:14px; margin-bottom:14px; text-align:center; }
@@ -1452,6 +1470,7 @@
 <div class="container">
   <div class="tabs">
     <button class="tab active" data-tab="dashboard">الرئيسية</button>
+    <button class="tab" data-tab="stats">إحصائيات</button>
     <button class="tab" data-tab="members">الأعضاء</button>
     <button class="tab" data-tab="miqats">المواقيت</button>
     <button class="tab" data-tab="meetings">الإدارة</button>
@@ -1517,6 +1536,11 @@
   </section>
 
   <!-- Notifications -->
+  <!-- لوحة الإحصائيات -->
+  <section id="tab-stats" class="tab-content" style="display:none">
+    <div id="statsBody"></div>
+  </section>
+
   <section id="tab-notifications" class="tab-content" style="display:none">
     <div class="panel-header" style="margin-bottom:14px;">
       <div>
@@ -1826,6 +1850,16 @@
     <!-- SECRETARIAT -->
     <div id="idara-sec" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+
+      <!-- التقرير السنوي الشامل -->
+      <div class="panel" style="background:linear-gradient(150deg,#f8f4ec,#fdfaf3);border-color:var(--gold);">
+        <div class="panel-header"><div><h2 class="panel-title">📑 التقرير السنوي الشامل</h2>
+          <div class="panel-sub">ملف واحد يجمع كل نشاط الهيئة — للجمعية العمومية</div></div></div>
+        <div class="actions-row" style="margin-top:0;">
+          <select id="annualYear" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-family:var(--font-sans);font-size:14px;background:var(--surface);"></select>
+          <button class="btn btn-primary" onclick="printAnnualReport()">🖨️ إصدار التقرير PDF</button>
+        </div>
+      </div>
 
       <!-- Collapsible dashboard -->
       <div class="panel mtg-dash-panel">

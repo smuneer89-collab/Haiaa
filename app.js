@@ -406,6 +406,7 @@ $$('.tab[data-tab]').forEach(t=>{
     $$('.tab-content').forEach(c=>c.style.display='none');
     $('#tab-'+t.dataset.tab).style.display='block';
     if(t.dataset.tab==='dashboard') renderDashboard();
+    if(t.dataset.tab==='stats') renderStats();
     if(t.dataset.tab==='members') renderMembers();
     if(t.dataset.tab==='miqats') renderMiqats();
     if(t.dataset.tab==='meetings') idaraHome();
@@ -563,6 +564,270 @@ function printMiqatPDF(id){
 }
 
 /* حساب كل الإشعارات - ترجع مصفوفة مصنّفة */
+
+
+/* ═══════════ التقرير السنوي الشامل ═══════════ */
+function fillAnnualYears(){
+  const sel=document.getElementById('annualYear'); if(!sel) return;
+  const cur=parseInt(hijriParts().year,10)||1448;
+  const years=[]; for(let y=cur; y>=cur-4; y--) years.push(y);
+  sel.innerHTML=years.map(y=>`<option value="${y}">${y} هـ</option>`).join('');
+}
+function printAnnualReport(){
+  const sel=document.getElementById('annualYear');
+  const year=parseInt(sel?sel.value:0,10)||parseInt(hijriParts().year,10)||1448;
+
+  // الأعضاء
+  const totalMembers=members.length;
+  const minors=members.filter(m=>m.isMinor).length;
+  const paidCount=members.filter(m=>memberPaid(m)>0).length;
+  const subsTotal=members.reduce((s,m)=>s+memberPaid(m),0);
+
+  // المواقيت (مواقيت السنة المختارة)
+  const yearMiqats=miqats.filter(mq=>miqatTargetHijriYear(mq)===year);
+  const mqRows=yearMiqats.map(mq=>{
+    const bs=mq.bookings||[];
+    const agreed=bs.reduce((s,b)=>s+bookingAgreed(b),0);
+    const paid=bs.reduce((s,b)=>s+bookingPaid(b),0);
+    return { name:mq.name, date:fmtMiqatDate(mq), n:bs.length, agreed, paid };
+  });
+  const mqTotalAgreed=mqRows.reduce((s,r)=>s+r.agreed,0);
+  const mqTotalPaid=mqRows.reduce((s,r)=>s+r.paid,0);
+
+  // المالية
+  const balance=Number(finance.total)||0;
+  const expenses=(finance.expenses||[]);
+  const expTotal=expenses.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  const byType={}; expenses.forEach(e=>{ byType[e.type]=(byType[e.type]||0)+(Number(e.cost)||0); });
+  const topExp=Object.entries(byType).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+  // لجنة العزاء
+  const radRows=radoods.map(r=>{
+    const evs=radoodEvals.filter(e=>e.radoodId===r.id);
+    const avg=evs.length?evs.reduce((s,e)=>s+(e.avg||0),0)/evs.length:0;
+    return { name:r.name, parts:radoodParticipations(r.id), n:evs.length, pct:evs.length?Math.round(avg/3*100):null };
+  }).filter(x=>x.n>0).sort((a,b)=>(b.pct||0)-(a.pct||0));
+
+  // المشاريع
+  const projApproved=projects.filter(p=>p.status==='approved');
+  const projRejected=projects.filter(p=>p.status==='rejected');
+  const projPending=projects.filter(p=>!p.status||p.status==='pending');
+  const projCost=projApproved.reduce((s,p)=>s+(Number(p.cost)||0),0);
+
+  // الاجتماعات
+  const nMeetings=meetings.length;
+  const nDecisions=meetings.reduce((s,m)=>s+((m.decisions||[]).length),0);
+  const nTasks=meetings.reduce((s,m)=>s+((m.tasks||[]).length),0);
+  const doneTasks=meetings.reduce((s,m)=>s+((m.tasks||[]).filter(t=>t.done).length),0);
+
+  // خلاصة ذكية
+  const insights=[];
+  insights.push(`بلغ عدد أعضاء الهيئة ${totalMembers} عضواً${minors?`، منهم ${minors} تحت السن`:''}، وقد سدّد ${paidCount} منهم اشتراكاتهم بإجمالي ${finMoney(subsTotal)}.`);
+  if(yearMiqats.length) insights.push(`أحيت الهيئة ${yearMiqats.length} ميقاتاً خلال العام، بلغ إجمالي مساهماتها ${finMoney(mqTotalAgreed)}، استُلم منها ${finMoney(mqTotalPaid)}.`);
+  if(expTotal) insights.push(`بلغت المصروفات ${finMoney(expTotal)} موزّعة على ${expenses.length} بنداً${topExp.length?`، أعلاها «${topExp[0][0]}» بمبلغ ${finMoney(topExp[0][1])}`:''}.`);
+  if(radRows.length) insights.push(`شارك ${radRows.length} رادوداً في مجالس الهيئة، وكان أعلاهم تقييماً «${radRows[0].name}» بنسبة ${radRows[0].pct}%.`);
+  if(projects.length) insights.push(`قُدّم ${projects.length} مشروعاً، اعتُمد منها ${projApproved.length} بتكلفة ${finMoney(projCost)}${projRejected.length?`، ورُفض ${projRejected.length}`:''}${projPending.length?`، ولا يزال ${projPending.length} بانتظار القرار`:''}.`);
+  if(nMeetings) insights.push(`عقد مجلس الإدارة ${nMeetings} اجتماعاً، صدر عنها ${nDecisions} قراراً و${nTasks} مهمة، أُنجز منها ${doneTasks}.`);
+
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>التقرير السنوي ${year} هـ</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:34px 38px;color:#1a2620;line-height:1.85;font-size:14.5px;}
+  .cover{text-align:center;padding:40px 0 30px;border-bottom:4px double #c19a3e;margin-bottom:26px;}
+  .cover img{max-width:230px;max-height:86px;margin-bottom:18px;}
+  .cv-title{font-family:'Amiri',serif;font-size:32px;font-weight:700;color:#1c4536;margin-bottom:6px;}
+  .cv-year{font-size:20px;color:#c19a3e;font-weight:700;}
+  .cv-sub{font-size:13px;color:#8a7c6b;margin-top:10px;}
+  h2{font-size:16px;color:#fff;background:#1c4536;display:inline-block;padding:6px 16px 6px 20px;border-radius:0 18px 18px 0;margin:26px 0 12px;}
+  .kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;}
+  .kpi{flex:1;min-width:120px;text-align:center;border:1px solid #e6ddcb;border-radius:12px;padding:13px 10px;background:#faf7f0;}
+  .kpi .v{font-size:20px;font-weight:800;color:#1c4536;}
+  .kpi .l{font-size:11.5px;color:#8a7c6b;margin-top:3px;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0;}
+  th,td{border:1px solid #e6ddcb;padding:8px 11px;text-align:right;}
+  th{background:#1c4536;color:#fff;}
+  tr:nth-child(even){background:#faf7f0;}
+  .sum td{background:#e6f0ea;font-weight:800;color:#1c4536;}
+  .insights{background:#fbf6ea;border:1px solid #e5d5a8;border-radius:12px;padding:16px 18px;margin:16px 0;}
+  .insights h3{font-size:15px;color:#7a5c1e;margin-bottom:8px;}
+  .insights li{margin:8px 0;font-size:13.5px;line-height:1.9;}
+  .signature-block{margin-top:44px;text-align:left;padding-left:20px;}
+  .sig-img{max-width:150px;display:block;margin-bottom:2px;}
+  .sig-line{width:190px;border-bottom:1px solid #8a7c6b;margin-bottom:6px;}
+  .sig-title{font-size:12px;color:#8a7c6b;} .sig-name{font-weight:700;color:#1c4536;}
+  .foot{margin-top:30px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  .empty{color:#8a7c6b;font-size:13px;padding:8px 0;}
+  @media print{body{padding:22px;} .no-print{display:none;} h2{-webkit-print-color-adjust:exact;print-color-adjust:exact;} table{page-break-inside:auto;} tr{page-break-inside:avoid;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+
+  <div class="cover">
+    <img src="${HAIAA_LOGO}" alt="" />
+    <div class="cv-title">التقرير السنوي الشامل</div>
+    <div class="cv-year">${year} هـ</div>
+    <div class="cv-sub">هيئة محبي الحسين (ع) — بني جمرة · صدر بتاريخ ${hijriToday()}</div>
+  </div>
+
+  <h2>👥 الأعضاء</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v">${totalMembers}</div><div class="l">إجمالي الأعضاء</div></div>
+    <div class="kpi"><div class="v">${paidCount}</div><div class="l">سدّدوا الاشتراك</div></div>
+    <div class="kpi"><div class="v">${minors}</div><div class="l">تحت السن</div></div>
+    <div class="kpi"><div class="v">${finMoney(subsTotal)}</div><div class="l">محصّل الاشتراكات</div></div>
+  </div>
+
+  <h2>🕌 المواقيت والمساهمات</h2>
+  ${mqRows.length?`<table><tr><th>الميقات</th><th>التاريخ</th><th>الحجوزات</th><th>المتفق</th><th>المستلم</th></tr>
+    ${mqRows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${r.date}</td><td>${r.n}</td><td>${finMoney(r.agreed)}</td><td>${finMoney(r.paid)}</td></tr>`).join('')}
+    <tr class="sum"><td colspan="2">الإجمالي</td><td>${mqRows.reduce((s,r)=>s+r.n,0)}</td><td>${finMoney(mqTotalAgreed)}</td><td>${finMoney(mqTotalPaid)}</td></tr>
+  </table>`:'<div class="empty">لا توجد مواقيت مسجّلة لهذا العام.</div>'}
+
+  <h2>💰 المالية</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v">${finMoney(balance)}</div><div class="l">رصيد الهيئة</div></div>
+    <div class="kpi"><div class="v">${finMoney(expTotal)}</div><div class="l">إجمالي المصروفات</div></div>
+    <div class="kpi"><div class="v">${expenses.length}</div><div class="l">بنود الصرف</div></div>
+  </div>
+  ${topExp.length?`<table><tr><th>أعلى بنود الصرف</th><th>المبلغ</th><th>النسبة</th></tr>
+    ${topExp.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${expTotal?Math.round(v/expTotal*100):0}%</td></tr>`).join('')}
+  </table>`:''}
+
+  <h2>🕯️ لجنة العزاء</h2>
+  ${radRows.length?`<table><tr><th>#</th><th>الرادود</th><th>المشاركات</th><th>التقييمات</th><th>المعدّل</th></tr>
+    ${radRows.map((r,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(r.name)}</td><td>${r.parts}</td><td>${r.n}</td><td>${r.pct}%</td></tr>`).join('')}
+  </table>`:'<div class="empty">لا توجد تقييمات مسجّلة.</div>'}
+
+  <h2>📋 المشاريع</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v">${projApproved.length}</div><div class="l">معتمدة</div></div>
+    <div class="kpi"><div class="v">${projRejected.length}</div><div class="l">مرفوضة</div></div>
+    <div class="kpi"><div class="v">${projPending.length}</div><div class="l">بانتظار القرار</div></div>
+    <div class="kpi"><div class="v">${finMoney(projCost)}</div><div class="l">تكلفة المعتمد</div></div>
+  </div>
+  ${projApproved.length?`<table><tr><th>المشروع</th><th>مقدّم الطلب</th><th>التكلفة</th></tr>
+    ${projApproved.map(p=>`<tr><td>${escapeHtml(p.title||'—')}</td><td>${escapeHtml(p.submitter||'—')}</td><td>${finMoney(p.cost||0)}</td></tr>`).join('')}
+  </table>`:''}
+
+  <h2>🗓️ اجتماعات الإدارة</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v">${nMeetings}</div><div class="l">اجتماع</div></div>
+    <div class="kpi"><div class="v">${nDecisions}</div><div class="l">قرار</div></div>
+    <div class="kpi"><div class="v">${nTasks}</div><div class="l">مهمة</div></div>
+    <div class="kpi"><div class="v">${doneTasks}</div><div class="l">مهمة منجزة</div></div>
+  </div>
+
+  <div class="insights"><h3>📌 خلاصة العام</h3><ul>${insights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul></div>
+
+  <div class="signature-block">
+    <img class="sig-img" src="${HAIAA_SIGNATURE}" alt="" />
+    <div class="sig-line"></div>
+    <div class="sig-title">أمين السر</div>
+    <div class="sig-name">صادق الغسرة</div>
+  </div>
+  <div class="foot">هيئة محبي الحسين (ع) — بني جمرة · التقرير السنوي ${year} هـ</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* ═══════════ لوحة الإحصائيات ═══════════ */
+function renderStats(){
+  const host=$('#statsBody'); if(!host) return;
+  const h=hijriParts(); const curY=parseInt(h.year,10)||1448;
+  const todayG=new Date(); todayG.setHours(0,0,0,0);
+
+  // الأعضاء
+  const totalMembers=members.length;
+  const minors=members.filter(m=>m.isMinor).length;
+  const paidMembers=members.filter(m=>memberPaid(m)>0).length;
+  const subsCollected=members.reduce((s,m)=>s+memberPaid(m),0);
+
+  // المواقيت
+  const totalMiqats=miqats.length;
+  let totalBookings=0, bookedAmount=0, receivedAmount=0;
+  miqats.forEach(mq=>(mq.bookings||[]).forEach(b=>{ totalBookings++; bookedAmount+=bookingAgreed(b); receivedAmount+=bookingPaid(b); }));
+  const pendingAmount=Math.max(0, bookedAmount-receivedAmount);
+
+  // أقرب ميقات
+  let nextMq=null, nextDays=null;
+  miqats.forEach(mq=>{
+    const ty=miqatTargetHijriYear(mq);
+    const g=hijriToGregorian(mq.day,mq.month,ty); if(!g) return;
+    const gd=new Date(g); gd.setHours(0,0,0,0);
+    const d=Math.round((gd-todayG)/86400000);
+    if(d>=0 && (nextDays===null || d<nextDays)){ nextDays=d; nextMq=mq; }
+  });
+
+  // المالية
+  const balance=Number(finance.total)||0;
+  const expenses=financeTotalExpenses();
+  const expCount=(finance.expenses||[]).length;
+
+  // لجنة العزاء
+  const nRadoods=radoods.length;
+  const nEvals=radoodEvals.length;
+  const avgEval = nEvals ? radoodEvals.reduce((s,e)=>s+(e.avg||0),0)/nEvals : 0;
+  const avgPct = Math.round(avgEval/3*100);
+
+  // المشاريع
+  const projPending=projects.filter(p=>!p.status||p.status==='pending').length;
+  const projApproved=projects.filter(p=>p.status==='approved').length;
+
+  // الإدارة
+  const nMeetings=meetings.length;
+  const openTasks=meetings.reduce((s,m)=>s+((m.tasks||[]).filter(t=>!t.done).length),0);
+
+  const card=(cls,ic,val,lbl,extra,onclick)=>`
+    <div class="stat-card ${cls||''}" ${onclick?`onclick="${onclick}"`:''}>
+      <div class="sc-ic">${ic}</div>
+      <div class="sc-val ${String(val).length>9?'sm':''}">${val}</div>
+      <div class="sc-lbl">${lbl}</div>
+      ${extra?`<div class="sc-extra">${extra}</div>`:''}
+    </div>`;
+
+  host.innerHTML=`
+  <div class="stats-head">
+    <h2>📊 لوحة الإحصائيات</h2>
+    <div class="sh-sub">هيئة محبي الحسين (ع) · ${hijriToday()}</div>
+  </div>
+
+  ${nextMq?`<div class="stats-grid">${card('warn','📅',
+      nextDays===0?'اليوم':nextDays===1?'غداً':`${nextDays} يوم`,
+      escapeHtml(nextMq.name), fmtMiqatDate(nextMq)+' هـ', "switchTab('miqats')")}
+    ${card('', '🎫', totalBookings, 'إجمالي الحجوزات', `في ${totalMiqats} ميقات`, "switchTab('miqats')")}
+  </div>`:''}
+
+  <div class="stats-sec-title">👥 الأعضاء</div>
+  <div class="stats-grid">
+    ${card('','👥',totalMembers,'إجمالي الأعضاء', minors?`منهم ${minors} تحت السن`:'', "switchTab('members')")}
+    ${card('ok','💳',paidMembers,'دفعوا الاشتراك', `${totalMembers-paidMembers} لم يدفعوا`, "switchTab('members')")}
+    ${card('ok','💰',finMoney(subsCollected),'محصّل من الاشتراكات','','')}
+  </div>
+
+  <div class="stats-sec-title">💰 المالية</div>
+  <div class="stats-grid">
+    ${card('ok','🏦',finMoney(balance),'رصيد الهيئة','',"enterFinance()")}
+    ${card('warn','📤',finMoney(expenses),'إجمالي المصروفات',`${expCount} بند`,"enterFinance()")}
+    ${card('','🎫',finMoney(receivedAmount),'مستلم من الحجوزات','','')}
+    ${card(pendingAmount>0?'danger':'ok','⏳',finMoney(pendingAmount),'متبقٍّ على الحجوزات','','')}
+  </div>
+
+  <div class="stats-sec-title">🕯️ لجنة العزاء</div>
+  <div class="stats-grid">
+    ${card('','🎤',nRadoods,'الرواديد', nEvals?`${nEvals} تقييم`:'لا تقييمات', "switchTab('meetings')")}
+    ${card(avgPct>=80?'ok':avgPct>=50?'warn':'', '⭐', nEvals?avgPct+'%':'—','متوسط التقييم العام','', "switchTab('meetings')")}
+  </div>
+
+  <div class="stats-sec-title">📋 المشاريع والإدارة</div>
+  <div class="stats-grid">
+    ${card(projPending>0?'warn':'','📋',projPending,'مشاريع بانتظار القرار',`${projApproved} معتمد`,"enterFinance()")}
+    ${card('','🗓️',nMeetings,'اجتماعات الإدارة', openTasks?`${openTasks} مهمة مفتوحة`:'لا مهام معلّقة', "switchTab('meetings')")}
+  </div>`;
+}
+
 function computeNotifications(){
   const list=[]; const h=hijriParts(); const curM=h.month; const curD=h.day; const curY=parseInt(h.year,10)||1448;
   const todayG=new Date(); todayG.setHours(0,0,0,0);
@@ -3039,7 +3304,7 @@ function renderIdaraHub(){
   const el=document.getElementById('idaraAdminsCount'); if(el) el.textContent=`${n} إداري`;
 }
 function openIdara(which){
-  if(which==='sec'){ idaraShow('sec'); renderMeetings(); }
+  if(which==='sec'){ idaraShow('sec'); renderMeetings(); fillAnnualYears(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); }
