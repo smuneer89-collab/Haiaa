@@ -252,6 +252,21 @@
   .proj-status.no { background:#f8ecec; color:var(--danger); border:1px solid var(--danger); }
   .proj-status.wait { background:var(--warn-soft); color:var(--warn); border:1px solid #e0b088; }
   .ps-reason { font-weight:400; font-size:12.5px; margin-top:5px; line-height:1.6; }
+  /* أقسام الإعدادات المطويّة */
+  .set-acc { background:var(--surface); border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden; }
+  .set-acc[open] { border-color:var(--gold); }
+  .set-sum { display:flex; align-items:center; gap:12px; padding:15px 16px; cursor:pointer; list-style:none; user-select:none; }
+  .set-sum::-webkit-details-marker { display:none; }
+  .ss-ic { font-size:22px; flex-shrink:0; }
+  .ss-txt { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .ss-txt b { font-size:15.5px; color:var(--ink); font-weight:700; }
+  .ss-txt small { font-size:11.5px; color:var(--muted); }
+  .ss-arrow { font-size:24px; color:var(--muted-2); transition:transform .2s; flex-shrink:0; }
+  .set-acc[open] .ss-arrow { transform:rotate(90deg); color:var(--gold); }
+  .set-body { padding:0 16px 16px; border-top:1px solid var(--line); padding-top:14px; }
+  .cloud-acc .cloud-status { flex-shrink:0; }
+  .backup-warn { background:var(--warn-soft); border:1px solid #e0b088; border-radius:10px; padding:11px 14px; font-size:13px; color:#8a5a2a; font-weight:600; margin-bottom:12px; }
+  .backup-ok { background:var(--ok-soft); border:1px solid var(--ok); border-radius:10px; padding:11px 14px; font-size:12.5px; color:var(--ok); margin-bottom:12px; }
   .fin-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
   .fin-field select, .fin-field input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
   .fin-ctx { background:var(--accent-soft); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--accent); font-size:14px; margin-bottom:14px; text-align:center; }
@@ -2006,92 +2021,105 @@
 
   <!-- Settings -->
   <section id="tab-settings" class="tab-content" style="display:none">
-    <div class="panel">
-      <div class="panel-header"><div>
-        <div class="panel-title">☁️ السحابة والمزامنة</div>
-        <div class="panel-sub">البيانات مشتركة بينك وبين أمين اللجنة المالية</div>
-      </div><span class="cloud-status offline" id="cloudStatus">غير متصل</span></div>
-      <div class="rcpt-agreed">الحساب الحالي: <b id="cloudUser">—</b></div>
-      <div class="actions-row">
-        <button class="btn btn-primary btn-sm" id="uploadLocalBtn" onclick="CloudSync.uploadLocal()">⬆️ رفع بيانات هذا الجهاز (آمن)</button>
-        <button class="btn btn-ghost btn-sm" onclick="CloudSync.signOut()">تسجيل الخروج</button>
-      </div>
-      <div class="note" style="margin-top:12px;">
-        <strong>الرفع الآمن</strong> يرفع بيانات هذا الجهاز إلى السحابة <b>بدون حذف أي شيء</b> — استخدمه إذا لم تظهر البيانات على جهاز آخر.
-        بعدها تتم المزامنة تلقائياً مع كل تعديل.
-      </div>
-      <details style="margin-top:12px;">
-        <summary style="font-size:12.5px;color:var(--danger);cursor:pointer;">⚠️ خيار متقدّم (خطر)</summary>
-        <div class="note" style="margin-top:8px;">
-          <strong>استبدال السحابة</strong> يمسح ما في السحابة ويضع بيانات هذا الجهاز مكانها. لا تستخدمه إلا عند الضرورة القصوى.
+
+    <!-- ① النسخ الاحتياطي — بالأعلى للانتباه -->
+    <details class="set-acc" open>
+      <summary class="set-sum"><span class="ss-ic">💾</span><span class="ss-txt"><b>النسخ الاحتياطي والبيانات</b><small>احفظ نسخة من كل شيء حتى لا تضيع البيانات</small></span><span class="ss-arrow">›</span></summary>
+      <div class="set-body">
+        <div id="backupWarnBox"></div>
+        <div class="actions-row" style="margin-top:0;">
+          <button class="btn btn-primary" onclick="backupExport()">💾 نسخة احتياطية كاملة</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('backupImportInput').click()">📥 استعادة نسخة</button>
+          <input type="file" id="backupImportInput" style="display:none" accept="application/json,.json" onchange="backupImport(event)" />
         </div>
-        <button class="btn btn-ghost btn-sm" id="migrateBtn" style="color:var(--danger);margin-top:8px;" onclick="CloudSync.migrate()">☁️ استبدال بيانات السحابة</button>
-      </details>
-    </div>
+        <div class="actions-row" style="margin-top:8px;">
+          <button class="btn btn-ghost" onclick="exportCSV()">تصدير الأعضاء CSV</button>
+          <button class="btn btn-danger" onclick="clearAllData()">مسح كل البيانات</button>
+        </div>
+        <div class="note" style="margin-top:14px;">
+          <strong>النسخة الاحتياطية</strong> تحفظ <b>كل شيء</b>: الأعضاء والصور، المواقيت والحجوزات، <b>المالية والمصروفات</b>، الرواديد وتقييماتهم، المشاريع، التثويبات، الاجتماعات، الأخبار، القوالب والإعدادات — في ملف واحد. احتفظ به على جوالك أو الدرايف.
+        </div>
+      </div>
+    </details>
 
-    <div class="panel">
-      <div class="panel-header"><div><h2 class="panel-title">⚙️ الإعدادات</h2>
-        <div class="panel-sub">قيم افتراضية تُستخدم في النظام</div></div></div>
-      <div class="form-grid">
-        <div class="field"><label>قيمة الاشتراك السنوي (د.ب)</label>
-          <input type="number" id="setFee" step="0.001" min="0" /></div>
-        <div class="field"><label>السنة الهجرية الحالية</label>
-          <input type="number" id="setYear" /></div>
+    <!-- ② الإعدادات العامة -->
+    <details class="set-acc">
+      <summary class="set-sum"><span class="ss-ic">⚙️</span><span class="ss-txt"><b>الإعدادات العامة</b><small>قيم افتراضية تُستخدم في النظام</small></span><span class="ss-arrow">›</span></summary>
+      <div class="set-body">
+        <div class="form-grid">
+          <div class="field"><label>قيمة الاشتراك السنوي (د.ب)</label>
+            <input type="number" id="setFee" step="0.001" min="0" /></div>
+          <div class="field"><label>السنة الهجرية الحالية</label>
+            <input type="number" id="setYear" /></div>
+        </div>
+        <div class="actions-row"><button class="btn btn-primary" onclick="saveSettings()">حفظ الإعدادات</button></div>
       </div>
-      <div class="actions-row"><button class="btn btn-primary" onclick="saveSettings()">حفظ الإعدادات</button></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <div class="panel-header"><div><h2 class="panel-title">🖨️ استمارة تسجيل عضو (فارغة)</h2>
-        <div class="panel-sub">اطبع استمارة ورقية فارغة لتعبئتها يدوياً ثم إدخالها لاحقاً</div></div></div>
-      <div class="actions-row" style="margin-top:0;">
-        <button class="btn btn-primary" onclick="printBlankMemberForm()">🖨️ طباعة استمارة فارغة PDF</button>
+    <!-- ③ دليل الأرقام -->
+    <details class="set-acc">
+      <summary class="set-sum"><span class="ss-ic">📇</span><span class="ss-txt"><b>دليل الأرقام</b><small>أعضاء + ممثّلو العوائل — بلا تكرار</small></span><span class="ss-arrow">›</span></summary>
+      <div class="set-body">
+        <div class="actions-row" style="margin-top:0;"><button class="btn btn-ghost btn-sm" onclick="printPhoneDirectory()">🧾 طباعة PDF</button></div>
+        <div class="dir-total" id="dirTotal"></div>
+        <input type="text" id="dirSearch" class="fam-search" placeholder="🔍 بحث بالاسم أو الرقم…" oninput="renderPhoneDirectory()" style="margin-top:10px" />
+        <div id="phoneDirList"></div>
       </div>
-      <div class="note" style="margin-top:12px;">
-        الاستمارة تحتوي على كل حقول تسجيل العضو (الاسم، الهاتف، نوع العضوية، المنطقة، البريد، العنوان، تاريخ الميلاد، اللجنة…) بمساحات فارغة للكتابة بخط اليد.
-      </div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <div class="panel-header"><div><h2 class="panel-title">✏️ قوالب الرسائل</h2>
-        <div class="panel-sub">عدّل نصوص الرسائل الجاهزة</div></div></div>
-      <div class="form-grid">
-        <div class="field full"><label>تذكير بالاشتراك</label>
-          <textarea id="tplReminder" rows="3"></textarea></div>
-        <div class="field full"><label>دعوة اجتماع</label>
-          <textarea id="tplMeeting" rows="3"></textarea></div>
-        <div class="field full"><label>إعلان مناسبة</label>
-          <textarea id="tplOccasion" rows="6"></textarea></div>
-        <div class="field full"><label>دعوة اجتماع الإدارة</label>
-          <textarea id="tplAdminMeeting" rows="6"></textarea></div>
+    <!-- ④ قوالب الرسائل -->
+    <details class="set-acc">
+      <summary class="set-sum"><span class="ss-ic">✏️</span><span class="ss-txt"><b>قوالب الرسائل</b><small>عدّل نصوص الرسائل الجاهزة</small></span><span class="ss-arrow">›</span></summary>
+      <div class="set-body">
+        <div class="form-grid">
+          <div class="field full"><label>تذكير بالاشتراك</label>
+            <textarea id="tplReminder" rows="3"></textarea></div>
+          <div class="field full"><label>دعوة اجتماع</label>
+            <textarea id="tplMeeting" rows="3"></textarea></div>
+          <div class="field full"><label>إعلان مناسبة</label>
+            <textarea id="tplOccasion" rows="6"></textarea></div>
+          <div class="field full"><label>دعوة اجتماع الإدارة</label>
+            <textarea id="tplAdminMeeting" rows="6"></textarea></div>
+        </div>
+        <div class="actions-row"><button class="btn btn-primary" onclick="saveTemplates()">حفظ القوالب</button></div>
       </div>
-      <div class="actions-row"><button class="btn btn-primary" onclick="saveTemplates()">حفظ القوالب</button></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <div class="panel-header"><div><h2 class="panel-title">💾 النسخ الاحتياطي والبيانات</h2>
-        <div class="panel-sub">احفظ نسخة من كل شيء حتى لا تضيع البيانات</div></div></div>
-      <div class="actions-row" style="margin-top:0;">
-        <button class="btn btn-primary" onclick="backupExport()">💾 نسخة احتياطية كاملة</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('backupImportInput').click()">📥 استعادة نسخة</button>
-        <input type="file" id="backupImportInput" style="display:none" accept="application/json,.json" onchange="backupImport(event)" />
+    <!-- ⑤ استمارة فارغة -->
+    <details class="set-acc">
+      <summary class="set-sum"><span class="ss-ic">🖨️</span><span class="ss-txt"><b>استمارة تسجيل عضو (فارغة)</b><small>للتعبئة اليدوية ثم الإدخال لاحقاً</small></span><span class="ss-arrow">›</span></summary>
+      <div class="set-body">
+        <div class="actions-row" style="margin-top:0;">
+          <button class="btn btn-primary" onclick="printBlankMemberForm()">🖨️ طباعة استمارة فارغة PDF</button>
+        </div>
+        <div class="note" style="margin-top:12px;">
+          تحتوي على كل حقول تسجيل العضو (الاسم، الهاتف، نوع العضوية، المنطقة، البريد، العنوان، تاريخ الميلاد، اللجنة…) بمساحات للكتابة بخط اليد.
+        </div>
       </div>
-      <div class="actions-row" style="margin-top:8px;">
-        <button class="btn btn-ghost" onclick="exportCSV()">تصدير الأعضاء CSV</button>
-        <button class="btn btn-danger" onclick="clearAllData()">مسح كل البيانات</button>
+    </details>
+
+    <!-- ⑥ السحابة — بالأسفل -->
+    <details class="set-acc cloud-acc">
+      <summary class="set-sum"><span class="ss-ic">☁️</span><span class="ss-txt"><b>السحابة والمزامنة</b><small>البيانات مشتركة بينك وبين أمين اللجنة المالية</small></span><span class="cloud-status offline" id="cloudStatus">غير متصل</span><span class="ss-arrow">›</span></summary>
+      <div class="set-body">
+        <div class="rcpt-agreed">الحساب الحالي: <b id="cloudUser">—</b></div>
+        <div class="actions-row">
+          <button class="btn btn-primary btn-sm" id="uploadLocalBtn" onclick="CloudSync.uploadLocal()">⬆️ رفع بيانات هذا الجهاز (آمن)</button>
+          <button class="btn btn-ghost btn-sm" onclick="CloudSync.signOut()">تسجيل الخروج</button>
+        </div>
+        <div class="note" style="margin-top:12px;">
+          <strong>الرفع الآمن</strong> يرفع بيانات هذا الجهاز إلى السحابة <b>بدون حذف أي شيء</b> — استخدمه إذا لم تظهر البيانات على جهاز آخر.
+          بعدها تتم المزامنة تلقائياً مع كل تعديل.
+        </div>
+        <details style="margin-top:12px;">
+          <summary style="font-size:12.5px;color:var(--danger);cursor:pointer;">⚠️ خيار متقدّم (خطر)</summary>
+          <div class="note" style="margin-top:8px;">
+            <strong>استبدال السحابة</strong> يمسح ما في السحابة ويضع بيانات هذا الجهاز مكانها. لا تستخدمه إلا عند الضرورة القصوى.
+          </div>
+          <button class="btn btn-ghost btn-sm" id="migrateBtn" style="color:var(--danger);margin-top:8px;" onclick="CloudSync.migrate()">☁️ استبدال بيانات السحابة</button>
+        </details>
       </div>
-      <div class="note" style="margin-top:14px;">
-        <strong>النسخة الاحتياطية</strong> تحفظ كل شيء (أعضاء + صور + مواقيت وحجوزاتها + إدارة + أخبار + قوالب + إعدادات) في ملف واحد. احتفظ به على جوالك أو ارفعه للسحابة. لو ضاع شيء، استعده ليرجع كل شيء كما كان.
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-header"><div><h2 class="panel-title">📇 دليل الأرقام</h2>
-        <div class="panel-sub">أعضاء + ممثّلو العوائل — بلا تكرار</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="printPhoneDirectory()">🧾 طباعة PDF</button></div>
-      <div class="dir-total" id="dirTotal"></div>
-      <input type="text" id="dirSearch" class="fam-search" placeholder="🔍 بحث بالاسم أو الرقم…" oninput="renderPhoneDirectory()" style="margin-top:10px" />
-      <div id="phoneDirList"></div>
-    </div>
+    </details>
   </section>
 
   <section id="tab-family" class="tab-content" style="display:none">

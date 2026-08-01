@@ -167,6 +167,7 @@ async function loadData(){
   try { const fn=await storage.get('finance'); if(fn) finance=Object.assign({total:0,yearStart:0,expenses:[]}, JSON.parse(fn)); } catch(e){ finance={total:0,yearStart:0,expenses:[]}; }
   try { const pt=await storage.get('paidThawab'); if(pt) paidThawab=JSON.parse(pt); } catch(e){ paidThawab=[]; }
   try { const pr=await storage.get('projects'); if(pr) projects=JSON.parse(pr); } catch(e){ projects=[]; }
+  try { window.__lastBackupAt = await storage.get('lastBackupAt') || ''; } catch(e){ window.__lastBackupAt=''; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
   try { const re=await storage.get('radoodEvals'); if(re) radoodEvals=JSON.parse(re); } catch(e){ radoodEvals=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
@@ -553,6 +554,22 @@ function printMiqatPDF(id){
 function computeNotifications(){
   const list=[]; const h=hijriParts(); const curM=h.month; const curD=h.day; const curY=parseInt(h.year,10)||1448;
   const todayG=new Date(); todayG.setHours(0,0,0,0);
+
+  // 0-أ) تذكير النسخة الاحتياطية — كل يوم جمعة
+  if(todayG.getDay()===5){
+    const lastB = window.__lastBackupAt || '';
+    let daysSince = null;
+    if(lastB){ const d=new Date(lastB); d.setHours(0,0,0,0); daysSince=Math.round((todayG-d)/86400000); }
+    if(daysSince===null || daysSince>=3){
+      list.push({
+        cat:'النسخ الاحتياطي', type:'warn', ic:'💾',
+        title:'خذ نسخة احتياطية اليوم',
+        desc: daysSince===null ? 'لم تُؤخذ نسخة احتياطية من هذا الجهاز بعد.' : `آخر نسخة كانت قبل ${daysSince} يوماً.`,
+        meta:'تذكير أسبوعي كل جمعة',
+        action:()=>{ switchTab('settings'); setTimeout(()=>{ const el=document.querySelector('.set-acc'); if(el){ el.open=true; el.scrollIntoView({behavior:'smooth'}); } },150); }
+      });
+    }
+  }
 
   // 0) دخول اللجنة المالية — يظهر لأمين السر فقط
   const myEmail = (window.CloudSync && CloudSync.email) ? CloudSync.email.toLowerCase() : '';
@@ -2624,11 +2641,23 @@ function renderAdmins(){
 function openAdminBulk(){ openBulkMessage(); $('#bulkFilter').value='admins'; updateBulkCount(); }
 
 /* ═══════════ Settings ═══════════ */
+function renderBackupStatus(){
+  const box=document.getElementById('backupWarnBox'); if(!box) return;
+  const lastB=window.__lastBackupAt||'';
+  if(!lastB){ box.innerHTML='<div class="backup-warn">⚠️ لم تُؤخذ نسخة احتياطية من هذا الجهاز بعد — يُنصح بأخذ نسخة الآن.</div>'; return; }
+  const d=new Date(lastB); const t=new Date(); t.setHours(0,0,0,0); const d0=new Date(d); d0.setHours(0,0,0,0);
+  const days=Math.round((t-d0)/86400000);
+  const txt = days===0?'اليوم':days===1?'أمس':`قبل ${days} يوماً`;
+  box.innerHTML = days>=7
+    ? `<div class="backup-warn">⚠️ آخر نسخة احتياطية كانت ${txt} — يُنصح بأخذ نسخة جديدة.</div>`
+    : `<div class="backup-ok">✅ آخر نسخة احتياطية: ${txt} (${d.toLocaleDateString('ar')})</div>`;
+}
 function fillSettings(){
   $('#setFee').value=settings.fee; $('#setYear').value=settings.year;
   $('#tplReminder').value=settings.templates.reminder; $('#tplMeeting').value=settings.templates.meeting;
   $('#tplOccasion').value=settings.templates.occasion; $('#tplAdminMeeting').value=settings.templates.adminMeeting;
   renderPhoneDirectory();
+  renderBackupStatus();
 }
 /* ═══ دليل الأرقام (أعضاء + ممثّلو العوائل) بلا تكرار — يُفضَّل رقم العضو ═══ */
 function buildPhoneDirectory(){
@@ -2701,9 +2730,16 @@ function downloadBlob(content,type,filename){
   const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 async function backupExport(){
-  const backup={ app:'هيئة محبي الحسين', version:8, exportedAt:new Date().toISOString(), members, miqats, news, settings, meetings, assemblies, photos };
+  const backup={
+    app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
+    members, miqats, news, settings, meetings, assemblies, photos,
+    finance, financeLog, paidThawab, reminders,
+    radoods, radoodEvals, projects
+  };
+  const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
-  toast(`تم حفظ نسخة احتياطية (${members.length} عضو)`);
+  try{ const nowISO=new Date().toISOString(); await storage.set('lastBackupAt', nowISO); window.__lastBackupAt=nowISO; }catch(e){}
+  toast(`تم حفظ نسخة احتياطية كاملة (${counts})`);
 }
 async function backupImport(e){
   const file=e.target.files[0]; if(!file) return;
@@ -2716,12 +2752,32 @@ async function backupImport(e){
     backup=JSON.parse(text);
   }catch(err){ alert('الملف ليس بصيغة JSON صحيحة: '+err.message); e.target.value=''; return; }
   if(!backup.members||!Array.isArray(backup.members)){ toast('الملف غير صالح'); e.target.value=''; return; }
-  if(!confirm(`استيراد ${backup.members.length} عضو؟ سيتم استبدال البيانات الحالية بالكامل.`)){ e.target.value=''; return; }
+  const has=(k)=>Array.isArray(backup[k])?backup[k].length:0;
+  const summary = `📦 محتوى النسخة:\n\n`+
+    `• التاريخ: ${backup.exportedAt?new Date(backup.exportedAt).toLocaleString('ar'):'غير معروف'}\n`+
+    `• الأعضاء: ${has('members')}\n• المواقيت: ${has('miqats')}\n`+
+    `• المصروفات: ${(backup.finance&&backup.finance.expenses||[]).length}\n`+
+    `• الرواديد: ${has('radoods')} (تقييمات: ${has('radoodEvals')})\n`+
+    `• المشاريع: ${has('projects')}\n• الاجتماعات: ${has('meetings')}\n\n`+
+    `⚠️ سيُستبدل كل ما في هذا الجهاز.\n\nهل تريد المتابعة؟`;
+  if(!confirm(summary)){ e.target.value=''; return; }
+  const typed=prompt('للتأكيد النهائي، اكتب كلمة:  استعادة');
+  if((typed||'').trim()!=='استعادة'){ toast('أُلغيت الاستعادة'); e.target.value=''; return; }
   try{
     members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[]; assemblies=backup.assemblies||[]; photos=backup.photos||[];
+    if(backup.finance) finance={...finance, ...backup.finance};
+    if(Array.isArray(backup.financeLog)) financeLog=backup.financeLog;
+    if(Array.isArray(backup.paidThawab)) paidThawab=backup.paidThawab;
+    if(Array.isArray(backup.reminders)) reminders=backup.reminders;
+    if(Array.isArray(backup.radoods)) radoods=backup.radoods;
+    if(Array.isArray(backup.radoodEvals)) radoodEvals=backup.radoodEvals;
+    if(Array.isArray(backup.projects)) projects=backup.projects;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
-    e.target.value=''; toast(`تمت الاستعادة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
+    await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects();
+    try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
+    e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
 }
 
