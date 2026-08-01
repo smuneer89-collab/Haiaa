@@ -3903,11 +3903,6 @@ function renderRadoodRecord(){
         </div>
       </div>
       <div class="rec-sec">
-        <div class="rec-sec-h">🎤 مشاركات الرادود في الهيئة</div>
-        <button class="btn btn-sm" style="width:100%;background:var(--accent);color:#fff;border:none;margin-bottom:10px;" onclick="openAddParticipation('${r.id}')">➕ تسجيل مشاركة</button>
-        <div id="recPartsList">${renderPartsList(r.id)}</div>
-      </div>
-      <div class="rec-sec">
         <div class="rec-sec-h">🔗 جلسات التقييم الجماعي</div>
         <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">➕ إنشاء رابط تقييم جديد</button>
         <div id="recSessionsList"><div class="eval-link-loading">جارٍ تحميل الجلسات…</div></div>
@@ -3933,19 +3928,17 @@ function renderRadoodRecord(){
   let topEngage=null, topEngageVal=-1;
   evs.forEach(e=>{ const v=((Number(e.stars?.audience)||0)+(Number(e.stars?.response)||0))/2; if(v>topEngageVal){ topEngageVal=v; topEngage=e; } });
   // الترتيب
-  const ranking=radoodRanking();
-  const rank=ranking.findIndex(x=>x.id===recordRadoodId)+1;
+
   // آخر 5
   const last5=evs.slice(0,5);
   // بيانات الرسم (زمنياً تصاعدي)
-  const chartData=[...evs].sort((a,b)=>(a.at||'').localeCompare(b.at||'')).map(e=>({ v:e.pct||Math.round((e.avg||0)*20), label:e.miqatName||'' }));
+
 
   host.innerHTML=`
   <div class="panel rec-panel">
     <div class="rec-head">
       <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
       <div class="rec-name">${escapeHtml(r.name)}</div>
-      <div class="rec-rank">🏆 الترتيب ${rank} من ${ranking.length}</div>
       <button class="btn btn-accent btn-sm" style="margin-top:6px;" onclick="printRadoodProfile('${r.id}')">🖨️ طباعة ملف الرادود PDF</button>
       <button class="btn btn-sm" style="margin-top:6px;background:#25604a;color:#fff;border:none;" onclick="openEvalLinkDialog('${r.id}')">🔗 رابط تقييم جماعي</button>
     </div>
@@ -3954,11 +3947,6 @@ function renderRadoodRecord(){
       <div class="rec-stat"><div class="rs-v">${n}</div><div class="rs-l">مناسبة</div></div>
       <div class="rec-stat"><div class="rs-v">${pctAll}%</div><div class="rs-l">متوسط التقييم</div></div>
       <div class="rec-stat"><div class="rs-v">${Math.round(avgAll*100)/100}</div><div class="rs-l">من 5</div></div>
-    </div>
-
-    <div class="rec-sec">
-      <div class="rec-sec-h">📈 تطوّر المستوى</div>
-      ${chartData.length>1 ? renderEvalChart(chartData) : '<div class="rec-note">يحتاج تقييمين على الأقل لعرض التطوّر</div>'}
     </div>
 
     <div class="rec-highlights">
@@ -3991,13 +3979,6 @@ function renderRadoodRecord(){
           </div>
         </div>`;
       }).join('')}
-    </div>
-
-    <!-- مشاركات الرادود -->
-    <div class="rec-sec">
-      <div class="rec-sec-h">🎤 مشاركات الرادود في الهيئة</div>
-      <button class="btn btn-sm" style="width:100%;background:var(--accent);color:#fff;border:none;margin-bottom:10px;" onclick="openAddParticipation('${r.id}')">➕ تسجيل مشاركة</button>
-      <div id="recPartsList">${renderPartsList(r.id)}</div>
     </div>
 
     <!-- جلسات التقييم الجماعي -->
