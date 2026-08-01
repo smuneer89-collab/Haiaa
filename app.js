@@ -60,6 +60,7 @@ let reminders = []; // تذكيرات التقويم: {id, title, note, day, mon
 let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
+let auditLog = []; // سجل التغييرات: {id, at, who, act, cat, what}
 let projects = []; // المشاريع: {id, title, date, description, goal, cost, source('donor'/'budget'), donorName, submitter, committee, viaLink, at}
 let radoods = []; // الرواديد: {id, name, img, note, at}
 let radoodEvals = []; // تقييمات الرواديد (دفعة ٢): {id, radoodId, miqatId, ...}
@@ -168,6 +169,7 @@ async function loadData(){
   try { const pt=await storage.get('paidThawab'); if(pt) paidThawab=JSON.parse(pt); } catch(e){ paidThawab=[]; }
   try { const pr=await storage.get('projects'); if(pr) projects=JSON.parse(pr); } catch(e){ projects=[]; }
   try { window.__lastBackupAt = await storage.get('lastBackupAt') || ''; } catch(e){ window.__lastBackupAt=''; }
+  try { const al=await storage.get('auditLog'); if(al) auditLog=JSON.parse(al); } catch(e){ auditLog=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
   try { const re=await storage.get('radoodEvals'); if(re) radoodEvals=JSON.parse(re); } catch(e){ radoodEvals=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
@@ -184,6 +186,16 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveAuditLog(){ try{ await storage.set('auditLog',JSON.stringify(auditLog)); }catch(e){} cloudPush('auditLog',auditLog); }
+/* تسجيل عملية في سجل التغييرات */
+function logAudit(act, cat, what){
+  try{
+    const who = (window.CloudSync && CloudSync.email) ? CloudSync.email : 'غير مسجّل';
+    auditLog.push({ id:'lg_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), at:new Date().toISOString(), who, act, cat, what:String(what||'') });
+    if(auditLog.length>500) auditLog = auditLog.slice(-500);
+    saveAuditLog();
+  }catch(e){}
+}
 async function saveProjects(){ try{ await storage.set('projects',JSON.stringify(projects)); }catch(e){} cloudPush('projects',projects); }
 async function saveRadoods(){ try{ await storage.set('radoods',JSON.stringify(radoods)); }catch(e){} cloudPush('radoods',radoods); }
 async function saveRadoodEvals(){ try{ await storage.set('radoodEvals',JSON.stringify(radoodEvals)); }catch(e){} cloudPush('radoodEvals',radoodEvals); }
@@ -555,6 +567,30 @@ function computeNotifications(){
   const list=[]; const h=hijriParts(); const curM=h.month; const curD=h.day; const curY=parseInt(h.year,10)||1448;
   const todayG=new Date(); todayG.setHours(0,0,0,0);
 
+  // 0-ب) تقييمات/استبيانات جديدة وصلت عبر الروابط
+  const seenEv = Number(window.__seenEvalCount||0), curEv = Number(window.__newEvalCount||0);
+  if(curEv > seenEv){
+    const diff = curEv - seenEv;
+    list.push({
+      cat:'لجنة العزاء', type:'info', ic:'⭐',
+      title:`وصل ${diff} تقييم جديد`,
+      desc:'تقييمات جديدة من الرابط الجماعي بانتظار المراجعة.',
+      meta:'اضغط لفتح لجنة العزاء',
+      action:()=>{ switchTab('meetings'); setTimeout(()=>openIdara('aza'),120); }
+    });
+  }
+  const seenSv = Number(window.__seenSurveyCount||0), curSv = Number(window.__newSurveyCount||0);
+  if(curSv > seenSv){
+    const diff = curSv - seenSv;
+    list.push({
+      cat:'لجنة العزاء', type:'info', ic:'📋',
+      title:`وصل ${diff} استبيان جديد`,
+      desc:'استبيانات من الرواديد بانتظار الاطّلاع.',
+      meta:'اضغط لفتح لجنة العزاء',
+      action:()=>{ switchTab('meetings'); setTimeout(()=>openIdara('aza'),120); }
+    });
+  }
+
   // 0-أ) تذكير النسخة الاحتياطية — كل يوم جمعة
   if(todayG.getDay()===5){
     const lastB = window.__lastBackupAt || '';
@@ -760,6 +796,39 @@ function clearAllNotifs(){
   const d=getDismissedNotifs();
   list.forEach(k=>{ if(!d.includes(k)) d.push(k); });
   setDismissedNotifs(d); renderNotifications(); updateNotifBadge();
+}
+
+/* عند جاهزية السحابة: افحص التقييمات الجديدة */
+window.addEventListener('cloud-ready', ()=>{ setTimeout(checkNewAzaSubmissions, 800); });
+
+/* فحص التقييمات/الاستبيانات الجديدة من السحابة */
+async function checkNewAzaSubmissions(){
+  if(!window.CloudSync || !CloudSync.isReady) return;
+  try{
+    const [evSess, svSess] = await Promise.all([
+      CloudSync.fetchEvalSessions().catch(()=>[]),
+      CloudSync.fetchSurveySessions().catch(()=>[])
+    ]);
+    let evTotal=0, svTotal=0;
+    const evCounts = await Promise.all(evSess.map(s=>CloudSync.fetchPublicEvals(s._id).catch(()=>[])));
+    evCounts.forEach(a=>evTotal+=a.length);
+    const svCounts = await Promise.all(svSess.map(s=>CloudSync.fetchPublicSurveys(s._id).catch(()=>[])));
+    svCounts.forEach(a=>svTotal+=a.length);
+    window.__newEvalCount=evTotal; window.__newSurveyCount=svTotal;
+    try{
+      window.__seenEvalCount = Number(await storage.get('seenEvalCount')||0);
+      window.__seenSurveyCount = Number(await storage.get('seenSurveyCount')||0);
+    }catch(e){}
+    updateNotifBadge();
+  }catch(e){ console.warn('aza check', e); }
+}
+/* تعليم التقييمات كمقروءة عند فتح لجنة العزاء */
+async function markAzaSeen(){
+  try{
+    if(window.__newEvalCount!=null){ await storage.set('seenEvalCount', String(window.__newEvalCount)); window.__seenEvalCount=window.__newEvalCount; }
+    if(window.__newSurveyCount!=null){ await storage.set('seenSurveyCount', String(window.__newSurveyCount)); window.__seenSurveyCount=window.__newSurveyCount; }
+  }catch(e){}
+  updateNotifBadge();
 }
 
 /* تحديث عدّاد الجرس */
@@ -2150,6 +2219,7 @@ async function toggleAdmin(id){ const m=members.find(x=>x.id===id); if(!m) retur
   m.isAdmin=!m.isAdmin; if(m.isAdmin&&!m.committee){ const c=prompt('اسم اللجنة (اختياري):',''); m.committee=c?c.trim():''; }
   await saveMembers(); toast(m.isAdmin?'تم التعيين كإداري':'تمت الإزالة من الإدارة'); showDetail(id); }
 async function deleteMember(id){ const m=members.find(x=>x.id===id); if(!m) return;
+  logAudit('حذف','الأعضاء',`العضو «${m.name}»`);
   if(!confirm(`حذف العضو ${m.name} (${memberCode(m)})؟ لا يمكن التراجع.`)) return;
   members=members.filter(x=>x.id!==id);
   miqats.forEach(mq=>mq.bookings=(mq.bookings||[]).filter(b=>b.memberId!==id));
@@ -2641,6 +2711,31 @@ function renderAdmins(){
 function openAdminBulk(){ openBulkMessage(); $('#bulkFilter').value='admins'; updateBulkCount(); }
 
 /* ═══════════ Settings ═══════════ */
+/* سجل التغييرات — لأمين السر فقط */
+function renderAuditLog(){
+  const box=document.getElementById('auditList'); if(!box) return;
+  const cat=(document.getElementById('auditCat')||{}).value||'';
+  const q=((document.getElementById('auditSearch')||{}).value||'').trim();
+  let list=[...auditLog].reverse();
+  if(cat) list=list.filter(x=>x.cat===cat);
+  if(q) list=list.filter(x=>(x.what||'').includes(q)||(x.who||'').includes(q)||(x.act||'').includes(q));
+  if(!list.length){ box.innerHTML='<div class="audit-empty">لا توجد عمليات مسجّلة'+(cat||q?' بهذا الفلتر':' بعد')+'</div>'; return; }
+  const cls=(a)=>a==='حذف'||a==='رفض'?'del':a==='إضافة'||a==='موافقة'?'add':'edit';
+  box.innerHTML=list.slice(0,200).map(x=>{
+    const d=new Date(x.at);
+    return `<div class="audit-row">
+      <span class="au-act ${cls(x.act)}">${escapeHtml(x.act)}</span>
+      <div class="au-body">
+        <div class="au-what">${escapeHtml(x.what)} <span style="color:var(--muted-2)">· ${escapeHtml(x.cat)}</span></div>
+        <div class="au-meta">${escapeHtml((x.who||'').split('@')[0])} · ${d.toLocaleDateString('ar')} ${d.toLocaleTimeString('ar',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function clearAuditLog(){
+  if(!confirm('مسح سجل التغييرات بالكامل؟')) return;
+  auditLog=[]; await saveAuditLog(); renderAuditLog(); toast('مُسح السجل');
+}
 function renderBackupStatus(){
   const box=document.getElementById('backupWarnBox'); if(!box) return;
   const lastB=window.__lastBackupAt||'';
@@ -2658,6 +2753,12 @@ function fillSettings(){
   $('#tplOccasion').value=settings.templates.occasion; $('#tplAdminMeeting').value=settings.templates.adminMeeting;
   renderPhoneDirectory();
   renderBackupStatus();
+  // سجل التغييرات — لأمين السر فقط
+  const acc=document.getElementById('auditAcc');
+  if(acc){
+    const me=(window.CloudSync && CloudSync.email)?CloudSync.email.toLowerCase():'';
+    acc.style.display = (me==='smuneer89@gmail.com') ? 'block' : 'none';
+  }
 }
 /* ═══ دليل الأرقام (أعضاء + ممثّلو العوائل) بلا تكرار — يُفضَّل رقم العضو ═══ */
 function buildPhoneDirectory(){
@@ -2734,7 +2835,7 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects
+    radoods, radoodEvals, projects, auditLog
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -2772,10 +2873,11 @@ async function backupImport(e){
     if(Array.isArray(backup.radoods)) radoods=backup.radoods;
     if(Array.isArray(backup.radoodEvals)) radoodEvals=backup.radoodEvals;
     if(Array.isArray(backup.projects)) projects=backup.projects;
+    if(Array.isArray(backup.auditLog)) auditLog=backup.auditLog;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
-    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects();
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
@@ -2941,7 +3043,7 @@ function openIdara(which){
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); }
-  else if(which==='aza'){ idaraShow('aza'); renderRadoods(); }
+  else if(which==='aza'){ idaraShow('aza'); renderRadoods(); markAzaSeen(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -3021,6 +3123,7 @@ async function saveRadood(){
     closeModal('radoodModal'); toast('تم تحديث بيانات الرادود'); renderRadoods(); return;
   }
   radoods.push({ id:'rad_'+Date.now(), name, note, img:radoodPhotoData||'', at:new Date().toISOString() });
+  logAudit('إضافة','لجنة العزاء',`رادود «${name}»`);
   await saveRadoods(); radoodPhotoData=null;
   closeModal('radoodModal'); toast('تمت إضافة الرادود'); renderRadoods();
 }
@@ -3029,6 +3132,7 @@ async function deleteRadood(id){
   const nEval=radoodEvals.filter(e=>e.radoodId===id).length;
   const warn=nEval?`\n\nتنبيه: لديه ${nEval} تقييم سيُحذف أيضاً.`:'';
   if(!confirm(`حذف الرادود «${r.name}»؟${warn}`)) return;
+  logAudit('حذف','لجنة العزاء',`الرادود «${r.name}» (${nEval} تقييم)`);
   radoods=radoods.filter(x=>x.id!==id);
   radoodEvals=radoodEvals.filter(e=>e.radoodId!==id);
   await saveRadoods(); await saveRadoodEvals();
@@ -4054,6 +4158,7 @@ async function enterFinance(){
   if(code===null) return;
   if(code.trim()!=='1989'){ toast('رقم سري غير صحيح'); return; }
   await logFinanceEntry();
+  updateNotifBadge();   // حدّث رقم الجرس فوراً بعد تسجيل الدخول
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
@@ -4293,6 +4398,7 @@ async function addExpense(opts){
 async function deleteExpense(id){
   if(!confirm('حذف هذا المصروف؟')) return;
   const e=finance.expenses.find(x=>x.id===id);
+  if(e) logAudit('حذف','المالية',`مصروف «${e.type}» بمبلغ ${finMoney(e.cost)}`);
   finance.expenses=finance.expenses.filter(x=>x.id!==id);
   await saveFinance();
   const cur=finNav[finNav.length-1];
@@ -4569,6 +4675,7 @@ async function decideProject(id, status){
   }
   p.status=status;
   p.decisionDate = status==='pending' ? '' : today();
+  logAudit(status==='approved'?'موافقة':status==='rejected'?'رفض':'تراجع','المشاريع',`المشروع «${p.title}»`);
   await saveProjects();
   toast(status==='approved'?'تمت الموافقة على المشروع':status==='rejected'?'تم رفض المشروع':'أُعيد المشروع للانتظار');
   renderFinancePage('projects',{});
@@ -4639,6 +4746,7 @@ async function saveProject(){
     at:new Date().toISOString()
   };
   projects.push(p);
+  logAudit('إضافة','المشاريع',`المشروع «${p.title}» بتكلفة ${finMoney(p.cost)}`);
   await saveProjects();
   projectSource='';
   toast('تم حفظ المشروع');
@@ -4647,6 +4755,7 @@ async function saveProject(){
 async function deleteProject(id){
   const p=projects.find(x=>x.id===id); if(!p) return;
   if(!confirm(`حذف المشروع «${p.title}»؟`)) return;
+  logAudit('حذف','المشاريع',`المشروع «${p.title}»`);
   projects=projects.filter(x=>x.id!==id);
   await saveProjects();
   renderFinancePage('projects',{});

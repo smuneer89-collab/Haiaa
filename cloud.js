@@ -26,6 +26,7 @@ const CLOUD_COLLECTIONS = {
   financeLog: () => financeLog,
   paidThawab: () => paidThawab,
   projects:   () => projects,
+  auditLog:   () => auditLog,
   radoods:    () => radoods,
   radoodEvals:() => radoodEvals
 };
@@ -127,7 +128,8 @@ const CloudSync = (() => {
         });
         writeCache[name]=cache;
         applyRemote(name, arr);
-        if(++firstDone>=total) setStatus('ok','متصل');
+        if(++firstDone>=total){ setStatus('ok','متصل');
+          try{ window.dispatchEvent(new CustomEvent('cloud-ready')); }catch(e){} }
       }, err => { console.error('snapshot '+name, err); setStatus('offline','تعذّر الوصول — تحقّق من الصلاحيات'); });
       unsubs.push(un);
     });
@@ -162,7 +164,8 @@ const CloudSync = (() => {
           }
         }catch(e){}
       }
-      if(++firstDone>=total) setStatus('ok','متصل');
+      if(++firstDone>=total){ setStatus('ok','متصل');
+        try{ window.dispatchEvent(new CustomEvent('cloud-ready')); }catch(e){} }
     }, err => console.error('snapshot settings', err));
     unsubs.push(un2);
   }
@@ -206,6 +209,7 @@ const CloudSync = (() => {
         case 'financeLog': financeLog=arr; storage.set('financeLog',JSON.stringify(arr)); break;
         case 'paidThawab':  paidThawab=arr;  storage.set('paidThawab',JSON.stringify(arr)); break;
         case 'projects':    projects=arr;    storage.set('projects',JSON.stringify(arr)); break;
+        case 'auditLog':    auditLog=arr;    storage.set('auditLog',JSON.stringify(arr)); break;
         case 'radoods':     radoods=arr;     storage.set('radoods',JSON.stringify(arr)); break;
         case 'radoodEvals': radoodEvals=arr; storage.set('radoodEvals',JSON.stringify(arr)); break;
       }

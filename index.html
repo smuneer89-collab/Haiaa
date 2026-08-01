@@ -267,6 +267,19 @@
   .cloud-acc .cloud-status { flex-shrink:0; }
   .backup-warn { background:var(--warn-soft); border:1px solid #e0b088; border-radius:10px; padding:11px 14px; font-size:13px; color:#8a5a2a; font-weight:600; margin-bottom:12px; }
   .backup-ok { background:var(--ok-soft); border:1px solid var(--ok); border-radius:10px; padding:11px 14px; font-size:12.5px; color:var(--ok); margin-bottom:12px; }
+  /* سجل التغييرات */
+  .audit-filters { display:flex; gap:8px; margin-bottom:12px; }
+  .audit-filters select, .audit-filters input { flex:1; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-family:var(--font-sans); font-size:13px; background:var(--surface); }
+  .audit-row { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
+  .audit-row:last-child { border-bottom:none; }
+  .au-act { font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px; height:fit-content; white-space:nowrap; flex-shrink:0; }
+  .au-act.add { background:var(--ok-soft); color:var(--ok); }
+  .au-act.del { background:#f8ecec; color:var(--danger); }
+  .au-act.edit { background:var(--warn-soft); color:var(--warn); }
+  .au-body { flex:1; min-width:0; }
+  .au-what { font-size:13px; color:var(--ink); line-height:1.6; }
+  .au-meta { font-size:11px; color:var(--muted); margin-top:3px; }
+  .audit-empty { text-align:center; padding:24px; color:var(--muted-2); font-size:13px; }
   .fin-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
   .fin-field select, .fin-field input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
   .fin-ctx { background:var(--accent-soft); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--accent); font-size:14px; margin-bottom:14px; text-align:center; }
@@ -2038,6 +2051,27 @@
         </div>
         <div class="note" style="margin-top:14px;">
           <strong>النسخة الاحتياطية</strong> تحفظ <b>كل شيء</b>: الأعضاء والصور، المواقيت والحجوزات، <b>المالية والمصروفات</b>، الرواديد وتقييماتهم، المشاريع، التثويبات، الاجتماعات، الأخبار، القوالب والإعدادات — في ملف واحد. احتفظ به على جوالك أو الدرايف.
+        </div>
+      </div>
+    </details>
+
+    <!-- ①-ب سجل التغييرات — يظهر لأمين السر فقط -->
+    <details class="set-acc" id="auditAcc" style="display:none" ontoggle="if(this.open) renderAuditLog()">
+      <summary class="set-sum"><span class="ss-ic">📋</span><span class="ss-txt"><b>سجل التغييرات</b><small>من فعل ماذا ومتى — خاص بأمين السر</small></span><span class="ss-arrow">›</span></summary>
+      <div class="set-body">
+        <div class="audit-filters">
+          <select id="auditCat" onchange="renderAuditLog()">
+            <option value="">كل الأقسام</option>
+            <option value="الأعضاء">الأعضاء</option>
+            <option value="المالية">المالية</option>
+            <option value="المشاريع">المشاريع</option>
+            <option value="لجنة العزاء">لجنة العزاء</option>
+          </select>
+          <input type="text" id="auditSearch" placeholder="🔍 بحث…" oninput="renderAuditLog()" />
+        </div>
+        <div id="auditList"></div>
+        <div class="actions-row" style="margin-top:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="clearAuditLog()">🧹 مسح السجل</button>
         </div>
       </div>
     </details>
