@@ -2905,7 +2905,6 @@ function renderRadoods(){
         </div>
       </div>
       <div class="radood-actions">
-        <button onclick="openRadoodEval('${r.id}')" title="تقييم جديد" class="rad-eval-btn">⭐ تقييم</button>
         <button onclick="openEditRadood('${r.id}')" title="تعديل">✏️</button>
         <button onclick="deleteRadood('${r.id}')" title="حذف">🗑️</button>
       </div>
@@ -3421,7 +3420,7 @@ async function viewRecordResults(sessionId, miqatName){
     const yes=evals.filter(e=>e.gaveRight==='yes').length;
     const no=evals.filter(e=>e.gaveRight==='no').length;
     currentEvalRadoodId=recordRadoodId;
-    window.__lastGroupEvals={ sessionId, miqatName, evals, avg, pct, n };
+    window.__lastGroupEvals={ sessionId, miqatName, evals, avg, pct, n, radoodId:(evals[0]&&evals[0].radoodId)||recordRadoodId||currentEvalRadoodId };
     box.innerHTML=`
       <div class="eval-results-box">
         <div class="erb-main"><div class="erb-pct">${pct}%</div><div class="erb-sub">${n} مقيّم</div></div>
@@ -3576,6 +3575,23 @@ function evalPageURL(sessionId){
   const base=location.origin + location.pathname.replace(/[^/]*$/, '');
   return base + 'evaluate.html?s=' + sessionId;
 }
+
+/* نص رسالة واتساب لاستبيان الرادود */
+function surveyWhatsappText(radoodName, miqatName, url){
+  return `🌹 السلام عليكم ورحمة الله وبركاته
+
+الأخ الرادود الكريم ${radoodName} حفظكم الله.
+
+نشكر لكم مشاركتكم في إحياء مجلس ${miqatName} ونسأل الله أن يتقبل منكم هذه الخدمة المباركة.
+
+📝 نأمل منكم التكرم *بالإجابة على هذا الاستبيان*، فملاحظاتكم واقتراحاتكم تمثل لنا قيمة كبيرة، وهدفنا منها التطوير المستمر والارتقاء بخدمة الإمام الحسين (ع)، سائلين الله أن يوفقنا جميعًا لما فيه رضا صاحب العصر والزمان (عج).
+
+🔗 رابط الاستبيان:
+${url}
+
+🌺 جزاكم الله خير الجزاء، ووفقكم لكل خير.
+هيئة محبي الحسين`;
+}
 function surveyPageURL(sessionId){
   const base=location.origin + location.pathname.replace(/[^/]*$/, '');
   return base + 'survey.html?s=' + sessionId;
@@ -3617,7 +3633,7 @@ async function createSurveyLink(){
         <div class="elb-url">${escapeHtml(url)}</div>
         <div class="elb-actions">
           <button class="btn btn-primary btn-sm" onclick="copyEvalLink('${escapeHtml(url)}')">📋 نسخ</button>
-          <a class="btn btn-sm" style="background:#25d366;color:#fff;" href="https://wa.me/?text=${encodeURIComponent('السلام عليكم، نرجو تكرمكم بتعبئة استبيان تطوير المجلس عبر الرابط: '+url)}" target="_blank">💬 واتساب</a>
+          <a class="btn btn-sm" style="background:#25d366;color:#fff;" href="https://wa.me/?text=${encodeURIComponent(surveyWhatsappText(r.name, mq?mq.name:'', url))}" target="_blank">💬 واتساب</a>
         </div>
       </div>`;
     loadRecordSurveys(currentSurveyRadoodId);
@@ -3631,17 +3647,24 @@ async function viewSurveyResults(sessionId, miqatName){
   try{
     const surveys=await CloudSync.fetchPublicSurveys(sessionId);
     if(!surveys.length){ box.innerHTML='<div class="eval-link-note">لم يصل أي استبيان بعد.</div>'; return; }
-    window.__lastSurveys={ sessionId, miqatName, surveys };
+    window.__lastSurveys={ sessionId, miqatName, surveys, radoodId:(surveys[0]&&surveys[0].radoodId)||recordRadoodId||currentSurveyRadoodId };
     // ملخّص سريع: توزيع التقييم العام + الرغبة بالمشاركة
     const genCount={}; surveys.forEach(s=>{ if(s.general) genCount[s.general]=(genCount[s.general]||0)+1; });
     const genSummary=Object.entries(genCount).map(([k,v])=>`${escapeHtml(k)}: ${v}`).join(' · ')||'—';
     const wantYes=surveys.filter(s=>s.future==='نعم').length;
+    const mediaYes=surveys.filter(s=>s.mediaCoord==='نعم').length;
+    const clipsYes=surveys.filter(s=>s.mediaClips==='نعم').length;
+    let noteCount=0;
+    surveys.forEach(s=>{ Object.values(s.texts||{}).forEach(v=>{ if(v&&String(v).trim()) noteCount++; }); (s.golden||[]).forEach(x=>{ if(x&&x.trim()) noteCount++; }); });
     box.innerHTML=`
       <div class="eval-results-box">
         <div class="erb-h">📋 ${surveys.length} استبيان وصل</div>
         <div class="erb-right" style="text-align:right;line-height:1.9;">
           <div><b>التقييم العام:</b> ${genSummary}</div>
           <div><b>يرغب بالمشاركة مستقبلاً:</b> ${wantYes} من ${surveys.length}</div>
+          <div><b>تم التنسيق إعلامياً:</b> ${mediaYes} من ${surveys.length}</div>
+          <div><b>لديه مقاطع يقترح نشرها:</b> ${clipsYes} من ${surveys.length}</div>
+          <div><b>عدد الملاحظات المكتوبة:</b> ${noteCount}</div>
         </div>
         <div class="erb-actions">
           <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض كل الإجابات PDF</button>
@@ -3749,7 +3772,7 @@ async function viewEvalResults(sessionId, miqatName){
           <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleEvalSession('${sessionId}')">🔒 إغلاق التقييم</button>
         </div>
       </div>`;
-    window.__lastGroupEvals={ sessionId, miqatName, evals, avg, pct, n };
+    window.__lastGroupEvals={ sessionId, miqatName, evals, avg, pct, n, radoodId:(evals[0]&&evals[0].radoodId)||recordRadoodId||currentEvalRadoodId };
   }catch(e){ console.error(e); res.innerHTML='<div class="eval-link-err">تعذّر جلب النتائج.</div>'; }
 }
 async function toggleEvalSession(sessionId){
@@ -3776,9 +3799,16 @@ async function saveGroupEvalToRecord(sessionId, miqatName){
 }
 function printGroupEvalPDF(sessionId, miqatName){
   const g=window.__lastGroupEvals; if(!g||g.sessionId!==sessionId) return;
-  const r=radoods.find(x=>x.id===currentEvalRadoodId);
+  // استخراج الرادود من بيانات التقييم نفسها (أدقّ من المتغيّر العام)
+  const rid = g.radoodId || (g.evals[0] && g.evals[0].radoodId) || currentEvalRadoodId || recordRadoodId;
+  const r=radoods.find(x=>x.id===rid);
   const gaveRightYes=g.evals.filter(e=>e.gaveRight==='yes').length;
   const gaveRightNo=g.evals.filter(e=>e.gaveRight==='no');
+  // كل الملاحظات من كل المقيّمين
+  const allNotes=g.evals.map(e=>(e.notes||'').trim()).filter(Boolean);
+  const allStrengths=[]; g.evals.forEach(e=>(e.strengths||[]).forEach(s=>allStrengths.push(s)));
+  const allRecommends=[]; g.evals.forEach(e=>(e.recommends||[]).forEach(s=>allRecommends.push(s)));
+  const countList=(arr)=>{ const m={}; arr.forEach(x=>m[x]=(m[x]||0)+1); return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
   const starSum={}, starCnt={};
   g.evals.forEach(e=>{ Object.entries(e.stars||{}).forEach(([k,v])=>{ starSum[k]=(starSum[k]||0)+Number(v); starCnt[k]=(starCnt[k]||0)+1; }); });
   const starRows=EVAL_GROUPS.map(grp=>{
@@ -3815,6 +3845,9 @@ function printGroupEvalPDF(sessionId, miqatName){
   .vote-yes .vote-n{color:#2f8f5b;} .vote-no .vote-n{color:#b85c5c;}
   .vote-l{font-size:12px;color:#8a7c6b;}
   .box{background:#faf7f0;border:1px solid #e6ddcb;border-radius:10px;padding:12px 14px;margin:10px 0;font-size:13.5px;}
+  .notes-ul{margin:8px 24px 12px;padding:0;}
+  .notes-ul li{margin:6px 0;font-size:13.5px;line-height:1.8;}
+  .cnt{color:#8a7c6b;font-size:12px;}
   .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
   @media print{body{padding:24px;} .no-print{display:none;}}
   </style></head><body>
@@ -3837,7 +3870,11 @@ function printGroupEvalPDF(sessionId, miqatName){
     <div class="vote-cell vote-yes"><div class="vote-n">${gaveRightYes}</div><div class="vote-l">قالوا نعم</div></div>
     <div class="vote-cell vote-no"><div class="vote-n">${gaveRightNo.length}</div><div class="vote-l">قالوا لا</div></div>
   </div>
-  ${gaveRightNo.length?`<div class="box"><b>أسباب «لا»:</b> ${gaveRightNo.map(e=>escapeHtml(e.gaveRightReason||'')).filter(x=>x).join(' · ')||'بلا تفصيل'}</div>`:''}
+  ${gaveRightNo.length?`<div class="box"><b>أسباب «لا»:</b><ul class="notes-ul">${gaveRightNo.map(e=>escapeHtml(e.gaveRightReason||'')).filter(x=>x).map(x=>`<li>${x}</li>`).join('')||'<li>بلا تفصيل</li>'}</ul></div>`:''}
+  ${allStrengths.length?`<h2>أبرز نقاط القوة</h2><ul class="notes-ul">${countList(allStrengths).map(([k,c])=>`<li>${escapeHtml(k)} <span class="cnt">(${c})</span></li>`).join('')}</ul>`:''}
+  ${allRecommends.length?`<h2>التوصيات</h2><ul class="notes-ul">${countList(allRecommends).map(([k,c])=>`<li>${escapeHtml(k)} <span class="cnt">(${c})</span></li>`).join('')}</ul>`:''}
+  <h2>ملاحظات المقيّمين</h2>
+  ${allNotes.length?`<ul class="notes-ul">${allNotes.map(n=>`<li>${escapeHtml(n)}</li>`).join('')}</ul>`:'<div class="box">لم تُسجَّل ملاحظات.</div>'}
   <div class="foot">هيئة محبي الحسين (ع) — لجنة العزاء · التقييم الجماعي</div>
   </body></html>`);
   w.document.close(); w.focus();
@@ -3848,8 +3885,20 @@ const SURVEY_MOAZ=[['moaz_opener','سرعة الرد في المستهل'],['moa
 const SURVEY_ORG=[['org_order','تنظيم المجلس'],['org_time','الالتزام بوقت البداية'],['org_manage','إدارة المجلس'],['org_hospitality','الضيافة والاستقبال']];
 function printSurveyPDF(sessionId, miqatName){
   const g=window.__lastSurveys; if(!g||g.sessionId!==sessionId) return;
-  const r=radoods.find(x=>x.id===currentSurveyRadoodId);
+  // استخراج الرادود من بيانات الاستبيان نفسها (أدقّ من المتغيّر العام)
+  const rid = g.radoodId || (g.surveys[0] && g.surveys[0].radoodId) || currentSurveyRadoodId || recordRadoodId;
+  const r=radoods.find(x=>x.id===rid);
   const surveys=g.surveys;
+  // كل الملاحظات النصية مجمّعة كنقاط
+  const noteFields=[['distinct','ما يميّز المجلس'],['improve','يحتاج تطوير'],['sound','ملاحظات الصوتيات'],['wish','يتمنى إضافته'],['ideas','أفكار ومقترحات'],['media','مقاطع مقترحة للنشر'],['other','ملاحظة أخيرة']];
+  const allNotes=[];
+  surveys.forEach((s,i)=>{
+    noteFields.forEach(([k,lbl])=>{
+      const v=(s.texts&&s.texts[k]||'').trim();
+      if(v) allNotes.push(`<b>${lbl}:</b> ${escapeHtml(v)}`);
+    });
+    (s.golden||[]).forEach(x=>{ if(x&&x.trim()) allNotes.push(`<b>سؤال ذهبي:</b> ${escapeHtml(x)}`); });
+  });
   const block=(s,idx)=>{
     const txt=(v)=>v&&v.trim()?escapeHtml(v):'—';
     const rateRows=(items,obj)=>items.map(([k,l])=>`<tr><td>${l}</td><td>${obj&&obj[k]?escapeHtml(obj[k]):'—'}</td></tr>`).join('');
@@ -3870,6 +3919,10 @@ function printSurveyPDF(sessionId, miqatName){
       <p><b>يتمنى إضافته:</b> ${txt(s.texts&&s.texts.wish)}</p>
       <p><b>أفكار ومقترحات:</b> ${txt(s.texts&&s.texts.ideas)}</p>
       <p><b>الرغبة بالمشاركة مستقبلاً:</b> ${s.future?escapeHtml(s.future):'—'}</p>
+      <h3>📢 أسئلة اللجنة الإعلامية</h3>
+      <p><b>هل تم التنسيق معك إعلامياً قبل المجلس؟</b> ${s.mediaCoord?escapeHtml(s.mediaCoord):'—'}</p>
+      <p><b>هل لديك مقاطع تقترح نشرها؟</b> ${s.mediaClips?escapeHtml(s.mediaClips):'—'}</p>
+      ${(s.texts&&s.texts.media)?`<p><b>تحديد المقاطع:</b> ${escapeHtml(s.texts.media)}</p>`:''}
       <h3>🌟 السؤال الذهبي (أول ٣ أمور للتطوير)</h3>
       ${(s.golden&&s.golden.length)?`<ol>${s.golden.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`:'<p>—</p>'}
       <h3>ملاحظة أخيرة</h3>
@@ -3894,6 +3947,9 @@ function printSurveyPDF(sessionId, miqatName){
   table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0;}
   th,td{border:1px solid #e6ddcb;padding:6px 10px;text-align:right;}td:last-child{font-weight:600;color:#1c4536;width:120px;}
   ol{margin:6px 22px;}li{margin:3px 0;}
+  .notes-ul{margin:8px 24px 12px;padding:0;}
+  .notes-ul li{margin:7px 0;font-size:13.5px;line-height:1.8;}
+  .notes-ul li b{color:#1c4536;}
   .foot{margin-top:24px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
   @media print{body{padding:24px;} .no-print{display:none;} .s-block{page-break-inside:avoid;}}
   </style></head><body>
@@ -3909,6 +3965,8 @@ function printSurveyPDF(sessionId, miqatName){
     <div><div class="s-rname">${escapeHtml(r?r.name:'')}</div><div style="font-size:13px;color:#8a7c6b;">${escapeHtml(miqatName)}</div></div>
   </div>
   ${surveys.map((s,i)=>block(s,i)).join('')}
+  <h2 style="font-size:15px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 18px;border-radius:0 16px 16px 0;margin:18px 0 10px;">📝 جميع الملاحظات</h2>
+  ${allNotes.length?`<ul class="notes-ul">${allNotes.map(n=>`<li>${n}</li>`).join('')}</ul>`:'<p style="color:#8a7c6b">لم تُسجَّل ملاحظات نصية.</p>'}
   <div class="foot">هيئة محبي الحسين (ع) — لجنة العزاء · استبيان الرادود</div>
   </body></html>`);
   w.document.close(); w.focus();

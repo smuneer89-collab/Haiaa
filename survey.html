@@ -87,7 +87,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','
 function qparam(k){ return new URLSearchParams(location.search).get(k); }
 
 let db=null, session=null, sessionId=null;
-let data={ general:'', moaz:{}, org:{}, sound:'', future:'', texts:{}, golden:['','',''] };
+let data={ general:'', moaz:{}, org:{}, sound:'', future:'', mediaCoord:'', mediaClips:'', texts:{}, golden:['','',''] };
 
 async function init(){
   sessionId=qparam('s');
@@ -122,13 +122,9 @@ function renderIntro(){
   document.getElementById('app').innerHTML=`
   ${head()}
   <div class="panel intro-panel">
-    <p>السلام عليكم ورحمة الله وبركاته</p>
-    <p>أخي الكريم الرادود، حفظكم الله ووفقكم لخدمة سيد الشهداء الإمام الحسين (ع).</p>
-    <p>يسر هيئة محبي الحسين أن تتقدم إليكم بخالص الشكر والتقدير لمشاركتكم في إحياء هذا المجلس المبارك، ونسأل الله تعالى أن يتقبل منكم هذه الخدمة العظيمة.</p>
-    <p>نضع بين أيديكم هذا الاستبيان إيماناً منا بأن التطوير والتميّز لا يتحققان إلا بالاستماع إلى أهل الخبرة والتجربة، وأن الرأي الصادق هو أساس التحسين المستمر.</p>
-    <p>نرجو منكم التكرم بالإجابة بكل شفافية وموضوعية، فملاحظاتكم واقتراحاتكم ستكون بعون الله عوناً لنا في الارتقاء بمجلس اللطم، بما يليق بخدمة الإمام الحسين (ع) وأهل بيته الأطهار (ع).</p>
-    <p>رأيكم أمانة، وملاحظاتكم طريقنا إلى التطوير، وخدمتنا للإمام الحسين (ع) مسؤولية نسعى لإتقانها.</p>
-    <p>نسأل الله أن يجعل كلماتكم ومشاركتكم في ميزان حسناتكم، وأن يوفقنا وإياكم لكل خير، وأن يرزقنا جميعاً الإخلاص في خدمة أهل البيت (ع).</p>
+    <p>الأخ الكريم الرادود، <b>${esc(session.radoodName)}</b> حفظكم الله.</p>
+    <p>غاية هذا التقييم ليست إصدار الأحكام، وإنما السعي إلى إتقان الخدمة، وإرضاء أهل البيت (ع).</p>
+    <p>ونسأل الله أن يتقبل منكم ويجزيكم خير الجزاء.</p>
   </div>
   <button class="submit-btn" onclick="renderForm()">متابعة ←</button>`;
   window.scrollTo(0,0);
@@ -206,6 +202,28 @@ function renderForm(){
     </div>
   </div>
 
+  <div class="panel">
+    <div class="s-sec">
+      <div class="s-sec-title">📢 أسئلة اللجنة الإعلامية</div>
+      <div class="s-q">
+        <div class="s-q-label">١. هل تم التنسيق معك إعلامياً قبل المجلس؟</div>
+        <div class="s-choice">
+          ${['نعم','لا'].map(c=>`<button class="s-choice-btn" onclick="setChoice('mediaCoord','${c}',this)">${c}</button>`).join('')}
+        </div>
+      </div>
+      <div class="s-q">
+        <div class="s-q-label">٢. هل لديك مقاطع معيّنة في المجلس تقترح نشرها؟</div>
+        <div class="s-choice">
+          ${['نعم','لا'].map(c=>`<button class="s-choice-btn" onclick="setMediaClips('${c}',this)">${c}</button>`).join('')}
+        </div>
+        <div id="mediaClipsWrap" style="display:none;margin-top:12px;">
+          <div class="s-q-label">الرجاء تحديدها لعمل أسرع:</div>
+          <textarea class="s-textarea" rows="3" placeholder="حدّد المقاطع…" oninput="data.texts.media=this.value"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="panel s-golden">
     <div class="s-sec">
       <div class="s-sec-title">🌟 سؤال ذهبي</div>
@@ -237,6 +255,11 @@ function setChoice(field,val,btn){
   data[field]=val;
   btn.parentElement.querySelectorAll('.s-choice-btn').forEach(b=>b.classList.toggle('on',b===btn));
 }
+function setMediaClips(val,btn){
+  data.mediaClips=val;
+  btn.parentElement.querySelectorAll('.s-choice-btn').forEach(b=>b.classList.toggle('on',b===btn));
+  document.getElementById('mediaClipsWrap').style.display = val==='نعم'?'block':'none';
+}
 function setPath(obj,path,val){
   const parts=path.split('.');
   if(parts.length===1){ obj[parts[0]]=val; return; }
@@ -249,6 +272,7 @@ async function submitSurvey(){
   const entry={
     sessionId, radoodId:session.radoodId, miqatId:session.miqatId||'',
     general:data.general, moaz:data.moaz, org:data.org, sound:data.sound, future:data.future,
+    mediaCoord:data.mediaCoord, mediaClips:data.mediaClips,
     texts:data.texts, golden:data.golden.filter(x=>x&&x.trim()),
     at:new Date().toISOString()
   };
