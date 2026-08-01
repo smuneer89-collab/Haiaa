@@ -453,19 +453,33 @@ function printMemberProfile(id){
   .tb .sum td{background:#e6f0ea;font-weight:700;}
   .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:13px;font-weight:700;}
   .on{background:#e6f3ea;color:#2f8f5b;} .off{background:#f6e6e6;color:#b85c5c;}
+  .mem-id{display:flex;align-items:center;gap:20px;background:#f6f2ea;border:1px solid #ece3d4;border-radius:14px;padding:18px 22px;margin-bottom:8px;}
+  .mem-photo{width:92px;height:92px;border-radius:50%;overflow:hidden;background:#e6f0ea;border:3px solid #c19a3e;display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:700;color:#1c4536;flex-shrink:0;}
+  .mem-photo img{width:100%;height:100%;object-fit:cover;}
+  .mem-id-name{font-size:21px;font-weight:800;color:#1c4536;}
+  .mem-id-code{font-size:13px;color:#8a7c6b;margin:3px 0 7px;}
+  .phone-disp{direction:ltr;unicode-bidi:isolate;display:inline-block;}
   .foot{margin-top:36px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
   @media print{body{padding:24px;}}
   ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
     <div class="doc-title">ملف العضو</div>
     <div class="doc-sub">${escapeHtml(m.name)} · ${memberCode(m)} · ${hijriToday()}</div></div>
+  <div class="mem-id">
+    <div class="mem-photo">${m.photo?`<img src="${m.photo}" alt="" />`:escapeHtml((m.name||'؟').trim().charAt(0))}</div>
+    <div class="mem-id-info">
+      <div class="mem-id-name">${escapeHtml(m.name)}</div>
+      <div class="mem-id-code">${memberCode(m)}</div>
+      <div><span class="badge ${active?'on':'off'}">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span></div>
+    </div>
+  </div>
   <h2>البيانات الأساسية</h2>
   <table>
     ${row('الاسم الكامل', escapeHtml(m.name))}
     ${row('رقم العضوية', memberCode(m))}
     ${row('نوع العضوية', m.type)}
     ${row('الحالة', `<span class="badge ${active?'on':'off'}">${active?'مفعّلة':'غير مفعّلة'}</span>`)}
-    ${row('الهاتف', m.phone)}
+    ${row('الهاتف', phoneDisp(m.phone))}
     ${m.isMinor&&m.birthdate?row('تاريخ الميلاد', fmtDate(m.birthdate)):''}
     ${m.isMinor&&m.age!=null?row('العمر', m.age):''}
     ${row('المنطقة', m.area)}
@@ -1598,7 +1612,7 @@ function showDetail(id){
     <div class="detail-rows">
       ${m.isMinor&&m.birthdate?detailRow('تاريخ الميلاد', fmtDate(m.birthdate)):''}
       ${m.isMinor&&m.age!=null?detailRow('العمر', m.age):''}
-      ${detailRow('الهاتف', m.phone)}
+      ${detailRow('الهاتف', phoneDisp(m.phone))}
       ${m.area?detailRow('المنطقة',m.area):''}
       ${m.email?detailRow('الإيميل',m.email):''}
       ${m.address?detailRow('العنوان',m.address):''}
@@ -1810,6 +1824,11 @@ function ageFromBirthdate(iso){
   const md=t.getMonth()-b.getMonth();
   if(md<0||(md===0&&t.getDate()<b.getDate())) a--;
   return a;
+}
+/* عرض الهاتف بصرياً (LTR) — لا يغيّر قيمة الرقم المخزّنة إطلاقاً */
+function phoneDisp(p){
+  if(!p) return '';
+  return `<span class="phone-disp" dir="ltr">${escapeHtml(String(p))}</span>`;
 }
 function detailRow(k,v){ return `<div class="detail-row"><span class="k">${k}</span><span class="v">${v}</span></div>`; }
 function closeModal(id){ $('#'+id).classList.remove('open'); }
@@ -2454,7 +2473,7 @@ function renderFamilyList(){
         <span class="fc-chev">${open?'▲':'▼'}</span>
       </div>
       <div class="fc-details" style="display:${open?'block':'none'}">
-        <div class="fc-rep">الممثّل: ${escapeHtml(b.repName||'—')} · ${escapeHtml(b.phone||'')}</div>
+        <div class="fc-rep">الممثّل: ${escapeHtml(b.repName||'—')} · ${phoneDisp(b.phone)}</div>
         <div class="fc-miqat">🕯️ ${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div>
         <div class="fc-contrib">${fmtBooking(b)}</div>
         <div class="fc-bar"><span style="width:${pct}%"></span></div>
@@ -2501,7 +2520,7 @@ function printOneFamilyReport(miqatId, memberId){
     <div class="card">
       <div class="fname">👪 ${escapeHtml(b.familyName)}</div>
       <div class="row">ممثّل العائلة: <b>${escapeHtml(b.repName||'—')}</b></div>
-      <div class="row">رقم الهاتف: <b>${escapeHtml(b.phone||'—')}</b></div>
+      <div class="row">رقم الهاتف: <b>${b.phone?phoneDisp(b.phone):'—'}</b></div>
       <div class="row">الميقات: <b>${escapeHtml(mq.name)}</b> — ${fmtMiqatDate(mq)}${mq.requiredAmount?` · سعر الميقات: ${fmtMoney(mq.requiredAmount)}`:''}</div>
       <table><thead><tr><th>#</th><th>نوع البند</th><th>القيمة</th></tr></thead><tbody>${itemsRows}</tbody></table>
       <div class="totrow"><span>المتّفق عليه</span><span>${fmtMoney(ag)}</span></div>
@@ -2522,7 +2541,7 @@ function printFamilyReport(){
     const pays=Array.isArray(b.payments)?b.payments:[];
     const prows=pays.length?pays.map((p,i)=>`<tr><td>${i+1}</td><td>${fmtMoney(p.amount)}</td><td>${p.date?fmtDate(p.date):''}</td><td>${escapeHtml(p.note||'')}</td></tr>`).join(''):`<tr><td colspan="4" class="empty">لا توجد دفعات مستلَمة</td></tr>`;
     return `<div class="blk"><div class="blk-h">👪 ${escapeHtml(b.familyName)} <span class="st">${rem<=0?'مكتمل':'متبقّي '+fmtMoney(rem)}</span></div>
-      <div class="sm">الممثّل: ${escapeHtml(b.repName||'—')} · ${escapeHtml(b.phone||'')}</div>
+      <div class="sm">الممثّل: ${escapeHtml(b.repName||'—')} · ${phoneDisp(b.phone)}</div>
       <div class="sm">الميقات: ${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)} · المساهمة: ${fmtBooking(b)}</div>
       <div class="sm">المتّفق: <b>${fmtMoney(ag)}</b> · المُحصّل: <b class="paid">${fmtMoney(pd)}</b> · المتبقّي: <b class="rem">${fmtMoney(rem)}</b></div>
       <table><thead><tr><th>#</th><th>المبلغ المستلَم</th><th>التاريخ</th><th>ملاحظة</th></tr></thead><tbody>${prows}</tbody></table></div>`;
@@ -2552,7 +2571,8 @@ function printFamilyReport(){
 const PRINT_BAR = `
   <div class="no-print bar">
     <button onclick="window.print()">🖨️ حفظ / طباعة PDF</button>
-    <button onclick="window.close()">← الرئيسية</button>
+    <button onclick="window.close()">↩︎ عودة</button>
+    <button onclick="window.close()">🏠 الرئيسية</button>
   </div>`;
 const PRINT_BAR_CSS = `
   .bar{position:sticky;top:0;display:flex;gap:8px;justify-content:center;padding:12px;background:#123028;margin:-30px -30px 24px;}
@@ -4315,7 +4335,7 @@ function printMiqatExpenseReport(opts){
 }
 
 /* ═══════════ لجنة المشاريع ═══════════ */
-const PROJECT_COMMITTEES=['اللجنة الإعلامية','لجنة العزاء','أمانة السر','اللجنة المالية','لجنة الاستقبال','لجنة الخدمات','أخرى'];
+const PROJECT_COMMITTEES=['المالية','الضيافة','العلاقات العامة','الاحتفالات','العزاء','المواكب','الخطباء','أمانة السر','التقنية','الإعلامية','الثقافية','السواد','أخرى'];
 function finProjectsHTML(){
   const list=[...projects].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
   return `
@@ -5653,7 +5673,7 @@ function renderInviteAdmins(){
   const admins=members.filter(m=>m.isAdmin); const el=$('#inviteAdmins');
   if(!admins.length){ el.innerHTML='<div class="mtg-block-help" style="margin:0">لا يوجد أعضاء إدارة مسجّلون.</div>'; return; }
   el.innerHTML=admins.map(m=>`<div class="invite-admin-row">
-    <div class="ia-name">${escapeHtml(m.name)}<small>${escapeHtml(m.committee||'إدارة الهيئة')}${m.phone?' · '+escapeHtml(m.phone):''}</small></div>
+    <div class="ia-name">${escapeHtml(m.name)}<small>${escapeHtml(m.committee||'إدارة الهيئة')}${m.phone?' · '+phoneDisp(m.phone):''}</small></div>
     <button class="btn wa-btn small" onclick="sendInvite('${m.id}')">${WA_ICON}</button>
   </div>`).join('');
 }
