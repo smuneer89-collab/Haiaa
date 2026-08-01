@@ -37,6 +37,7 @@ const CloudSync = (() => {
   let applyingRemote = false;
   let allowBigDelete = false;
   let pendingPush = {};
+  const uploadedOnce = {};   // منع تكرار الرفع التلقائي لكل مجموعة
 
   /* ── تهيئة ── */
   function init(){
@@ -181,6 +182,17 @@ const CloudSync = (() => {
   }
   function applyRemote(name, arr){
     lastRemote[name] = arr;
+    // ── حماية: السحابة فاضية والجهاز فيه بيانات ⇒ لا تمسح، بل ارفع المحلي ──
+    try{
+      const localArr = (CLOUD_COLLECTIONS[name] && CLOUD_COLLECTIONS[name]()) || [];
+      if((arr||[]).length===0 && localArr.length>0 && !uploadedOnce[name]){
+        uploadedOnce[name]=true;
+        console.warn('cloud: السحابة فاضية في «'+name+'» — يُرفع المحلي ('+localArr.length+')');
+        writeCache[name]={};
+        setTimeout(()=>{ doPush(name, localArr); }, 300);
+        return;                       // لا نطبّق الفراغ على الجهاز
+      }
+    }catch(e){}
     applyingRemote = true;
     try{
       switch(name){
@@ -272,6 +284,40 @@ const CloudSync = (() => {
     if(!ready || applyingRemote || !db) return;
     try{ await db.collection('meta').doc('finance').set({ j: JSON.stringify(finance) }); }
     catch(e){ console.error('push finance', e); }
+  }
+
+  /* ── رفع آمن: يرفع بيانات هذا الجهاز بلا حذف أي شيء من السحابة ── */
+  async function uploadLocal(){
+    if(!ready){ toast('سجّل الدخول للسحابة أولاً'); return; }
+    const btn=document.getElementById('uploadLocalBtn');
+    if(btn){ btn.disabled=true; btn.textContent='جارٍ الرفع…'; }
+    setStatus('syncing','جارٍ رفع بيانات هذا الجهاز…');
+    let sent=0;
+    try{
+      for(const name of Object.keys(CLOUD_COLLECTIONS)){
+        const arr = CLOUD_COLLECTIONS[name]() || [];
+        let batch = db.batch(), ops = 0;
+        const cache = writeCache[name] || (writeCache[name]={});
+        for(const item of arr){
+          if(!item || !item.id) continue;
+          const j = JSON.stringify(item);
+          batch.set(db.collection(name).doc(String(item.id)), { j });
+          cache[String(item.id)] = j;
+          sent++;
+          if(++ops >= 400){ await batch.commit(); batch = db.batch(); ops = 0; }
+        }
+        if(ops) await batch.commit();
+      }
+      await db.collection('meta').doc('settings').set({ j: JSON.stringify(settings) });
+      await db.collection('meta').doc('finance').set({ j: JSON.stringify(finance) });
+      setStatus('ok','متصل');
+      toast('تم رفع بيانات هذا الجهاز ('+sent+' سجل)');
+    }catch(e){
+      console.error('uploadLocal', e);
+      setStatus('offline','تعذّر الرفع');
+      toast('تعذّر الرفع — تحقّق من الاتصال');
+    }
+    if(btn){ btn.disabled=false; btn.textContent='⬆️ رفع بيانات هذا الجهاز (آمن)'; }
   }
 
   /* ── النقل الأول: رفع كل البيانات المحلية ── */
@@ -388,7 +434,7 @@ const CloudSync = (() => {
     await db.collection('publicProjects').doc(id).delete();
   }
 
-  return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply,
+  return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply, uploadLocal,
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
