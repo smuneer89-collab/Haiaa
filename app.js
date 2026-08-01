@@ -60,6 +60,7 @@ let reminders = []; // تذكيرات التقويم: {id, title, note, day, mon
 let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
+let archives = []; // أرشيف السنوات
 let radoodParts = []; // مشاركات مسجّلة يدوياً: {id, radoodId, miqatId, miqatName, note, at}
 let auditLog = []; // سجل التغييرات: {id, at, who, act, cat, what}
 let projects = []; // المشاريع: {id, title, date, description, goal, cost, source('donor'/'budget'), donorName, submitter, committee, viaLink, at}
@@ -172,6 +173,7 @@ async function loadData(){
   try { window.__lastBackupAt = await storage.get('lastBackupAt') || ''; } catch(e){ window.__lastBackupAt=''; }
   try { const al=await storage.get('auditLog'); if(al) auditLog=JSON.parse(al); } catch(e){ auditLog=[]; }
   try { const rp=await storage.get('radoodParts'); if(rp) radoodParts=JSON.parse(rp); } catch(e){ radoodParts=[]; }
+  try { const ar=await storage.get('archives'); if(ar) archives=JSON.parse(ar); } catch(e){ archives=[]; }
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
   try { const re=await storage.get('radoodEvals'); if(re) radoodEvals=JSON.parse(re); } catch(e){ radoodEvals=[]; }
@@ -189,6 +191,7 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveArchives(){ try{ await storage.set('archives',JSON.stringify(archives)); }catch(e){} cloudPush('archives',archives); }
 async function saveRadoodParts(){ try{ await storage.set('radoodParts',JSON.stringify(radoodParts)); }catch(e){} cloudPush('radoodParts',radoodParts); }
 async function saveAuditLog(){ try{ await storage.set('auditLog',JSON.stringify(auditLog)); }catch(e){} cloudPush('auditLog',auditLog); }
 /* تسجيل عملية في سجل التغييرات */
@@ -735,6 +738,204 @@ function printAnnualReport(){
   <div class="foot">هيئة محبي الحسين (ع) — بني جمرة · التقرير السنوي ${year} هـ</div>
   </body></html>`);
   w.document.close(); w.focus();
+}
+
+
+/* ═══════════ الأرشيف السنوي ═══════════ */
+function renderArchive(){
+  const host=$('#archList'); if(!host) return;
+  const sub=$('#archSub');
+  const list=[...archives].sort((a,b)=>(b.year||0)-(a.year||0));
+  if(sub) sub.textContent = list.length?`${list.length} سنة مؤرشفة`:'لا سنوات مؤرشفة بعد';
+  if(!list.length){ host.innerHTML='<div class="arch-empty"><div style="font-size:38px;margin-bottom:8px;">📦</div><div>لا توجد سنوات مؤرشفة بعد.<br>عند بداية محرم استخدم «إغلاق السنة» أدناه.</div></div>'; return; }
+  host.innerHTML=list.map(a=>`
+    <div class="arch-row" onclick="openArchYear(${a.year})">
+      <div>
+        <div class="arch-year">📦 سنة ${a.year} هـ</div>
+        <div class="arch-meta">${(a.members||[]).length} عضو · ${(a.miqats||[]).length} ميقات · ${(a.meetings||[]).length} اجتماع · ${((a.finance||{}).expenses||[]).length} مصروف</div>
+      </div>
+      <div class="arch-arrow">›</div>
+    </div>`).join('');
+}
+let currentArchYear=null;
+function openArchYear(year){
+  currentArchYear=archives.find(a=>a.year===year); if(!currentArchYear) return;
+  renderArchYear(); openFullPage('archyear');
+}
+function closeArchYear(){ switchTab('meetings'); openIdara('archive'); }
+function renderArchYear(){
+  const a=currentArchYear; if(!a) return;
+  const exps=(a.finance||{}).expenses||[];
+  const expTotal=exps.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  const paidMembers=(a.members||[]).filter(m=>m.paymentDate).length;
+  const radEvals=a.radoodEvals||[];
+  const projs=a.projects||[];
+  $('#archYearBody').innerHTML=`
+  <div class="panel" style="padding:0;overflow:hidden;">
+    <div class="ay-head">
+      <div class="ay-year">📦 ${a.year} هـ</div>
+      <div class="ay-sub">أُرشِفت في ${a.archivedAt?new Date(a.archivedAt).toLocaleDateString('ar'):'—'}</div>
+    </div>
+    <div class="ay-sec">
+      <div class="ay-sec-h">📊 ملخّص السنة</div>
+      <div class="ay-kpis">
+        <div class="ay-kpi"><div class="v">${(a.members||[]).length}</div><div class="l">عضو</div></div>
+        <div class="ay-kpi"><div class="v">${paidMembers}</div><div class="l">سدّدوا الاشتراك</div></div>
+        <div class="ay-kpi"><div class="v">${(a.miqats||[]).length}</div><div class="l">ميقات</div></div>
+        <div class="ay-kpi"><div class="v">${(a.meetings||[]).length}</div><div class="l">اجتماع</div></div>
+        <div class="ay-kpi"><div class="v">${finMoney(expTotal)}</div><div class="l">المصروفات</div></div>
+        <div class="ay-kpi"><div class="v">${finMoney((a.finance||{}).total||0)}</div><div class="l">الرصيد الختامي</div></div>
+        <div class="ay-kpi"><div class="v">${radEvals.length}</div><div class="l">تقييم رادود</div></div>
+        <div class="ay-kpi"><div class="v">${projs.length}</div><div class="l">مشروع</div></div>
+      </div>
+    </div>
+    ${(a.meetings||[]).length?`<div class="ay-sec"><div class="ay-sec-h">🗓️ الاجتماعات</div>
+      <div class="ay-list">${a.meetings.slice(0,20).map(m=>`<div>${escapeHtml(m.title||'اجتماع')} — ${m.date?fmtDate(m.date):''} <span style="color:var(--muted-2)">(${(m.decisions||[]).length} قرار)</span></div>`).join('')}</div></div>`:''}
+    ${exps.length?`<div class="ay-sec"><div class="ay-sec-h">💰 أعلى المصروفات</div>
+      <div class="ay-list">${Object.entries(exps.reduce((o,e)=>{o[e.type]=(o[e.type]||0)+(Number(e.cost)||0);return o;},{})).sort((x,y)=>y[1]-x[1]).slice(0,8).map(([k,v])=>`<div>${escapeHtml(k)} — <b>${finMoney(v)}</b></div>`).join('')}</div></div>`:''}
+    ${radEvals.length?`<div class="ay-sec"><div class="ay-sec-h">🕯️ تقييمات الرواديد</div>
+      <div class="ay-list">${radEvals.slice(0,20).map(e=>`<div>${escapeHtml(e.miqatName||'—')} — ${e.pct||Math.round((e.avg||0)/3*100)}%</div>`).join('')}</div></div>`:''}
+    ${projs.length?`<div class="ay-sec"><div class="ay-sec-h">📋 المشاريع</div>
+      <div class="ay-list">${projs.map(p=>`<div>${escapeHtml(p.title||'—')} — ${p.status==='approved'?'✅ معتمد':p.status==='rejected'?'❌ مرفوض':'⏳ معلّق'} ${p.cost?'· '+finMoney(p.cost):''}</div>`).join('')}</div></div>`:''}
+    <div style="padding:16px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-accent" style="flex:1;" onclick="printArchYear(${a.year})">🖨️ تقرير السنة PDF</button>
+      <button class="btn btn-ghost" onclick="exportArchYear(${a.year})">⬇️ تصدير</button>
+      <button class="btn" style="background:var(--danger);color:#fff;border:none;" onclick="deleteArchYear(${a.year})">🗑️</button>
+    </div>
+    <div style="padding:0 16px 16px;text-align:center;">
+      <button class="btn btn-ghost btn-sm" onclick="closeArchYear()">← رجوع للأرشيف</button>
+    </div>
+  </div>`;
+}
+function exportArchYear(year){
+  const a=archives.find(x=>x.year===year); if(!a) return;
+  downloadBlob(JSON.stringify(a,null,2),'application/json;charset=utf-8',`أرشيف_${year}.json`);
+  toast('تم تصدير أرشيف السنة');
+}
+async function deleteArchYear(year){
+  if(!confirm(`حذف أرشيف سنة ${year} هـ نهائياً؟\n\nيُنصح بتصديره أولاً.`)) return;
+  const t=prompt('للتأكيد اكتب رقم السنة:');
+  if((t||'').trim()!==String(year)){ toast('أُلغي الحذف'); return; }
+  archives=archives.filter(x=>x.year!==year);
+  await saveArchives();
+  logAudit('حذف','الأرشيف',`أرشيف سنة ${year} هـ`);
+  closeArchYear();
+}
+function printArchYear(year){
+  const a=archives.find(x=>x.year===year); if(!a) return;
+  const exps=(a.finance||{}).expenses||[];
+  const expTotal=exps.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  const byType=Object.entries(exps.reduce((o,e)=>{o[e.type]=(o[e.type]||0)+(Number(e.cost)||0);return o;},{})).sort((x,y)=>y[1]-x[1]);
+  const paidMembers=(a.members||[]).filter(m=>m.paymentDate).length;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>أرشيف ${year} هـ</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:34px 38px;color:#1a2620;line-height:1.85;font-size:14.5px;}
+  .cover{text-align:center;padding:30px 0 24px;border-bottom:4px double #c19a3e;margin-bottom:22px;}
+  .cover img{max-width:210px;max-height:80px;margin-bottom:14px;}
+  .cv-title{font-family:'Amiri',serif;font-size:28px;font-weight:700;color:#1c4536;}
+  .cv-year{font-size:19px;color:#c19a3e;font-weight:700;margin-top:4px;}
+  .cv-sub{font-size:12.5px;color:#8a7c6b;margin-top:8px;}
+  h2{font-size:15px;color:#fff;background:#1c4536;display:inline-block;padding:5px 15px 5px 19px;border-radius:0 17px 17px 0;margin:22px 0 10px;}
+  .kpis{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:8px;}
+  .kpi{flex:1;min-width:110px;text-align:center;border:1px solid #e6ddcb;border-radius:11px;padding:12px 8px;background:#faf7f0;}
+  .kpi .v{font-size:18px;font-weight:800;color:#1c4536;} .kpi .l{font-size:11px;color:#8a7c6b;margin-top:2px;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0;}
+  th,td{border:1px solid #e6ddcb;padding:7px 11px;text-align:right;} th{background:#1c4536;color:#fff;}
+  tr:nth-child(even){background:#faf7f0;}
+  .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:22px;} .no-print{display:none;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+  <div class="cover"><img src="${HAIAA_LOGO}" alt="" />
+    <div class="cv-title">أرشيف السنة</div><div class="cv-year">${year} هـ</div>
+    <div class="cv-sub">هيئة محبي الحسين (ع) — بني جمرة</div></div>
+  <h2>📊 ملخّص السنة</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v">${(a.members||[]).length}</div><div class="l">عضو</div></div>
+    <div class="kpi"><div class="v">${paidMembers}</div><div class="l">سدّدوا</div></div>
+    <div class="kpi"><div class="v">${(a.miqats||[]).length}</div><div class="l">ميقات</div></div>
+    <div class="kpi"><div class="v">${(a.meetings||[]).length}</div><div class="l">اجتماع</div></div>
+    <div class="kpi"><div class="v">${finMoney(expTotal)}</div><div class="l">المصروفات</div></div>
+    <div class="kpi"><div class="v">${finMoney((a.finance||{}).total||0)}</div><div class="l">الرصيد الختامي</div></div>
+  </div>
+  ${byType.length?`<h2>💰 المصروفات حسب النوع</h2><table><tr><th>البند</th><th>المبلغ</th><th>النسبة</th></tr>
+    ${byType.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${expTotal?Math.round(v/expTotal*100):0}%</td></tr>`).join('')}</table>`:''}
+  ${(a.meetings||[]).length?`<h2>🗓️ الاجتماعات</h2><table><tr><th>الاجتماع</th><th>التاريخ</th><th>القرارات</th></tr>
+    ${a.meetings.map(m=>`<tr><td>${escapeHtml(m.title||'اجتماع')}</td><td>${m.date?fmtDate(m.date):'—'}</td><td>${(m.decisions||[]).length}</td></tr>`).join('')}</table>`:''}
+  ${(a.projects||[]).length?`<h2>📋 المشاريع</h2><table><tr><th>المشروع</th><th>الحالة</th><th>التكلفة</th></tr>
+    ${a.projects.map(p=>`<tr><td>${escapeHtml(p.title||'—')}</td><td>${p.status==='approved'?'معتمد':p.status==='rejected'?'مرفوض':'معلّق'}</td><td>${finMoney(p.cost||0)}</td></tr>`).join('')}</table>`:''}
+  <div class="foot">هيئة محبي الحسين (ع) — أرشيف سنة ${year} هـ</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* ── إغلاق السنة وبدء سنة جديدة ── */
+async function closeYearWizard(){
+  const curY = settings.year || parseInt(hijriParts().year,10) || 1448;
+  if(archives.some(a=>a.year===curY)){
+    if(!confirm(`سنة ${curY} هـ مؤرشفة مسبقاً. هل تريد المتابعة وإعادة أرشفتها (سيُستبدل الأرشيف القديم)؟`)) return;
+  }
+  const activeCount=members.filter(isActive).length;
+  const summary=`📦 إغلاق سنة ${curY} هـ\n\n`+
+    `سيُحفظ في الأرشيف:\n`+
+    `• ${members.length} عضو · ${miqats.length} ميقات\n`+
+    `• ${meetings.length} اجتماع · ${(finance.expenses||[]).length} مصروف\n`+
+    `• ${radoodEvals.length} تقييم رادود · ${projects.length} مشروع\n\n`+
+    `ثم تبدأ سنة ${curY+1} هـ:\n`+
+    `• تُفرَّغ المحاضر والمصروفات والتقييمات والمشاريع\n`+
+    `• تبقى الأعضاء والمواقيت وحجوزاتها والرواديد\n`+
+    `• ${activeCount} عضوية مفعّلة ستصير غير مفعّلة\n`+
+    `• الرصيد ${finMoney(finance.total||0)} ينتقل كرصيد افتتاحي\n\n`+
+    `⚠️ خذ نسخة احتياطية أولاً.\n\nهل تريد المتابعة؟`;
+  if(!confirm(summary)) return;
+  const typed=prompt('للتأكيد النهائي اكتب:  إغلاق السنة');
+  if((typed||'').trim()!=='إغلاق السنة'){ toast('أُلغيت العملية'); return; }
+
+  // 1) أرشفة
+  const snap={
+    year:curY, archivedAt:new Date().toISOString(),
+    members:JSON.parse(JSON.stringify(members)),
+    miqats:JSON.parse(JSON.stringify(miqats)),
+    meetings:JSON.parse(JSON.stringify(meetings)),
+    finance:JSON.parse(JSON.stringify(finance)),
+    financeLog:JSON.parse(JSON.stringify(financeLog||[])),
+    radoodEvals:JSON.parse(JSON.stringify(radoodEvals)),
+    radoodParts:JSON.parse(JSON.stringify(radoodParts||[])),
+    projects:JSON.parse(JSON.stringify(projects)),
+    assemblies:JSON.parse(JSON.stringify(assemblies||[])),
+    paidThawab:JSON.parse(JSON.stringify(paidThawab||[]))
+  };
+  archives=archives.filter(a=>a.year!==curY);
+  archives.push(snap);
+  await saveArchives();
+
+  // 2) تفريغ وإعادة ضبط
+  const openingBalance=Number(finance.total)||0;
+  meetings=[]; await saveMeetings();
+  radoodEvals=[]; await saveRadoodEvals();
+  radoodParts=[]; await saveRadoodParts();
+  projects=[]; await saveProjects();
+  assemblies=[]; await saveAssemblies();
+  paidThawab=[]; await savePaidThawab();
+  finance={ ...finance, total:openingBalance, expenses:[] };
+  await saveFinance();
+  financeLog=[]; try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){}
+
+  // 3) إلغاء تفعيل كل العضويات
+  members.forEach(m=>{ m.paymentDate=''; m.expiryDate=''; m.paidAmount=0; m.payments=[]; });
+  await saveMembers();
+
+  // 4) تقديم السنة
+  settings.year = curY+1;
+  await persistSettings();
+
+  logAudit('إغلاق سنة','الأرشيف',`أُرشفت سنة ${curY} هـ وبدأت ${curY+1} هـ`);
+  toast(`تمت الأرشفة — بدأت سنة ${curY+1} هـ`);
+  renderArchive(); renderDashboard(); renderMembers(); fillSettings();
 }
 
 /* ═══════════ لوحة الإحصائيات ═══════════ */
@@ -3106,7 +3307,7 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects, auditLog, radoodParts
+    radoods, radoodEvals, projects, auditLog, radoodParts, archives
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -3146,10 +3347,11 @@ async function backupImport(e){
     if(Array.isArray(backup.projects)) projects=backup.projects;
     if(Array.isArray(backup.auditLog)) auditLog=backup.auditLog;
     if(Array.isArray(backup.radoodParts)) radoodParts=backup.radoodParts;
+    if(Array.isArray(backup.archives)) archives=backup.archives;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
-    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts();
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
@@ -3301,7 +3503,7 @@ function renderMeetings(){ renderMeetingStats(); populateMeetingFilters(); rende
 
 /* ─── التنقل داخل قسم الإدارة ─── */
 function idaraShow(view){
-  ['hub','sec','finance','media','aza','admins'].forEach(v=>{
+  ['hub','sec','finance','media','aza','archive','admins'].forEach(v=>{
     const el=document.getElementById('idara-'+v); if(el) el.style.display = (v===view)?'block':'none';
   });
 }
@@ -3315,6 +3517,7 @@ function openIdara(which){
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); }
+  else if(which==='archive'){ idaraShow('archive'); renderArchive(); }
   else if(which==='aza'){ idaraShow('aza'); renderRadoods(); markAzaSeen(); checkNewAzaSubmissions().then(()=>renderRadoods()); }
   window.scrollTo({top:0,behavior:'smooth'});
 }

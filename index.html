@@ -301,6 +301,24 @@
   .part-row { flex-wrap:wrap; }
   .part-btns { display:flex; gap:6px; flex-wrap:wrap; }
   .part-btns .btn { font-size:11.5px; padding:6px 10px; }
+  /* الأرشيف */
+  .arch-row { display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--line); border-right:3px solid var(--gold); border-radius:12px; padding:14px 16px; margin-bottom:9px; cursor:pointer; }
+  .arch-year { font-size:17px; font-weight:800; color:var(--accent); }
+  .arch-meta { font-size:12px; color:var(--muted); margin-top:3px; }
+  .arch-arrow { font-size:22px; color:var(--muted-2); }
+  .arch-empty { text-align:center; padding:30px 20px; color:var(--muted-2); }
+  .ay-head { background:linear-gradient(150deg,var(--accent-deep),var(--accent)); padding:22px 18px; color:#fff; text-align:center; border-radius:14px 14px 0 0; }
+  .ay-year { font-size:26px; font-weight:800; }
+  .ay-sub { font-size:12.5px; color:var(--gold); margin-top:4px; }
+  .ay-sec { padding:14px 16px; border-bottom:1px solid var(--line); }
+  .ay-sec-h { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:10px; }
+  .ay-kpis { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .ay-kpi { background:var(--accent-soft); border-radius:10px; padding:11px; text-align:center; }
+  .ay-kpi .v { font-size:18px; font-weight:800; color:var(--accent); }
+  .ay-kpi .l { font-size:11px; color:var(--muted); margin-top:2px; }
+  .ay-list { font-size:13px; color:var(--ink); line-height:1.9; }
+  .ay-list div { padding:5px 0; border-bottom:1px dashed var(--line); }
+  .ay-list div:last-child { border-bottom:none; }
   .fin-field label { display:block; font-size:12.5px; font-weight:600; color:var(--muted); margin-bottom:6px; }
   .fin-field select, .fin-field input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); }
   .fin-ctx { background:var(--accent-soft); border-radius:10px; padding:10px 14px; font-weight:700; color:var(--accent); font-size:14px; margin-bottom:14px; text-align:center; }
@@ -1539,6 +1557,14 @@
   </section>
 
   <!-- Notifications -->
+  <!-- عرض سنة مؤرشفة -->
+  <section id="tab-archyear" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeArchYear()">← رجوع للأرشيف</button>
+    </div>
+    <div id="archYearBody"></div>
+  </section>
+
   <!-- لوحة الإحصائيات -->
   <section id="tab-stats" class="tab-content" style="display:none">
     <div id="statsBody"></div>
@@ -1841,6 +1867,11 @@
             <div class="ic-name">لجنة العزاء</div>
             <div class="ic-sub" id="idaraAzaCount">تقييم الرواديد وسجل الأداء</div>
           </div>
+          <div class="idara-card" onclick="openIdara('archive')">
+            <div class="ic-ico">📦</div>
+            <div class="ic-name">الأرشيف</div>
+            <div class="ic-sub">سنوات سابقة · إغلاق السنة</div>
+          </div>
           <div class="idara-card" onclick="openIdara('admins')">
             <div class="ic-ico">👥</div>
             <div class="ic-name">أعضاء الإدارة</div>
@@ -2039,6 +2070,27 @@
         </div>
         <input type="text" class="tath-search" id="radoodSearch" placeholder="🔍 ابحث عن رادود…" oninput="renderRadoods()" />
         <div id="radoodList" class="radood-list"></div>
+      </div>
+    </div>
+
+    <!-- ARCHIVE -->
+    <div id="idara-archive" style="display:none">
+      <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+      <div class="panel">
+        <div class="panel-header"><div><h2 class="panel-title">📦 الأرشيف</h2>
+          <div class="panel-sub" id="archSub">سنوات الهيئة المؤرشفة</div></div></div>
+        <div id="archList"></div>
+      </div>
+      <div class="panel" style="border-color:var(--warn);background:#fdfaf3;">
+        <div class="panel-header"><div><h2 class="panel-title">🗓️ إغلاق السنة الحالية</h2>
+          <div class="panel-sub">يُنفَّذ مرة واحدة في بداية محرم</div></div></div>
+        <div class="note" style="margin-bottom:12px;">
+          يحفظ نسخة كاملة من السنة في الأرشيف، ثم يبدأ سنة جديدة:
+          <b>تُفرَّغ</b> المحاضر والمصروفات وتقييمات الرواديد والاستبيانات والمشاريع،
+          <b>وتبقى</b> الأعضاء والمواقيت وحجوزاتها والرواديد،
+          <b>وتصير كل العضويات غير مفعّلة</b> لتُفعَّل يدوياً عند الدفع.
+        </div>
+        <button class="btn" style="width:100%;background:var(--warn);color:#fff;border:none;" onclick="closeYearWizard()">📦 إغلاق السنة وبدء سنة جديدة</button>
       </div>
     </div>
 

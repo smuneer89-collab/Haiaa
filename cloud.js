@@ -28,6 +28,7 @@ const CLOUD_COLLECTIONS = {
   projects:   () => projects,
   auditLog:   () => auditLog,
   radoodParts:() => radoodParts,
+  archives:   () => archives,
   radoods:    () => radoods,
   radoodEvals:() => radoodEvals
 };
@@ -212,6 +213,7 @@ const CloudSync = (() => {
         case 'projects':    projects=arr;    storage.set('projects',JSON.stringify(arr)); break;
         case 'auditLog':    auditLog=arr;    storage.set('auditLog',JSON.stringify(arr)); break;
         case 'radoodParts': radoodParts=arr; storage.set('radoodParts',JSON.stringify(arr)); break;
+        case 'archives':    archives=arr;    storage.set('archives',JSON.stringify(arr)); break;
         case 'radoods':     radoods=arr;     storage.set('radoods',JSON.stringify(arr)); break;
         case 'radoodEvals': radoodEvals=arr; storage.set('radoodEvals',JSON.stringify(arr)); break;
       }
