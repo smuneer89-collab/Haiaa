@@ -413,7 +413,6 @@ $$('.tab[data-tab]').forEach(t=>{
     $$('.tab-content').forEach(c=>c.style.display='none');
     $('#tab-'+t.dataset.tab).style.display='block';
     if(t.dataset.tab==='dashboard') renderDashboard();
-    if(t.dataset.tab==='stats') renderStats();
     if(t.dataset.tab==='members') renderMembers();
     if(t.dataset.tab==='miqats') renderMiqats();
     if(t.dataset.tab==='meetings') idaraHome();
@@ -3207,6 +3206,21 @@ function renderAuditLog(){
 async function clearAuditLog(){
   if(!confirm('مسح سجل التغييرات بالكامل؟')) return;
   auditLog=[]; await saveAuditLog(); renderAuditLog(); toast('مُسح السجل');
+}
+/* حماية قسم السحابة برقم سري */
+let cloudUnlocked=false;
+function guardCloudSection(acc){
+  const body=document.getElementById('cloudBody');
+  if(!acc.open){ if(body) body.style.display='none'; return; }
+  if(cloudUnlocked){ if(body) body.style.display='block'; return; }
+  const code=prompt('🔐 السحابة والمزامنة — أدخل الرقم السري:');
+  if(code===null || code.trim()!=='4827'){
+    if(code!==null) toast('رقم سري غير صحيح');
+    acc.open=false; if(body) body.style.display='none'; return;
+  }
+  cloudUnlocked=true;
+  if(body) body.style.display='block';
+  logAudit('دخول','السحابة','فُتح قسم السحابة والمزامنة');
 }
 function renderBackupStatus(){
   const box=document.getElementById('backupWarnBox'); if(!box) return;
