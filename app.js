@@ -3207,20 +3207,24 @@ async function clearAuditLog(){
   if(!confirm('مسح سجل التغييرات بالكامل؟')) return;
   auditLog=[]; await saveAuditLog(); renderAuditLog(); toast('مُسح السجل');
 }
-/* حماية قسم السحابة برقم سري */
+/* حماية قسم السحابة برقم سري — اعتراض الضغط قبل الفتح */
 let cloudUnlocked=false;
-function guardCloudSection(acc){
-  const body=document.getElementById('cloudBody');
-  if(!acc.open){ if(body) body.style.display='none'; return; }
-  if(cloudUnlocked){ if(body) body.style.display='block'; return; }
+function guardCloudClick(ev){
+  const acc=document.getElementById('cloudAcc');
+  if(!acc) return true;
+  // إذا كان مفتوحاً: اسمح بالإغلاق بلا سؤال
+  if(acc.open) return true;
+  // مفتوح مسبقاً في هذه الجلسة؟ اسمح
+  if(cloudUnlocked) return true;
+  // امنع الفتح واسأل
+  ev.preventDefault(); ev.stopPropagation();
   const code=prompt('🔐 السحابة والمزامنة — أدخل الرقم السري:');
-  if(code===null || code.trim()!=='4827'){
-    if(code!==null) toast('رقم سري غير صحيح');
-    acc.open=false; if(body) body.style.display='none'; return;
-  }
+  if(code===null) return false;
+  if(code.trim()!=='4827'){ toast('رقم سري غير صحيح'); return false; }
   cloudUnlocked=true;
-  if(body) body.style.display='block';
-  logAudit('دخول','السحابة','فُتح قسم السحابة والمزامنة');
+  acc.open=true;
+  try{ logAudit('دخول','السحابة','فُتح قسم السحابة والمزامنة'); }catch(e){}
+  return false;
 }
 function renderBackupStatus(){
   const box=document.getElementById('backupWarnBox'); if(!box) return;

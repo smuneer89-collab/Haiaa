@@ -2213,9 +2213,9 @@
     </details>
 
     <!-- ⑥ السحابة — بالأسفل -->
-    <details class="set-acc cloud-acc" id="cloudAcc" ontoggle="guardCloudSection(this)">
-      <summary class="set-sum"><span class="ss-ic">🔐</span><span class="ss-txt"><b>السحابة والمزامنة</b><small>محمية برقم سري — للمسؤول فقط</small></span><span class="cloud-status offline" id="cloudStatus">غير متصل</span><span class="ss-arrow">›</span></summary>
-      <div class="set-body" id="cloudBody" style="display:none">
+    <details class="set-acc cloud-acc" id="cloudAcc">
+      <summary class="set-sum" onclick="return guardCloudClick(event)"><span class="ss-ic">🔐</span><span class="ss-txt"><b>السحابة والمزامنة</b><small>محمية برقم سري — للمسؤول فقط</small></span><span class="cloud-status offline" id="cloudStatus">غير متصل</span><span class="ss-arrow">›</span></summary>
+      <div class="set-body" id="cloudBody">
         <div class="rcpt-agreed">الحساب الحالي: <b id="cloudUser">—</b></div>
         <div class="actions-row">
           <button class="btn btn-primary btn-sm" id="uploadLocalBtn" onclick="CloudSync.uploadLocal()">⬆️ رفع بيانات هذا الجهاز (آمن)</button>
