@@ -3209,6 +3209,7 @@ async function clearAuditLog(){
 }
 /* حماية قسم السحابة برقم سري — اعتراض الضغط قبل الفتح */
 let cloudUnlocked=false;
+let archiveUnlocked=false;   // قفل الأرشيف بالرقم السري
 function guardCloudClick(ev){
   const acc=document.getElementById('cloudAcc');
   if(!acc) return true;
@@ -3535,7 +3536,16 @@ function openIdara(which){
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); }
-  else if(which==='archive'){ idaraShow('archive'); renderArchive(); }
+  else if(which==='archive'){
+    if(!archiveUnlocked){
+      const code=prompt('🔐 الأرشيف — أدخل الرقم السري:');
+      if(code===null) return;
+      if(code.trim()!=='4827'){ toast('رقم سري غير صحيح'); return; }
+      archiveUnlocked=true;
+      try{ logAudit('دخول','الأرشيف','فُتح قسم الأرشيف'); }catch(e){}
+    }
+    idaraShow('archive'); renderArchive();
+  }
   else if(which==='aza'){ idaraShow('aza'); renderRadoods(); markAzaSeen(); checkNewAzaSubmissions().then(()=>renderRadoods()); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
