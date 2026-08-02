@@ -937,6 +937,111 @@ async function closeYearWizard(){
   renderArchive(); renderDashboard(); renderMembers(); fillSettings();
 }
 
+
+/* ═══════════ مكتبة الصور من Google Drive ═══════════ */
+const GD_API_KEY = 'AIzaSyDEmgbVxhtW7Bb7sWnjA88sq0ZidIKrqQU';
+const GD_ROOT_FOLDER = '1zNOLTMmQqWJ_kheUHZpvJAWCLXGnyo-C';
+const GD_CAT_ICONS = { 'الخطباء':'🕌', 'الرواديد':'🎤', 'قارئي القرآن الكريم':'📖', 'عريفي الحفل':'🎙️', 'الشعراء':'✍️' };
+let gdCache = { cats:null, people:{}, photos:{} };
+
+/* استدعاء Drive API */
+async function gdFetch(query, fields){
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&key=${GD_API_KEY}`
+    + `&fields=${encodeURIComponent(fields||'files(id,name,mimeType,thumbnailLink,webViewLink)')}`
+    + `&orderBy=name&pageSize=200&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+  const res = await fetch(url);
+  if(!res.ok){
+    let msg = 'خطأ '+res.status;
+    try{ const j=await res.json(); if(j.error && j.error.message) msg = j.error.message; }catch(e){}
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data.files || [];
+}
+
+/* الفئات (المجلدات داخل الجذر) */
+async function renderGdCats(){
+  const host=$('#gdCats'); if(!host) return;
+  host.innerHTML='<div class="gd-loading" style="grid-column:1/-1"><div class="gd-spin"></div>جارٍ تحميل الفئات…</div>';
+  try{
+    const cats = gdCache.cats || await gdFetch(`'${GD_ROOT_FOLDER}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,'files(id,name)');
+    gdCache.cats = cats;
+    if(!cats.length){ host.innerHTML='<div class="gd-empty" style="grid-column:1/-1">لا توجد مجلدات في الدرايف بعد.</div>'; return; }
+    host.innerHTML = cats.map(c=>`
+      <div class="gd-cat" onclick="openGdCat('${c.id}','${escapeHtml(c.name)}')">
+        <div class="gc-ic">${GD_CAT_ICONS[c.name]||'📁'}</div>
+        <div class="gc-name">${escapeHtml(c.name)}</div>
+        <div class="gc-sub">اضغط للعرض</div>
+      </div>`).join('');
+  }catch(e){
+    console.error('gd cats', e);
+    host.innerHTML=`<div class="gd-err" style="grid-column:1/-1">تعذّر الاتصال بـ Google Drive.<br><span style="font-size:11.5px;color:var(--muted)">${escapeHtml(e.message||'')}</span></div>`;
+  }
+}
+
+/* قائمة الأشخاص داخل فئة */
+let gdCurrentCat=null;
+function openGdCat(id, name){
+  gdCurrentCat={id,name};
+  renderGdList(); openFullPage('gdlist');
+}
+function closeGdList(){ switchTab('meetings'); openIdara('media'); }
+async function renderGdList(){
+  const c=gdCurrentCat; if(!c) return;
+  const host=$('#gdListBody');
+  host.innerHTML=`<div class="panel" style="padding:0;overflow:hidden;">
+    <div class="gd-head"><div class="gh-title">${GD_CAT_ICONS[c.name]||'📁'} ${escapeHtml(c.name)}</div>
+      <div class="gh-sub">اختر الاسم لعرض صوره</div></div>
+    <div style="padding:14px;" id="gdListInner"><div class="gd-loading"><div class="gd-spin"></div>جارٍ التحميل…</div></div>
+  </div>`;
+  const inner=$('#gdListInner');
+  try{
+    const people = gdCache.people[c.id] || await gdFetch(`'${c.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,'files(id,name)');
+    gdCache.people[c.id]=people;
+    if(!people.length){ inner.innerHTML='<div class="gd-empty">لا توجد مجلدات داخل هذه الفئة.<br><span style="font-size:12px">أضف مجلداً باسم الشخص في الدرايف.</span></div>'; return; }
+    inner.innerHTML = people.map(p=>`
+      <div class="gd-person" onclick="openGdPhotos('${p.id}','${escapeHtml(p.name)}')">
+        <div class="gp-name">${escapeHtml(p.name)}</div>
+        <div class="gp-arrow">›</div>
+      </div>`).join('');
+  }catch(e){ inner.innerHTML=`<div class="gd-err">تعذّر التحميل.<br><span style="font-size:11.5px">${escapeHtml(e.message||'')}</span></div>`; }
+}
+
+/* معرض صور الشخص */
+let gdCurrentPerson=null;
+function openGdPhotos(id,name){
+  gdCurrentPerson={id,name};
+  renderGdPhotos(); openFullPage('gdphotos');
+}
+function closeGdPhotos(){ switchTab('meetings'); openIdara('media'); setTimeout(()=>{ if(gdCurrentCat){ renderGdList(); openFullPage('gdlist'); } },80); }
+async function renderGdPhotos(){
+  const p=gdCurrentPerson; if(!p) return;
+  const host=$('#gdPhotosBody');
+  host.innerHTML=`<div class="panel" style="padding:0;overflow:hidden;">
+    <div class="gd-head"><div class="gh-title">${escapeHtml(p.name)}</div>
+      <div class="gh-sub">اضغط الصورة لفتحها في Google Drive بحجمها الكامل</div></div>
+    <div id="gdPhotosInner"><div class="gd-loading"><div class="gd-spin"></div>جارٍ تحميل الصور…</div></div>
+    <div style="padding:0 14px 16px;text-align:center;">
+      <a class="btn btn-ghost btn-sm" href="https://drive.google.com/drive/folders/${p.id}" target="_blank">📂 فتح المجلد في Drive</a>
+    </div>
+  </div>`;
+  const inner=$('#gdPhotosInner');
+  try{
+    const files = gdCache.photos[p.id] || await gdFetch(`'${p.id}' in parents and mimeType contains 'image/' and trashed=false`,'files(id,name,thumbnailLink,webViewLink)');
+    gdCache.photos[p.id]=files;
+    if(!files.length){ inner.innerHTML='<div class="gd-empty">لا توجد صور في هذا المجلد بعد.</div>'; return; }
+    inner.innerHTML=`<div class="gd-grid">${files.map(f=>{
+      const thumb = f.thumbnailLink ? f.thumbnailLink.replace(/=s\d+$/,'=s400') : `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`;
+      const link = f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`;
+      return `<div class="gd-thumb" onclick="window.open('${link}','_blank')">
+        <img src="${thumb}" alt="${escapeHtml(f.name)}" loading="lazy"
+             onerror="this.src='https://drive.google.com/thumbnail?id=${f.id}&sz=w400'" />
+        <div class="gt-open">فتح في Drive</div>
+      </div>`;
+    }).join('')}</div>`;
+  }catch(e){ inner.innerHTML=`<div class="gd-err">تعذّر تحميل الصور.<br><span style="font-size:11.5px">${escapeHtml(e.message||'')}</span></div>`; }
+}
+
 /* ═══════════ لوحة الإحصائيات ═══════════ */
 function renderStats(){
   const host=$('#statsBody'); if(!host) return;
@@ -3535,7 +3640,7 @@ function openIdara(which){
   if(which==='sec'){ idaraShow('sec'); renderMeetings(); fillAnnualYears(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
-  else if(which==='media'){ idaraShow('media'); renderAlbum(); }
+  else if(which==='media'){ idaraShow('media'); renderAlbum(); renderGdCats(); }
   else if(which==='archive'){
     if(!archiveUnlocked){
       const code=prompt('🔐 الأرشيف — أدخل الرقم السري:');
