@@ -272,6 +272,9 @@
   .backup-warn { background:var(--warn-soft); border:1px solid #e0b088; border-radius:10px; padding:11px 14px; font-size:13px; color:#8a5a2a; font-weight:600; margin-bottom:12px; }
   .backup-ok { background:var(--ok-soft); border:1px solid var(--ok); border-radius:10px; padding:11px 14px; font-size:12.5px; color:var(--ok); margin-bottom:12px; }
   .bk-when { font-size:12px; opacity:.85; margin-top:5px; padding-right:23px; font-variant-numeric:lining-nums; direction:rtl; }
+  /* وميض العنصر عند الرجوع للقائمة */
+  @keyframes rowFlash { 0%{ box-shadow:0 0 0 0 rgba(193,154,62,.55); } 100%{ box-shadow:0 0 0 12px rgba(193,154,62,0); } }
+  .row-flash { animation:rowFlash 1.2s ease-out; border-color:var(--gold) !important; }
   /* سجل التغييرات */
   .audit-filters { display:flex; gap:8px; margin-bottom:12px; }
   .audit-filters select, .audit-filters input { flex:1; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-family:var(--font-sans); font-size:13px; background:var(--surface); }

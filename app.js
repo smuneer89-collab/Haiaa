@@ -470,8 +470,8 @@ $$('.tab[data-tab]').forEach(t=>{
     $$('.tab-content').forEach(c=>c.style.display='none');
     $('#tab-'+t.dataset.tab).style.display='block';
     if(t.dataset.tab==='dashboard') renderDashboard();
-    if(t.dataset.tab==='members') renderMembers();
-    if(t.dataset.tab==='miqats') renderMiqats();
+    if(t.dataset.tab==='members'){ renderMembers(); restoreListPos('members'); }
+    if(t.dataset.tab==='miqats'){ renderMiqats(); restoreListPos('miqats'); }
     if(t.dataset.tab==='meetings') idaraHome();
     if(t.dataset.tab==='settings') fillSettings();
     window.scrollTo({top:0,behavior:'smooth'});
@@ -491,6 +491,33 @@ function openNotifications(){
 
 let currentMemberPageId=null, currentMiqatPageId=null;
 /* فتح صفحة تبويب كاملة (بلا زر في الشريط) */
+/* ═══ حفظ موضع القائمة عند فتح ملف والرجوع إليه ═══ */
+const listMemory = { members:null, miqats:null };
+function rememberListPos(tab, id){
+  listMemory[tab] = { id, y: window.scrollY || document.documentElement.scrollTop || 0 };
+}
+function restoreListPos(tab){
+  const m = listMemory[tab]; if(!m) return;
+  const tryScroll=(attempt)=>{
+    // أولوية: التمرير لبطاقة العنصر نفسه
+    const el = document.querySelector(`[data-row-id="${m.id}"]`);
+    if(el){
+      const r = el.getBoundingClientRect();
+      const top = r.top + window.scrollY - (window.innerHeight/2 - r.height/2);
+      window.scrollTo({ top: Math.max(0, top), behavior:'auto' });
+      el.classList.add('row-flash');
+      setTimeout(()=>el.classList.remove('row-flash'), 1400);
+      return true;
+    }
+    // بديل: استعادة موضع التمرير المحفوظ
+    if(m.y > 0){ window.scrollTo({ top:m.y, behavior:'auto' }); return true; }
+    return false;
+  };
+  // حاول عدة مرات (القائمة قد تُرسم بعد لحظة)
+  let n=0;
+  const t=setInterval(()=>{ n++; if(tryScroll(n) || n>=8) clearInterval(t); }, 60);
+}
+
 function openFullPage(name){
   $$('.tab[data-tab]').forEach(x=>x.classList.remove('active'));
   $$('.tab-content').forEach(c=>c.style.display='none');
@@ -2048,6 +2075,7 @@ function showMiqatDetail(id){
       <button class="btn btn-ghost" onclick="openMiqatModal('${mq.id}')">تعديل الميقات</button>
       <button class="btn btn-danger btn-sm" onclick="deleteMiqat('${mq.id}')">حذف الميقات</button>
     </div>`;
+  rememberListPos('miqats', id);
   currentMiqatPageId=id; openFullPage('miqatpage');
 }
 
@@ -2063,7 +2091,7 @@ function showNewsDetail(id){
 /* ═══════════ Members ═══════════ */
 function memberRowHTML(m){
   const status=isActive(m)?'active':'inactive';
-  return `<div class="member-row compact ${status}" onclick="showDetail('${m.id}')">
+  return `<div class="member-row compact ${status}" data-row-id="${m.id}" onclick="showDetail('${m.id}')">
     <div class="name">${escapeHtml(m.name)}</div>
     <span class="mr-caret">‹</span>
   </div>`;
@@ -2402,6 +2430,7 @@ function showDetail(id){
       <button class="btn btn-ghost btn-sm" onclick="toggleAdmin('${m.id}')">${m.isAdmin?'إزالة من الإدارة':'تعيين كإداري'}</button>
       <button class="btn btn-danger btn-sm" onclick="deleteMember('${m.id}')">حذف</button>
     </div>`;
+  rememberListPos('members', id);
   currentMemberPageId=id; openFullPage('memberpage');
 }
 
@@ -3042,7 +3071,7 @@ function renderMiqats(){
           <button class="btn btn-danger btn-sm" onclick="deleteMiqat('${mq.id}')">حذف</button>
         </div>
       </div>` : '';
-    return `<div class="miqat-card st-${st}">
+    return `<div class="miqat-card st-${st}" data-row-id="${mq.id}">
       <div class="mc-row" onclick="showMiqatDetail('${mq.id}')">
         <span class="mc-name">${escapeHtml(mq.name)}</span>
         <span class="mc-right">
