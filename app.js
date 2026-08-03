@@ -106,6 +106,7 @@ let reminders = []; // تذكيرات التقويم: {id, title, note, day, mon
 let financeLog = []; // سجل دخول اللجنة المالية: {id, email, at}
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
+let revenues = []; // إيرادات المواقيت: {id, kind:'vow'|'donation', miqatId, name, amount, note, date, at}
 let archives = []; // أرشيف السنوات
 let radoodParts = []; // مشاركات مسجّلة يدوياً: {id, radoodId, miqatId, miqatName, note, at}
 let auditLog = []; // سجل التغييرات: {id, at, who, act, cat, what}
@@ -220,6 +221,7 @@ async function loadData(){
   try { const al=await storage.get('auditLog'); if(al) auditLog=JSON.parse(al); } catch(e){ auditLog=[]; }
   try { const rp=await storage.get('radoodParts'); if(rp) radoodParts=JSON.parse(rp); } catch(e){ radoodParts=[]; }
   try { const ar=await storage.get('archives'); if(ar) archives=JSON.parse(ar); } catch(e){ archives=[]; }
+  try { const rv=await storage.get('revenues'); if(rv) revenues=JSON.parse(rv); } catch(e){ revenues=[]; }
   try { const gi=await storage.get('gdIndexCache'); if(gi) gdIndex=JSON.parse(gi); } catch(e){}
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
@@ -238,6 +240,7 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveRevenues(){ try{ await storage.set('revenues',JSON.stringify(revenues)); }catch(e){} cloudPush('revenues',revenues); }
 async function saveArchives(){ try{ await storage.set('archives',JSON.stringify(archives)); }catch(e){} cloudPush('archives',archives); }
 async function saveRadoodParts(){ try{ await storage.set('radoodParts',JSON.stringify(radoodParts)); }catch(e){} cloudPush('radoodParts',radoodParts); }
 async function saveAuditLog(){ try{ await storage.set('auditLog',JSON.stringify(auditLog)); }catch(e){} cloudPush('auditLog',auditLog); }
@@ -994,7 +997,8 @@ async function closeYearWizard(){
     projects:JSON.parse(JSON.stringify(projects)),
     assemblies:JSON.parse(JSON.stringify(assemblies||[])),
     paidThawab:JSON.parse(JSON.stringify(paidThawab||[])),
-    photos:JSON.parse(JSON.stringify(photos||[]))   // ألبوم اللجنة الإعلامية (مكتبة Drive لا تُؤرشف — تبقى مكانها)
+    photos:JSON.parse(JSON.stringify(photos||[])),
+    revenues:JSON.parse(JSON.stringify(revenues||[]))   // ألبوم اللجنة الإعلامية (مكتبة Drive لا تُؤرشف — تبقى مكانها)
   };
   archives=archives.filter(a=>a.year!==curY);
   archives.push(snap);
@@ -1008,7 +1012,8 @@ async function closeYearWizard(){
   projects=[]; await saveProjects();
   assemblies=[]; await saveAssemblies();
   paidThawab=[]; await savePaidThawab();
-  photos=[]; await savePhotos();   // ينتقل الألبوم للأرشيف · مكتبة Drive تبقى
+  photos=[]; await savePhotos();
+  revenues=[]; await saveRevenues();   // ينتقل الألبوم للأرشيف · مكتبة Drive تبقى
   finance={ ...finance, total:openingBalance, expenses:[] };
   await saveFinance();
   financeLog=[]; try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){}
@@ -3569,7 +3574,7 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects, auditLog, radoodParts, archives
+    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -3610,10 +3615,11 @@ async function backupImport(e){
     if(Array.isArray(backup.auditLog)) auditLog=backup.auditLog;
     if(Array.isArray(backup.radoodParts)) radoodParts=backup.radoodParts;
     if(Array.isArray(backup.archives)) archives=backup.archives;
+    if(Array.isArray(backup.revenues)) revenues=backup.revenues;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
-    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives();
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
@@ -5018,7 +5024,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','revenue','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
+const FIN_PAGES=['home','revenue','revMiqat','revEntry','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -5044,6 +5050,8 @@ function renderFinancePage(page, opts){
   opts=opts||{};
   if(page==='home') host.innerHTML=finHomeHTML();
   else if(page==='revenue') host.innerHTML=finRevenueHTML();
+  else if(page==='revMiqat') host.innerHTML=finRevMiqatHTML(opts);
+  else if(page==='revEntry') host.innerHTML=finRevEntryHTML(opts);
   else if(page==='expenses') host.innerHTML=finExpensesHTML();
   else if(page==='expMiqat') host.innerHTML=finExpMiqatHTML();
   else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
@@ -5122,6 +5130,8 @@ function finRevenueHTML(){
   <div class="fin-grid">
     ${btns.map(([t,k])=> k==='tathwib'
       ? `<button class="fin-cell" onclick="openFinancePage('tathwib')">${t}</button>`
+      : (k==='vows' || k==='donations')
+      ? `<button class="fin-cell" onclick="openFinancePage('revMiqat',{kind:'${k==='vows'?'vow':'donation'}'})">${t}</button>`
       : `<button class="fin-cell" onclick="openFinancePage('soon',{title:'${t}'})">${t}</button>`).join('')}
   </div>`;
 }
@@ -5130,6 +5140,143 @@ async function editYearStart(){
   if(v===null) return;
   const num=parseFloat(v); if(isNaN(num)){ toast('أدخل رقماً صحيحاً'); return; }
   finance.yearStart=num; await saveFinance(); renderFinancePage('revenue',{}); toast('تم التحديث');
+}
+
+
+/* ═══════════ إيرادات المواقيت: النذور والتبرعات ═══════════ */
+const REV_KINDS = { vow:{ label:'النذور', person:'اسم صاحب النذر', ico:'gift' },
+                    donation:{ label:'التبرعات', person:'اسم المتبرّع', ico:'money' } };
+
+/* اختيار الميقات */
+function finRevMiqatHTML(opts){
+  const kind=opts.kind||'vow';
+  const K=REV_KINDS[kind];
+  const sorted=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  return `
+  <div class="fin-ctx">${K.label} — اختر الميقات</div>
+  <div class="fin-field">
+    <label>الميقات</label>
+    <select id="revMiqatSel" onchange="finRevGo('${kind}')">
+      <option value="">— اختر ميقاتاً —</option>
+      ${sorted.map(mq=>{
+        const t=revMiqatTotal(mq.id, kind);
+        return `<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})${t?` — ${finMoney(t)}`:''}</option>`;
+      }).join('')}
+    </select>
+  </div>
+  <div class="fin-hint">اختر الميقات لتسجيل ${K.label} الخاصة به</div>`;
+}
+function finRevGo(kind){
+  const miqatId=$('#revMiqatSel').value; if(!miqatId) return;
+  openFinancePage('revEntry',{kind,miqatId});
+}
+
+/* صفحة إدخال النذور/التبرعات */
+function finRevEntryHTML(opts){
+  const kind=opts.kind||'vow', K=REV_KINDS[kind];
+  const mq=miqats.find(x=>x.id===opts.miqatId);
+  const rows=revenues.filter(r=>r.miqatId===opts.miqatId && r.kind===kind)
+    .sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const total=rows.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  return `
+  <div class="fin-ctx">${escapeHtml(mq?mq.name:'')} — ${K.label}</div>
+  <div class="fin-add-exp">
+    <div class="fin-field"><label>${K.person}</label>
+      <input id="revName" type="text" placeholder="${K.person}" /></div>
+    <div class="fin-field"><label>المبلغ (د.ب)</label>
+      <input id="revAmount" type="number" min="0" step="0.001" placeholder="0.000" /></div>
+    <div class="fin-field"><label>التاريخ</label>
+      <input id="revDate" type="date" value="${today()}" /></div>
+    <div class="fin-field"><label>ملاحظة <span class="opt">اختياري</span></label>
+      <input id="revNote" type="text" placeholder="ملاحظة" /></div>
+    <button class="btn btn-primary" onclick="addRevenue('${kind}','${opts.miqatId}')">${icon('plus',17,'ico-btn')} إضافة</button>
+  </div>
+  <div class="fin-exp-list">
+    <div class="fel-head"><span>${K.label} المسجّلة</span><b>الإجمالي: ${finMoney(total)}</b></div>
+    ${rows.length?rows.map(r=>`<div class="fel-item">
+      <div><div class="fel-type">${escapeHtml(r.name||'—')}</div>
+        <div class="fel-meta">${r.date?fmtDate(r.date):''}${r.note?' · '+escapeHtml(r.note):''}</div></div>
+      <div class="fel-cost">${finMoney(r.amount)}<button class="fel-del" onclick="deleteRevenue('${r.id}')">×</button></div>
+    </div>`).join(''):`<div class="fel-empty">لا توجد ${K.label} بعد</div>`}
+  </div>`;
+}
+async function addRevenue(kind, miqatId){
+  const name=$('#revName').value.trim();
+  const amount=parseFloat($('#revAmount').value);
+  if(!name){ toast('أدخل الاسم'); return; }
+  if(isNaN(amount)||amount<=0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  revenues.push({ id:'rv_'+Date.now(), kind, miqatId, name,
+    amount, note:$('#revNote').value.trim(), date:$('#revDate').value||today(), at:new Date().toISOString() });
+  await saveRevenues();
+  const mq=miqats.find(x=>x.id===miqatId);
+  logAudit('إضافة','المالية',`${REV_KINDS[kind].label}: ${name} بمبلغ ${finMoney(amount)} — ${mq?mq.name:''}`);
+  toast('تمت الإضافة');
+  renderFinancePage('revEntry',{kind,miqatId});
+}
+async function deleteRevenue(id){
+  const r=revenues.find(x=>x.id===id); if(!r) return;
+  if(!confirm(`حذف «${r.name}» بمبلغ ${finMoney(r.amount)}؟`)) return;
+  revenues=revenues.filter(x=>x.id!==id);
+  await saveRevenues();
+  logAudit('حذف','المالية',`${REV_KINDS[r.kind].label}: ${r.name}`);
+  const cur=finNav[finNav.length-1];
+  renderFinancePage(cur.page, cur.opts);
+}
+
+/* ═══ فترة تسجيل المصروفات ═══ */
+function miqatExpPeriod(miqatId, kind, mood){
+  const rows=(finance.expenses||[]).filter(e=>e.miqatId===miqatId && e.kind===kind && e.mood===mood);
+  if(!rows.length) return { first:'', last:'' };
+  const ats=rows.map(e=>e.at||'').filter(Boolean).sort();
+  const toDate=(iso)=>iso?iso.slice(0,10):'';
+  return { first: toDate(ats[0]), last: toDate(ats[ats.length-1]) };
+}
+function miqatCloseKey(miqatId, kind, mood){ return `${miqatId}|${kind}|${mood}`; }
+function isMiqatClosed(miqatId, kind, mood){
+  finance.closedMiqats = finance.closedMiqats || {};
+  return finance.closedMiqats[miqatCloseKey(miqatId,kind,mood)] || '';
+}
+async function toggleMiqatClosed(opts){
+  finance.closedMiqats = finance.closedMiqats || {};
+  const key=miqatCloseKey(opts.miqatId, opts.kind, opts.mood);
+  const mq=miqats.find(x=>x.id===opts.miqatId);
+  if(finance.closedMiqats[key]){
+    if(!confirm('إلغاء إنهاء المناسبة؟')) return;
+    delete finance.closedMiqats[key];
+    logAudit('تعديل','المالية',`أُلغي إنهاء مناسبة «${mq?mq.name:''}»`);
+    toast('أُلغي الإنهاء');
+  } else {
+    if(!confirm(`تسجيل انتهاء المناسبة اليوم؟\n\nيبقى بإمكانك تعديل المصروفات بعدها.`)) return;
+    finance.closedMiqats[key]=today();
+    logAudit('تعديل','المالية',`انتهت مناسبة «${mq?mq.name:''}»`);
+    toast('سُجّل انتهاء المناسبة');
+  }
+  await saveFinance();
+  renderFinancePage('expEntry', opts);
+}
+
+/* ═══ حساب إيرادات الميقات ═══ */
+function revMiqatTotal(miqatId, kind){
+  return revenues.filter(r=>r.miqatId===miqatId && (!kind || r.kind===kind))
+    .reduce((s,r)=>s+(Number(r.amount)||0),0);
+}
+/* المستلم من مساهمات الأعضاء (هذا وحده يحدّد حالة الميقات) */
+function miqatMembersReceived(miqatId){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return 0;
+  return (mq.bookings||[]).reduce((s,b)=>s+bookingPaid(b),0);
+}
+/* التثويبات المدفوعة للميقات */
+function miqatThawabTotal(miqatId){
+  return (paidThawab||[]).filter(t=>t.miqatId===miqatId)
+    .reduce((s,t)=>s+(Number(t.amount)||0),0);
+}
+/* تفصيل كل الإيرادات */
+function miqatRevenueBreakdown(miqatId){
+  const members = miqatMembersReceived(miqatId);
+  const vows = revMiqatTotal(miqatId,'vow');
+  const donations = revMiqatTotal(miqatId,'donation');
+  const thawab = miqatThawabTotal(miqatId);
+  return { members, vows, donations, thawab, total: members+vows+donations+thawab };
 }
 
 /* صفحة المصروفات */
@@ -5206,8 +5353,37 @@ function finExpEntryHTML(opts){
   const rows=(finance.expenses||[]).filter(e=>e.miqatId===opts.miqatId && e.kind===opts.kind && e.mood===opts.mood)
     .sort((a,b)=>(b.at||'').localeCompare(a.at||''));
   const total=rows.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  const rev = miqatRevenueBreakdown(opts.miqatId);
+  const period = miqatExpPeriod(opts.miqatId, opts.kind, opts.mood);
+  const closed = isMiqatClosed(opts.miqatId, opts.kind, opts.mood);
   return `
   <div class="fin-ctx">${mq?escapeHtml(mq.name):''} · ${kindLbl}</div>
+
+  <div class="rev-box">
+    <div class="rev-head">
+      <span>${icon('wallet',17,'ico-btn')} إيرادات هذا الميقات</span>
+      <b>${finMoney(rev.total)}</b>
+    </div>
+    <div class="rev-rows">
+      <div class="rev-r"><span>مساهمات الأعضاء المستلمة</span><b>${finMoney(rev.members)}</b></div>
+      <div class="rev-r"><span>النذور</span><b>${finMoney(rev.vows)}</b></div>
+      <div class="rev-r"><span>التبرعات</span><b>${finMoney(rev.donations)}</b></div>
+      <div class="rev-r"><span>التثويبات المدفوعة</span><b>${finMoney(rev.thawab)}</b></div>
+    </div>
+    <div class="rev-net ${rev.total-total>=0?'pos':'neg'}">
+      <span>الصافي بعد المصروفات</span><b>${finMoney(rev.total-total)}</b>
+    </div>
+  </div>
+
+  <div class="exp-period">
+    ${period.first?`<span>${icon('calendar',15,'ico-btn')} بدأ التسجيل: <b>${fmtDate(period.first)}</b></span>`:'<span class="dim">لم يبدأ التسجيل بعد</span>'}
+    ${closed?`<span>${icon('check',15,'ico-btn')} انتهت المناسبة: <b>${fmtDate(closed)}</b></span>`:''}
+    <button class="btn btn-sm ${closed?'btn-ghost':''}" style="${closed?'':'background:var(--warn);color:#fff;border:none;'}"
+      onclick='toggleMiqatClosed(${JSON.stringify(opts)})'>
+      ${closed?'↺ إلغاء الإنهاء':icon('check',15,'ico-btn')+' انتهت المناسبة'}
+    </button>
+  </div>
+
   <div class="fin-add-exp">
     <div class="fin-field"><label>نوع المصروف</label>
       <select id="expType" onchange="expTypeChange()">
@@ -5290,8 +5466,22 @@ function printMiqatExpenseReport(opts){
   if(topType) insights.push(`أعلى بند إنفاق هو «${topType[0]}» بمبلغ ${finMoney(topType[1])}، أي ما نسبته ${Math.round(topType[1]/total*100)}% من إجمالي المصروفات.`);
   insights.push(`بلغ عدد بنود الصرف ${rows.length} بنداً، بمتوسط ${finMoney(avgPerItem)} للبند الواحد.`);
   if(typeArr.length>=3) insights.push(`توزّعت المصروفات على ${typeArr.length} أنواع مختلفة، مما يعكس تنوّع احتياجات المناسبة.`);
-  const dates=rows.map(e=>e.date).filter(Boolean).sort();
-  if(dates.length){ insights.push(`امتدّ الصرف من ${fmtDate(dates[0])} إلى ${fmtDate(dates[dates.length-1])}.`); }
+  const period=miqatExpPeriod(opts.miqatId, opts.kind, opts.mood);
+  const closedOn=isMiqatClosed(opts.miqatId, opts.kind, opts.mood);
+  if(period.first){
+    insights.push(closedOn
+      ? `بدأ تسجيل المصروفات في ${fmtDate(period.first)} وانتهت المناسبة في ${fmtDate(closedOn)}.`
+      : `بدأ تسجيل المصروفات في ${fmtDate(period.first)}، وآخر تعديل في ${fmtDate(period.last)} (المناسبة لم تُنهَ بعد).`);
+  }
+  // الإيرادات
+  const rev = miqatRevenueBreakdown(opts.miqatId);
+  const net = rev.total - total;
+  if(rev.total>0){
+    insights.push(`بلغت إيرادات هذا الميقات ${finMoney(rev.total)}، منها ${finMoney(rev.members)} من مساهمات الأعضاء.`);
+    insights.push(net>=0
+      ? `الصافي بعد المصروفات: ${finMoney(net)} لصالح الهيئة.`
+      : `تجاوزت المصروفات الإيرادات بمقدار ${finMoney(Math.abs(net))}.`);
+  }
 
   // الميقات مخزّن بالهجري (day/month هجريان). نحسب السنة الهجرية والميلادي المقابل.
   const hYear = (typeof miqatTargetHijriYear==='function') ? miqatTargetHijriYear(mq) : (parseInt(hijriParts().year,10)||1448);
@@ -5318,6 +5508,15 @@ function printMiqatExpenseReport(opts){
   table{width:100%;border-collapse:collapse;font-size:13.5px;}th,td{border:1px solid #e6ddcb;padding:8px 11px;text-align:right;}th{background:#1c4536;color:#fff;}
   tr:nth-child(even){background:#faf7f0;}
   .sum-row td{background:#e6f0ea;font-weight:800;color:#1c4536;}
+  .period-bar{display:flex;flex-wrap:wrap;gap:18px;background:#f6f2ea;border:1px solid #e6ddcb;border-radius:10px;padding:11px 15px;margin-bottom:14px;font-size:13px;color:#5a5148;}
+  .period-bar b{color:#1c4536;} .period-bar i{color:#8a7c6b;font-style:normal;font-size:12px;}
+  .sum3{display:flex;gap:11px;margin-bottom:18px;}
+  .s3{flex:1;text-align:center;border-radius:13px;padding:16px 10px;border:1px solid #e6ddcb;}
+  .s3 .v{font-size:20px;font-weight:800;} .s3 .l{font-size:11.5px;color:#8a7c6b;margin-top:4px;}
+  .s3.inc{background:#e9f4ed;} .s3.inc .v{color:#2f8f5b;}
+  .s3.exp{background:#fbf0e6;} .s3.exp .v{color:#b5763a;}
+  .s3.net-p{background:#e6f0ea;} .s3.net-p .v{color:#1c4536;}
+  .s3.net-n{background:#f9ecec;} .s3.net-n .v{color:#b85c5c;}
   .insights{background:#fbf6ea;border:1px solid #e5d5a8;border-radius:12px;padding:16px;margin:14px 0;}
   .insights h3{font-size:14px;color:#7a5c1e;margin-bottom:8px;}
   .insights li{margin:6px 0;font-size:13.5px;line-height:1.8;}
@@ -5329,14 +5528,39 @@ function printMiqatExpenseReport(opts){
     <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
   </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
-    <div class="doc-title">تقرير مصروفات المناسبة</div>
+    <div class="doc-title">تقرير المناسبة المالي</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
   <div class="mq-banner">
     <div class="mq-name">${escapeHtml(mq?mq.name:'')}</div>
     <div class="mq-kind">${kindLbl}</div>
     <div class="mq-dates">🌙 التاريخ الهجري: ${hijriDateStr}<br>📅 الموافق ميلادياً: ${gregDateStr}</div>
   </div>
-  <div class="total-card"><div class="v">${finMoney(total)}</div><div class="l">إجمالي مصروفات المناسبة</div></div>
+  <div class="period-bar">
+    ${period.first?`<span><b>بدء تسجيل المصروفات:</b> ${fmtDate(period.first)}</span>`:''}
+    ${closedOn?`<span><b>انتهاء المناسبة:</b> ${fmtDate(closedOn)}</span>`
+             :(period.last?`<span><b>آخر تعديل:</b> ${fmtDate(period.last)} <i>(لم تُنهَ بعد)</i></span>`:'')}
+  </div>
+
+  <div class="sum3">
+    <div class="s3 inc"><div class="v">${finMoney(rev.total)}</div><div class="l">إجمالي الإيرادات</div></div>
+    <div class="s3 exp"><div class="v">${finMoney(total)}</div><div class="l">إجمالي المصروفات</div></div>
+    <div class="s3 ${net>=0?'net-p':'net-n'}"><div class="v">${finMoney(net)}</div><div class="l">الصافي</div></div>
+  </div>
+
+  <h2>الإيرادات</h2>
+  <table><tr><th>المصدر</th><th>المبلغ</th><th>النسبة</th></tr>
+    <tr><td>مساهمات الأعضاء المستلمة</td><td>${finMoney(rev.members)}</td><td>${rev.total?Math.round(rev.members/rev.total*100):0}%</td></tr>
+    <tr><td>النذور</td><td>${finMoney(rev.vows)}</td><td>${rev.total?Math.round(rev.vows/rev.total*100):0}%</td></tr>
+    <tr><td>التبرعات</td><td>${finMoney(rev.donations)}</td><td>${rev.total?Math.round(rev.donations/rev.total*100):0}%</td></tr>
+    <tr><td>التثويبات المدفوعة</td><td>${finMoney(rev.thawab)}</td><td>${rev.total?Math.round(rev.thawab/rev.total*100):0}%</td></tr>
+    <tr class="sum-row"><td>إجمالي الإيرادات</td><td>${finMoney(rev.total)}</td><td>100%</td></tr>
+  </table>
+  ${(()=>{ const det=revenues.filter(r=>r.miqatId===opts.miqatId).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    return det.length?`<h2>تفصيل النذور والتبرعات</h2>
+    <table><tr><th>#</th><th>النوع</th><th>التاريخ</th><th>المبلغ</th></tr>
+      ${det.map((r,i)=>`<tr><td>${i+1}</td><td>${r.kind==='vow'?'نذر':'تبرّع'}</td><td>${r.date?fmtDate(r.date):'—'}</td><td>${finMoney(r.amount)}</td></tr>`).join('')}
+    </table>`:''; })()}
+
   <h2>تفصيل المصروفات حسب النوع</h2>
   <table><tr><th>نوع المصروف</th><th>المبلغ</th><th>النسبة</th></tr>
     ${typeArr.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${Math.round(v/total*100)}%</td></tr>`).join('')}
