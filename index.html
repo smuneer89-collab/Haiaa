@@ -99,8 +99,12 @@
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: var(--font-sans); background: var(--bg); color: var(--ink);
-    min-height: 100vh; font-size: 15px; line-height: 1.5; }
+  body { font-family: var(--font-sans); color: var(--ink);
+    min-height: 100vh; font-size: 15px; line-height: 1.5;
+    background-color: var(--bg);
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2258%22%20height%3D%2258%22%20viewBox%3D%220%200%2058%2058%22%3E%3Cpath%20d%3D%22M29.0%2C2.3200000000000003%20Q34.8%2C23.2%2055.68%2C29.0%20Q34.8%2C34.8%2029.0%2C55.68%20Q23.2%2C34.8%202.3200000000000003%2C29.0%20Q23.2%2C23.2%2029.0%2C2.3200000000000003%20Z%22%20fill%3D%22%23c19a3e%22%20fill-opacity%3D%220.105%22/%3E%3C/svg%3E");
+    background-size: 58px 58px;
+    background-attachment: fixed; }
   body, input, select, button, textarea { font-variant-numeric: lining-nums; }
 
   /* Banner */
