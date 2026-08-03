@@ -220,6 +220,7 @@ async function loadData(){
   try { const al=await storage.get('auditLog'); if(al) auditLog=JSON.parse(al); } catch(e){ auditLog=[]; }
   try { const rp=await storage.get('radoodParts'); if(rp) radoodParts=JSON.parse(rp); } catch(e){ radoodParts=[]; }
   try { const ar=await storage.get('archives'); if(ar) archives=JSON.parse(ar); } catch(e){ archives=[]; }
+  try { const gi=await storage.get('gdIndexCache'); if(gi) gdIndex=JSON.parse(gi); } catch(e){}
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
   try { const re=await storage.get('radoodEvals'); if(re) radoodEvals=JSON.parse(re); } catch(e){ radoodEvals=[]; }
@@ -842,6 +843,7 @@ function renderArchYear(){
         <div class="ay-kpi"><div class="v">${finMoney((a.finance||{}).total||0)}</div><div class="l">الرصيد الختامي</div></div>
         <div class="ay-kpi"><div class="v">${radEvals.length}</div><div class="l">تقييم رادود</div></div>
         <div class="ay-kpi"><div class="v">${projs.length}</div><div class="l">مشروع</div></div>
+        <div class="ay-kpi"><div class="v">${(a.photos||[]).length}</div><div class="l">صورة بالألبوم</div></div>
       </div>
     </div>
     ${(a.meetings||[]).length?`<div class="ay-sec"><div class="ay-sec-h">${icon('calendar',17,'ico-btn')} الاجتماعات</div>
@@ -939,9 +941,11 @@ async function closeYearWizard(){
     `سيُحفظ في الأرشيف:\n`+
     `• ${members.length} عضو · ${miqats.length} ميقات\n`+
     `• ${meetings.length} اجتماع · ${(finance.expenses||[]).length} مصروف\n`+
-    `• ${radoodEvals.length} تقييم رادود · ${projects.length} مشروع\n\n`+
+    `• ${radoodEvals.length} تقييم رادود · ${projects.length} مشروع\n`+
+    `• ${photos.length} صورة في ألبوم اللجنة\n\n`+
     `ثم تبدأ سنة ${curY+1} هـ:\n`+
-    `• تُفرَّغ المحاضر والمصروفات والتقييمات والمشاريع\n`+
+    `• تُفرَّغ المحاضر والمصروفات والتقييمات والمشاريع وألبوم الصور\n`+
+    `• تبقى مكتبة الصور (Google Drive) كما هي\n`+
     `• تبقى الأعضاء والمواقيت وحجوزاتها والرواديد\n`+
     `• ${activeCount} عضوية مفعّلة ستصير غير مفعّلة\n`+
     `• الرصيد ${finMoney(finance.total||0)} ينتقل كرصيد افتتاحي\n\n`+
@@ -962,7 +966,8 @@ async function closeYearWizard(){
     radoodParts:JSON.parse(JSON.stringify(radoodParts||[])),
     projects:JSON.parse(JSON.stringify(projects)),
     assemblies:JSON.parse(JSON.stringify(assemblies||[])),
-    paidThawab:JSON.parse(JSON.stringify(paidThawab||[]))
+    paidThawab:JSON.parse(JSON.stringify(paidThawab||[])),
+    photos:JSON.parse(JSON.stringify(photos||[]))   // ألبوم اللجنة الإعلامية (مكتبة Drive لا تُؤرشف — تبقى مكانها)
   };
   archives=archives.filter(a=>a.year!==curY);
   archives.push(snap);
@@ -976,6 +981,7 @@ async function closeYearWizard(){
   projects=[]; await saveProjects();
   assemblies=[]; await saveAssemblies();
   paidThawab=[]; await savePaidThawab();
+  photos=[]; await savePhotos();   // ينتقل الألبوم للأرشيف · مكتبة Drive تبقى
   finance={ ...finance, total:openingBalance, expenses:[] };
   await saveFinance();
   financeLog=[]; try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){}
@@ -997,7 +1003,8 @@ async function closeYearWizard(){
 /* ═══════════ مكتبة الصور من Google Drive ═══════════ */
 const GD_API_KEY = 'AIzaSyDEmgbVxhtW7Bb7sWnjA88sq0ZidIKrqQU';
 const GD_ROOT_FOLDER = '1zNOLTMmQqWJ_kheUHZpvJAWCLXGnyo-C';
-const GD_CAT_ICONS = { 'الخطباء':'🕌', 'الرواديد':'🎤', 'قارئي القرآن الكريم':'📖', 'عريفي الحفل':'🎙️', 'الشعراء':'✍️' };
+const GD_CAT_ICONS = { 'الخطباء':'building', 'الرواديد':'mic', 'قارئي القرآن الكريم':'doc', 'عريفي الحفل':'news', 'الشعراء':'edit' };
+function gdCatIcon(name, size){ return icon(GD_CAT_ICONS[name] || 'archive', size||26); }
 let gdCache = { cats:null, people:{}, photos:{} };
 
 /* استدعاء Drive API */
@@ -1025,7 +1032,7 @@ async function renderGdCats(){
     if(!cats.length){ host.innerHTML='<div class="gd-empty" style="grid-column:1/-1">لا توجد مجلدات في الدرايف بعد.</div>'; return; }
     host.innerHTML = cats.map(c=>`
       <div class="gd-cat" onclick="openGdCat('${c.id}','${escapeHtml(c.name)}')">
-        <div class="gc-ic">${GD_CAT_ICONS[c.name]||'📁'}</div>
+        <div class="gc-ic">${gdCatIcon(c.name,26)}</div>
         <div class="gc-name">${escapeHtml(c.name)}</div>
         <div class="gc-sub">اضغط للعرض</div>
       </div>`).join('');
@@ -1033,6 +1040,47 @@ async function renderGdCats(){
     console.error('gd cats', e);
     host.innerHTML=`<div class="gd-err" style="grid-column:1/-1">تعذّر الاتصال بـ Google Drive.<br><span style="font-size:11.5px;color:var(--muted)">${escapeHtml(e.message||'')}</span></div>`;
   }
+}
+
+/* ═══ البحث الموحّد في مكتبة الصور ═══ */
+let gdIndex=null, gdIndexing=false;
+async function buildGdIndex(){
+  if(gdIndex || gdIndexing) return gdIndex;
+  gdIndexing=true;
+  try{
+    const cats = gdCache.cats || await gdFetch(`'${GD_ROOT_FOLDER}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,'files(id,name)');
+    gdCache.cats=cats;
+    const idx=[];
+    await Promise.all(cats.map(async c=>{
+      try{
+        const people = gdCache.people[c.id] || await gdFetch(`'${c.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,'files(id,name)');
+        gdCache.people[c.id]=people;
+        people.forEach(p=>idx.push({ id:p.id, name:p.name, cat:c.name, catId:c.id }));
+      }catch(e){}
+    }));
+    gdIndex=idx;
+    try{ await storage.set('gdIndexCache', JSON.stringify(idx)); }catch(e){}
+  }catch(e){ console.warn('gd index', e); }
+  gdIndexing=false;
+  return gdIndex;
+}
+function gdDoSearch(){
+  const box=$('#gdSearchRes'); if(!box) return;
+  const q=($('#gdSearch')?.value||'').trim();
+  if(!q){ box.innerHTML=''; return; }
+  if(!gdIndex){
+    box.innerHTML='<div class="gd-shint">جارٍ تجهيز الفهرس…</div>';
+    buildGdIndex().then(()=>gdDoSearch());
+    return;
+  }
+  const res=gdIndex.filter(x=>(x.name||'').includes(q));
+  if(!res.length){ box.innerHTML=`<div class="gd-shint">لا نتائج لـ «${escapeHtml(q)}»</div>`; return; }
+  box.innerHTML=res.slice(0,20).map(x=>`
+    <div class="gd-sitem" onclick="openGdPhotos('${x.id}','${escapeHtml(x.name)}')">
+      <div><div class="gd-sname">${escapeHtml(x.name)}</div>
+        <div class="gd-scat">${gdCatIcon(x.cat,13)} ${escapeHtml(x.cat)}</div></div>
+      ${icon('chevron',18)}
+    </div>`).join('');
 }
 
 /* قائمة الأشخاص داخل فئة */
@@ -1046,7 +1094,7 @@ async function renderGdList(){
   const c=gdCurrentCat; if(!c) return;
   const host=$('#gdListBody');
   host.innerHTML=`<div class="panel" style="padding:0;overflow:hidden;">
-    <div class="gd-head"><div class="gh-title">${GD_CAT_ICONS[c.name]||'📁'} ${escapeHtml(c.name)}</div>
+    <div class="gd-head"><div class="gh-title">${gdCatIcon(c.name,20)} ${escapeHtml(c.name)}</div>
       <div class="gh-sub">اختر الاسم لعرض صوره</div></div>
     <div style="padding:14px;" id="gdListInner"><div class="gd-loading"><div class="gd-spin"></div>جارٍ التحميل…</div></div>
   </div>`;
@@ -3395,9 +3443,14 @@ function renderBackupStatus(){
   const d=new Date(lastB); const t=new Date(); t.setHours(0,0,0,0); const d0=new Date(d); d0.setHours(0,0,0,0);
   const days=Math.round((t-d0)/86400000);
   const txt = days===0?'اليوم':days===1?'أمس':`قبل ${days} يوماً`;
+  const dateStr = d.toLocaleDateString('ar',{day:'numeric',month:'long',year:'numeric'});
+  const timeStr = d.toLocaleTimeString('ar',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+  const full = `${dateStr} · ${timeStr}`;
   box.innerHTML = days>=7
-    ? `<div class="backup-warn">${icon('warn',17,'ico-btn')} آخر نسخة احتياطية كانت ${txt} — يُنصح بأخذ نسخة جديدة.</div>`
-    : `<div class="backup-ok">${icon('check',17,'ico-btn')} آخر نسخة احتياطية: ${txt} (${d.toLocaleDateString('ar')})</div>`;
+    ? `<div class="backup-warn">${icon('warn',17,'ico-btn')} آخر نسخة احتياطية كانت ${txt} — يُنصح بأخذ نسخة جديدة.
+        <div class="bk-when">${escapeHtml(full)}</div></div>`
+    : `<div class="backup-ok">${icon('check',17,'ico-btn')} آخر نسخة احتياطية: ${txt}
+        <div class="bk-when">${escapeHtml(full)}</div></div>`;
 }
 function fillSettings(){
   $('#setFee').value=settings.fee; $('#setYear').value=settings.year;
@@ -3696,7 +3749,7 @@ function openIdara(which){
   if(which==='sec'){ idaraShow('sec'); renderMeetings(); fillAnnualYears(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
-  else if(which==='media'){ idaraShow('media'); renderAlbum(); renderGdCats(); }
+  else if(which==='media'){ idaraShow('media'); renderAlbum(); renderGdCats(); buildGdIndex(); }
   else if(which==='archive'){
     if(!archiveUnlocked){
       const code=prompt('🔐 الأرشيف — أدخل الرقم السري:');

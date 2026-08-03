@@ -271,6 +271,7 @@
   .cloud-acc .cloud-status { flex-shrink:0; }
   .backup-warn { background:var(--warn-soft); border:1px solid #e0b088; border-radius:10px; padding:11px 14px; font-size:13px; color:#8a5a2a; font-weight:600; margin-bottom:12px; }
   .backup-ok { background:var(--ok-soft); border:1px solid var(--ok); border-radius:10px; padding:11px 14px; font-size:12.5px; color:var(--ok); margin-bottom:12px; }
+  .bk-when { font-size:12px; opacity:.85; margin-top:5px; padding-right:23px; font-variant-numeric:lining-nums; direction:rtl; }
   /* سجل التغييرات */
   .audit-filters { display:flex; gap:8px; margin-bottom:12px; }
   .audit-filters select, .audit-filters input { flex:1; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-family:var(--font-sans); font-size:13px; background:var(--surface); }
@@ -306,6 +307,19 @@
   .part-btns { display:flex; gap:6px; flex-wrap:wrap; }
   .part-btns .btn { font-size:11.5px; padding:6px 10px; }
   /* مكتبة صور Google Drive */
+  /* بحث المكتبة */
+  .gd-search { position:relative; margin-bottom:14px; }
+  .gd-search input { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px;
+    font-family:var(--font-sans); font-size:14px; background:var(--surface); color:var(--ink); box-sizing:border-box; }
+  .gd-sres { margin-top:8px; }
+  .gd-sres:empty { display:none; }
+  .gd-sitem { display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--surface); border:1px solid var(--line); border-right:3px solid var(--gold);
+    border-radius:11px; padding:11px 13px; margin-bottom:7px; cursor:pointer; }
+  .gd-sitem:active { transform:scale(.99); }
+  .gd-sname { font-size:14px; font-weight:600; color:var(--ink); }
+  .gd-scat { font-size:11px; color:var(--muted); margin-top:2px; display:flex; align-items:center; gap:5px; }
+  .gd-shint { text-align:center; padding:14px; font-size:12.5px; color:var(--muted-2); }
   .gd-cats { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .gd-cat { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 12px; text-align:center; cursor:pointer; position:relative; overflow:hidden; }
   .gd-cat::before { content:''; position:absolute; top:0; right:0; width:3px; height:100%; background:var(--gold); }
@@ -2128,6 +2142,10 @@
       <div class="panel">
         <div class="panel-header"><div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg> مكتبة الصور</h2>
           <div class="panel-sub">الصور محفوظة في Google Drive — أضفها هناك وتظهر هنا تلقائياً</div></div></div>
+        <div class="gd-search">
+          <input type="text" id="gdSearch" placeholder="ابحث عن رادود أو خطيب أو شاعر…" oninput="gdDoSearch()" autocomplete="off" />
+          <div id="gdSearchRes" class="gd-sres"></div>
+        </div>
         <div class="gd-cats" id="gdCats"></div>
       </div>
 
