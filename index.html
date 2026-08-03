@@ -290,6 +290,35 @@
   .exp-period b { color:var(--ink); }
   .exp-period .dim { opacity:.7; }
   .exp-period .btn { margin-right:auto; }
+  /* صفحة مساهمة العضو */
+  .rc-head { background:linear-gradient(150deg,var(--accent-deep),var(--accent)); padding:20px 18px; color:#fff; border-radius:14px 14px 0 0; text-align:center; }
+  .rc-who { font-size:18px; font-weight:800; }
+  .rc-mq { font-size:12.5px; color:var(--gold); margin-top:5px; }
+  .rc-agreed { font-size:12px; color:var(--accent-soft); margin-top:8px; background:rgba(255,255,255,.1); display:inline-block; padding:5px 14px; border-radius:20px; }
+  .rc-sec { padding:15px 16px; border-bottom:1px solid var(--line); }
+  .rc-sec-h { font-size:13.5px; font-weight:700; color:var(--accent); margin-bottom:11px; }
+  .rc-add { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:10px; }
+  .rc-add select, .rc-add input { padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:13.5px; background:var(--surface); color:var(--ink); width:100%; box-sizing:border-box; }
+  .rc-add .full { grid-column:1 / -1; }
+  .rc-item { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px dashed var(--line); }
+  .rc-item:last-child { border-bottom:none; }
+  .rc-badge { font-size:10px; padding:4px 9px; border-radius:7px; font-weight:700; white-space:nowrap; }
+  .rc-badge.cash { background:var(--ok-soft); color:var(--ok); }
+  .rc-badge.kind { background:var(--warn-soft); color:var(--warn); }
+  .rc-iname { font-size:14px; font-weight:600; color:var(--ink); }
+  .rc-inote { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .rc-ival { font-weight:700; color:var(--accent); font-size:13.5px; white-space:nowrap; }
+  .rc-del { background:none; border:none; color:var(--danger); font-size:20px; cursor:pointer; padding:0 4px; line-height:1; }
+  .rc-totals { display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; padding:14px 16px; }
+  .rc-t { text-align:center; border-radius:11px; padding:12px 8px; }
+  .rc-t .v { font-size:16px; font-weight:800; }
+  .rc-t .l { font-size:10.5px; color:var(--muted); margin-top:3px; }
+  .rc-t.cash { background:var(--ok-soft); } .rc-t.cash .v { color:var(--ok); }
+  .rc-t.kind { background:var(--warn-soft); } .rc-t.kind .v { color:var(--warn); }
+  .rc-t.all { background:var(--accent-soft); } .rc-t.all .v { color:var(--accent); }
+  .rc-note-box { padding:0 16px 16px; }
+  .rc-note-box textarea { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:13.5px; background:var(--surface); resize:vertical; box-sizing:border-box; }
+  .rc-hint { font-size:11.5px; color:var(--muted); line-height:1.7; background:var(--bg); border-radius:9px; padding:10px 12px; margin-top:9px; }
   /* سجل التغييرات */
   .audit-filters { display:flex; gap:8px; margin-bottom:12px; }
   .audit-filters select, .audit-filters input { flex:1; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-family:var(--font-sans); font-size:13px; background:var(--surface); }
@@ -1681,6 +1710,14 @@
     <div id="notifList"></div>
   </section>
 
+  <!-- صفحة مساهمة العضو (استلام) -->
+  <section id="tab-receipt" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeReceiptPage()">← رجوع</button>
+    </div>
+    <div id="receiptBody"></div>
+  </section>
+
   <!-- صفحة تفاصيل الطلب الوارد -->
   <section id="tab-incomingproj" class="tab-content" style="display:none">
     <div class="page-bar">
@@ -2839,21 +2876,7 @@
 </div></div>
 
 <!-- Receipt modal (استلام المبلغ) -->
-<div class="modal-backdrop" id="receiptModal"><div class="modal">
-  <button class="modal-close" onclick="closeModal('receiptModal')">×</button>
-  <h3>💵 استلام المبلغ</h3>
-  <div class="subtitle" id="receiptSub"></div>
-  <div class="rcpt-agreed" id="receiptAgreed"></div>
-  <div class="field"><label>المبلغ المستلَم فعلاً (د.ب)</label>
-    <input type="number" id="receiptAmount" min="0" step="0.001" placeholder="0" /></div>
-  <div class="field" style="margin-top:8px"><label>ملاحظة <span class="opt">اختياري</span></label>
-    <input type="text" id="receiptNote" placeholder="مثال: استُلم نقداً" /></div>
-  <div class="actions-row">
-    <button class="btn btn-primary" onclick="saveReceipt()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> تم الاستلام</button>
-    <button class="btn btn-ghost" id="receiptClearBtn" onclick="clearReceipt()" style="display:none">إلغاء الاستلام</button>
-    <button class="btn btn-ghost" onclick="closeModal('receiptModal')">إغلاق</button>
-  </div>
-</div></div>
+
 
 <script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-auth-compat.js"></script>

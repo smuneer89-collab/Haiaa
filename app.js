@@ -164,9 +164,19 @@ function hijriToday(){ const h=hijriParts(); return `${h.day} ${HIJRI_MONTHS[h.m
 function bookingAgreed(b){ return Number(b&&b.amount)||0; }                 // المبلغ المتّفق عليه
 function bookingPaid(b){
   if(!b) return 0;
+  // بنود المساهمة المفصّلة (نقدي + عيني بقيمته التقديرية) — تُستخدم لحالة الميقات
+  if(Array.isArray(b.rcptItems) && b.rcptItems.length) return receiptTotal(b);
   if(b.received!=null && b.received!=='') return Number(b.received)||0;   // المستلم من «مواقيت تقترب»
   if(Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0);
   return 0;   // لم يُسجَّل استلام بعد
+}
+/* النقدي فقط — للإيرادات المالية الحقيقية */
+function bookingCash(b){
+  if(!b) return 0;
+  if(Array.isArray(b.rcptItems) && b.rcptItems.length) return receiptCashTotal(b);
+  if(b.received!=null && b.received!=='') return Number(b.received)||0;
+  if(Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  return 0;
 }
 function bookingRemaining(b){ return Math.max(0, bookingAgreed(b)-bookingPaid(b)); }
 function miqatPaid(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingPaid(b),0); }   // اكتمال الميقات = المُحصّل فعلاً
@@ -177,7 +187,22 @@ function memberPaid(m){ if(Array.isArray(m.payments)) return m.payments.reduce((
 function memberRemaining(m){ return Math.max(0, memberFeeTotal(m)-memberPaid(m)); }
 function memberSubStatus(m){ const paid=memberPaid(m), tot=memberFeeTotal(m); if(paid<=0) return 'none'; if(paid<tot) return 'partial'; return 'full'; }
 function memberPayments(m){ if(Array.isArray(m.payments)) return m.payments; return m.paymentDate ? [{amount:(m.paidAmount!=null?Number(m.paidAmount):memberFeeTotal(m)), date:m.paymentDate}] : []; }
-/* أنواع المساهمة: نقدي أو عيني (بقيمة تقديرية يكتبها المستخدم). كل حجز قد يضم عدّة بنود */
+/* ═══ مساهمة العضو: بنود نقدية أو عينية ═══
+   • النقدي  : مبلغ يدخل الصندوق فعلاً
+   • العيني  : يتكفّل به العضو مباشرة — قيمته تقديرية لتحديد حالة الميقات فقط،
+               ولا تُذكر في تقرير المصروفات (يُذكر اسم البند فقط)          */
+const RECEIPT_ITEMS = ['مبلغ نقدي','وجبة غداء','وجبة عشاء','أجرة الخطيب','أجرة الرادود','ماء ومناديل','السواد','زينة','موكب','أخرى'];
+function isCashItem(kind){ return kind==='مبلغ نقدي' || kind==='نقدي'; }
+/* بنود مساهمة الحجز (المسجّلة في صفحة الاستلام) */
+function receiptItems(b){ return (b && Array.isArray(b.rcptItems)) ? b.rcptItems : []; }
+function receiptCashTotal(b){ return receiptItems(b).filter(i=>isCashItem(i.kind)).reduce((s,i)=>s+(Number(i.value)||0),0); }
+function receiptInKindTotal(b){ return receiptItems(b).filter(i=>!isCashItem(i.kind)).reduce((s,i)=>s+(Number(i.value)||0),0); }
+function receiptTotal(b){ return receiptCashTotal(b)+receiptInKindTotal(b); }
+/* أسماء البنود العينية + النقدية بلا مبالغ — للتقارير */
+function receiptItemNames(b){
+  const names=receiptItems(b).map(i=>i.kind).filter(Boolean);
+  return [...new Set(names)];
+}
 const CONTRIB_KINDS = ['نقدي','وجبة غداء','وجبة عشاء','أجرة خطيب','أجرة رادود','أخرى'];
 function bookingItems(b){ if(b && Array.isArray(b.items) && b.items.length) return b.items; return [{kind:'نقدي', value:Number(b&&b.amount)||0}]; }
 function fmtBooking(b){
@@ -190,7 +215,7 @@ function contribKindOptions(sel){ return CONTRIB_KINDS.map(k=>`<option value="${
 function miqatReceived(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingReceived(b),0); }
 function bookingReceived(b){ if(b && Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); return Number(b&&b.amount)||0; }
 /* المبلغ الفعّال للمساهمة: المستلَم إن سُجِّل، وإلا المتّفق عليه */
-function bookingHasReceipt(b){ return b && b.received!=null && b.received!==''; }
+function bookingHasReceipt(b){ return !!(b && ((Array.isArray(b.rcptItems)&&b.rcptItems.length) || (b.received!=null && b.received!=='')));}
 function bookingEffective(b){ return bookingHasReceipt(b) ? (Number(b.received)||0) : bookingAgreed(b); }
 function miqatEffective(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingEffective(b),0); }
 function miqatStatus(mq){
@@ -1798,45 +1823,152 @@ function renderRecentMembers(){
     </div>`;
   }).join('');
 }
-function receiptBtnLabel(b){ return bookingHasReceipt(b) ? `✓ استُلم ${fmtMoney(Number(b.received)||0)}` : '💵 استلام المبلغ'; }
+function receiptBtnLabel(b){
+  if(!bookingHasReceipt(b)) return icon('wallet',15,'ico-btn')+' تسجيل المساهمة';
+  const items=receiptItems(b);
+  if(items.length){
+    const cash=receiptCashTotal(b), kindN=items.filter(i=>!isCashItem(i.kind)).length;
+    let t = cash>0 ? fmtMoney(cash) : '';
+    if(kindN) t += (t?' + ':'') + `${kindN} عيني`;
+    return icon('check',15,'ico-btn')+' '+(t||'مسجّلة');
+  }
+  return icon('check',15,'ico-btn')+` استُلم ${fmtMoney(Number(b.received)||0)}`;
+}
 
-/* ═══ نافذة استلام المبلغ (مستقلة عن الأقساط) ═══ */
+/* ═══ صفحة مساهمة العضو (بدل نافذة الاستلام) ═══ */
 let receiptCtx=null;
 function openReceipt(miqatId, memberId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
   receiptCtx={miqatId, memberId};
-  const who = b.familyName ? `${b.familyName}${b.repName?` (ممثّلها ${b.repName})`:''}` : (members.find(x=>x.id===memberId)?.name||'');
-  $('#receiptSub').textContent = `${who} · ${mq.name}`;
-  $('#receiptAgreed').innerHTML = `المتّفق عليه: <b>${fmtMoney(bookingAgreed(b))}</b>` + (mq.requiredAmount?` · سعر الميقات: <b>${fmtMoney(mq.requiredAmount)}</b>`:'');
-  $('#receiptAmount').value = bookingHasReceipt(b) ? (Number(b.received)||0) : '';
-  $('#receiptNote').value = b.receivedNote||'';
-  $('#receiptClearBtn').style.display = bookingHasReceipt(b) ? 'inline-flex' : 'none';
-  $('#receiptModal').classList.add('open');
+  renderReceiptPage();
+  openFullPage('receipt');
 }
-async function saveReceipt(){
-  if(!receiptCtx) return; const {miqatId, memberId}=receiptCtx;
+function closeReceiptPage(){
+  switchTab('miqats');
+  if(receiptCtx) setTimeout(()=>{ showMiqatDetail(receiptCtx.miqatId); },60);
+}
+function renderReceiptPage(){
+  if(!receiptCtx) return;
+  const {miqatId, memberId}=receiptCtx;
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
-  const amt=parseFloat($('#receiptAmount').value);
-  if(isNaN(amt)||amt<0){ toast('أدخل المبلغ المستلَم'); return; }
-  b.received=amt; b.receivedNote=($('#receiptNote').value||'').trim(); b.receivedDate=today();
-  await saveMiqats(); closeModal('receiptModal');
-  toast('تم تسجيل الاستلام');
-  renderMiqats(); renderDashboard();
-  if($('#tab-familyList')&&$('#tab-familyList').style.display!=='none') renderFamilyList();
-  if(isFullPageOpen('memberpage')) showDetail(memberId);
+  const who = b.familyName ? `${b.familyName}${b.repName?` (ممثّلها ${b.repName})`:''}` : (members.find(x=>x.id===memberId)?.name||'');
+  const items=receiptItems(b);
+  const cash=receiptCashTotal(b), kind=receiptInKindTotal(b), all=cash+kind;
+  $('#receiptBody').innerHTML=`
+  <div class="panel" style="padding:0;overflow:hidden;">
+    <div class="rc-head">
+      <div class="rc-who">${escapeHtml(who)}</div>
+      <div class="rc-mq">${escapeHtml(mq.name)}</div>
+      <div class="rc-agreed">المتّفق عليه: ${fmtMoney(bookingAgreed(b))}${mq.requiredAmount?` · سعر الميقات: ${fmtMoney(mq.requiredAmount)}`:''}</div>
+    </div>
+
+    <div class="rc-sec">
+      <div class="rc-sec-h">${icon('plus',16,'ico-btn')} إضافة بند مساهمة</div>
+      <div class="rc-add">
+        <select id="rcKind" onchange="rcKindChange()">
+          ${RECEIPT_ITEMS.map(k=>`<option value="${k}">${k}</option>`).join('')}
+        </select>
+        <input id="rcValue" type="number" min="0" step="0.001" placeholder="المبلغ / القيمة التقديرية" />
+        <input id="rcOther" class="full" type="text" placeholder="اسم البند" style="display:none" />
+        <input id="rcNote" class="full" type="text" placeholder="ملاحظة على هذا البند (اختياري)" />
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="addReceiptItem()">${icon('plus',16,'ico-btn')} إضافة البند</button>
+      <div class="rc-hint">${icon('info',14,'ico-btn')} <b>المبلغ النقدي</b> يدخل الصندوق فعلاً.
+        أما <b>التبرّع العيني</b> فقيمته تقديرية — تُستخدم لتحديد حالة الميقات فقط، ولا تُذكر في تقرير المصروفات.</div>
+    </div>
+
+    <div class="rc-sec">
+      <div class="rc-sec-h">${icon('doc',16,'ico-btn')} بنود المساهمة (${items.length})</div>
+      ${items.length?items.map((it,i)=>`
+        <div class="rc-item">
+          <span class="rc-badge ${isCashItem(it.kind)?'cash':'kind'}">${isCashItem(it.kind)?'نقدي':'عيني'}</span>
+          <div style="flex:1;min-width:0">
+            <div class="rc-iname">${escapeHtml(it.kind||'—')}</div>
+            ${it.note?`<div class="rc-inote">${escapeHtml(it.note)}</div>`:''}
+          </div>
+          <span class="rc-ival">${fmtMoney(Number(it.value)||0)}</span>
+          <button class="rc-del" onclick="removeReceiptItem(${i})" title="حذف">×</button>
+        </div>`).join(''):'<div class="fel-empty">لا بنود بعد — أضف أول بند</div>'}
+    </div>
+
+    <div class="rc-totals">
+      <div class="rc-t cash"><div class="v">${fmtMoney(cash)}</div><div class="l">نقدي مستلَم</div></div>
+      <div class="rc-t kind"><div class="v">${fmtMoney(kind)}</div><div class="l">عيني (تقديري)</div></div>
+      <div class="rc-t all"><div class="v">${fmtMoney(all)}</div><div class="l">إجمالي المساهمة</div></div>
+    </div>
+
+    <div class="rc-note-box">
+      <div class="rc-sec-h" style="margin-bottom:8px">${icon('edit',16,'ico-btn')} ملاحظات عامة</div>
+      <textarea id="rcGeneralNote" rows="3" placeholder="ملاحظات تظهر في التقرير…">${escapeHtml(b.receivedNote||'')}</textarea>
+      <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="saveReceiptNote()">${icon('check',16,'ico-btn')} حفظ الملاحظات</button>
+    </div>
+
+    <div style="padding:0 16px 16px;display:flex;gap:8px;flex-wrap:wrap">
+      ${items.length?`<button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="clearReceipt()">مسح كل البنود</button>`:''}
+      <button class="btn btn-ghost btn-sm" onclick="closeReceiptPage()" style="margin-right:auto">← رجوع للميقات</button>
+    </div>
+  </div>`;
+}
+function rcKindChange(){
+  const k=$('#rcKind').value;
+  const o=$('#rcOther'); if(o) o.style.display = (k==='أخرى') ? 'block' : 'none';
+}
+async function addReceiptItem(){
+  if(!receiptCtx) return;
+  const {miqatId, memberId}=receiptCtx;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  let kind=$('#rcKind').value;
+  if(kind==='أخرى'){
+    const other=($('#rcOther').value||'').trim();
+    if(!other){ toast('اكتب اسم البند'); return; }
+    kind=other;
+  }
+  const val=parseFloat($('#rcValue').value);
+  if(isNaN(val)||val<0){ toast('أدخل المبلغ أو القيمة التقديرية'); return; }
+  b.rcptItems = b.rcptItems || [];
+  b.rcptItems.push({ kind, value:val, note:($('#rcNote').value||'').trim(), at:new Date().toISOString() });
+  b.receivedDate = b.receivedDate || today();
+  await saveMiqats();
+  logAudit('إضافة','المواقيت',`مساهمة «${kind}» بقيمة ${fmtMoney(val)} — ${mq.name}`);
+  toast('أُضيف البند');
+  renderReceiptPage(); renderMiqats(); renderDashboard();
+}
+async function removeReceiptItem(idx){
+  if(!receiptCtx) return;
+  const {miqatId, memberId}=receiptCtx;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  const it=(b.rcptItems||[])[idx]; if(!it) return;
+  if(!confirm(`حذف «${it.kind}»؟`)) return;
+  b.rcptItems.splice(idx,1);
+  await saveMiqats();
+  toast('حُذف البند');
+  renderReceiptPage(); renderMiqats(); renderDashboard();
+}
+async function saveReceiptNote(){
+  if(!receiptCtx) return;
+  const {miqatId, memberId}=receiptCtx;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  b.receivedNote=($('#rcGeneralNote').value||'').trim();
+  await saveMiqats();
+  toast('حُفظت الملاحظات');
 }
 async function clearReceipt(){
-  if(!receiptCtx) return; const {miqatId, memberId}=receiptCtx;
+  if(!receiptCtx) return;
+  const {miqatId, memberId}=receiptCtx;
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
-  if(!confirm('إلغاء تسجيل الاستلام؟ سيُحسب المتّفق عليه بدلاً منه.')) return;
-  delete b.received; delete b.receivedNote; delete b.receivedDate;
-  await saveMiqats(); closeModal('receiptModal');
-  toast('أُلغي الاستلام'); renderMiqats(); renderDashboard();
-  if(isFullPageOpen('memberpage')) showDetail(memberId);
+  if(!confirm('مسح كل بنود المساهمة؟ سيُحسب المتّفق عليه بدلاً منها.')) return;
+  delete b.rcptItems; delete b.received; delete b.receivedNote; delete b.receivedDate;
+  await saveMiqats();
+  toast('مُسحت البنود');
+  renderReceiptPage(); renderMiqats(); renderDashboard();
 }
+
 
 /* إرسال تذكير الميقات عبر واتساب بالرسالة الجاهزة */
 function sendMiqatReminder(memberId, miqatId){
@@ -5263,7 +5395,21 @@ function revMiqatTotal(miqatId, kind){
 /* المستلم من مساهمات الأعضاء (هذا وحده يحدّد حالة الميقات) */
 function miqatMembersReceived(miqatId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return 0;
-  return (mq.bookings||[]).reduce((s,b)=>s+bookingPaid(b),0);
+  return (mq.bookings||[]).reduce((s,b)=>s+bookingCash(b),0);   // النقدي فقط (العيني لا يدخل الصندوق)
+}
+/* مساهمات عينية: أسماء البنود بلا مبالغ — للتقرير */
+function miqatInKindList(miqatId){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return [];
+  const out=[];
+  (mq.bookings||[]).forEach(b=>{
+    const names=receiptItems(b).map(i=>i.kind).filter(k=>k && !isCashItem(k));
+    const cashNames=receiptItems(b).filter(i=>isCashItem(i.kind)).length ? ['مبلغ نقدي'] : [];
+    const all=[...new Set([...cashNames,...names])];
+    if(!all.length) return;
+    const who = b.familyName || (members.find(m=>m.id===b.memberId)?.name) || '—';
+    out.push({ who, items:all, note:(b.receivedNote||'').trim() });
+  });
+  return out;
 }
 /* التثويبات المدفوعة للميقات */
 function miqatThawabTotal(miqatId){
@@ -5508,6 +5654,7 @@ function printMiqatExpenseReport(opts){
   table{width:100%;border-collapse:collapse;font-size:13.5px;}th,td{border:1px solid #e6ddcb;padding:8px 11px;text-align:right;}th{background:#1c4536;color:#fff;}
   tr:nth-child(even){background:#faf7f0;}
   .sum-row td{background:#e6f0ea;font-weight:800;color:#1c4536;}
+  .note-sm{font-size:11.5px;color:#8a7c6b;margin:-4px 0 14px;line-height:1.7;}
   .period-bar{display:flex;flex-wrap:wrap;gap:18px;background:#f6f2ea;border:1px solid #e6ddcb;border-radius:10px;padding:11px 15px;margin-bottom:14px;font-size:13px;color:#5a5148;}
   .period-bar b{color:#1c4536;} .period-bar i{color:#8a7c6b;font-style:normal;font-size:12px;}
   .sum3{display:flex;gap:11px;margin-bottom:18px;}
@@ -5560,6 +5707,13 @@ function printMiqatExpenseReport(opts){
     <table><tr><th>#</th><th>النوع</th><th>التاريخ</th><th>المبلغ</th></tr>
       ${det.map((r,i)=>`<tr><td>${i+1}</td><td>${r.kind==='vow'?'نذر':'تبرّع'}</td><td>${r.date?fmtDate(r.date):'—'}</td><td>${finMoney(r.amount)}</td></tr>`).join('')}
     </table>`:''; })()}
+
+  ${(()=>{ const ik=miqatInKindList(opts.miqatId);
+    return ik.length?`<h2>مساهمات الأعضاء</h2>
+    <table><tr><th>العضو / العائلة</th><th>المساهمة</th><th>ملاحظات</th></tr>
+      ${ik.map(x=>`<tr><td>${escapeHtml(x.who)}</td><td>${x.items.map(escapeHtml).join(' + ')}</td><td>${escapeHtml(x.note||'—')}</td></tr>`).join('')}
+    </table>
+    <div class="note-sm">تُذكر بنود المساهمة بأسمائها دون مبالغ — القيم التقديرية للتبرّعات العينية تُستخدم لتحديد حالة الميقات فقط.</div>`:''; })()}
 
   <h2>تفصيل المصروفات حسب النوع</h2>
   <table><tr><th>نوع المصروف</th><th>المبلغ</th><th>النسبة</th></tr>
