@@ -259,13 +259,13 @@ function renderAlbum(){
   const grid=$('#albumGrid'); const cnt=$('#albumCount');
   if(cnt) cnt.textContent=`${photos.length} صورة`;
   if(!grid) return;
-  if(!photos.length){ grid.innerHTML=`<div class="album-empty">لا توجد صور بعد. اضغط «➕ إضافة صورة» لإضافة أول صورة.</div>`; return; }
+  if(!photos.length){ grid.innerHTML=`<div class="album-empty">لا توجد صور بعد. اضغط «${icon('plus',17,'ico-btn')} إضافة صورة» لإضافة أول صورة.</div>`; return; }
   const ordered=[...photos].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   grid.innerHTML=ordered.map(p=>`<div class="album-card" onclick="openLightbox('${p.id}')">
     <img class="ac-img" src="${p.img}" alt="${escapeHtml(p.occasion||'')}" loading="lazy">
     <div class="ac-body">
       <div class="ac-occ">${escapeHtml(p.occasion||'بدون عنوان')}</div>
-      ${p.photographer?`<div class="ac-by">📷 ${escapeHtml(p.photographer)}</div>`:''}
+      ${p.photographer?`<div class="ac-by">${icon('image',17,'ico-btn')} ${escapeHtml(p.photographer)}</div>`:''}
       ${p.desc?`<div class="ac-desc">${escapeHtml(p.desc)}</div>`:''}
     </div>
   </div>`).join('');
@@ -347,7 +347,7 @@ function buildPhotoSlider(container, list){
   const n=list.length;
   const slide=p=>`<div class="ps-slide" data-id="${p.id}">
       <img src="${p.img}" alt="${escapeHtml(p.occasion||'')}" loading="lazy">
-      <div class="pc-cap"><div class="t">${escapeHtml(p.occasion||'')}</div>${p.photographer?`<div class="b">📷 ${escapeHtml(p.photographer)}</div>`:''}</div>
+      <div class="pc-cap"><div class="t">${escapeHtml(p.occasion||'')}</div>${p.photographer?`<div class="b">${icon('image',17,'ico-btn')} ${escapeHtml(p.photographer)}</div>`:''}</div>
     </div>`;
   // نسخة من الأولى في النهاية لالتفاف سلس
   const slidesHTML = list.map(slide).join('') + (n>1?slide(list[0]):'');
@@ -802,11 +802,11 @@ function renderArchive(){
   const sub=$('#archSub');
   const list=[...archives].sort((a,b)=>(b.year||0)-(a.year||0));
   if(sub) sub.textContent = list.length?`${list.length} سنة مؤرشفة`:'لا سنوات مؤرشفة بعد';
-  if(!list.length){ host.innerHTML='<div class="arch-empty"><div style="font-size:38px;margin-bottom:8px;">📦</div><div>لا توجد سنوات مؤرشفة بعد.<br>عند بداية محرم استخدم «إغلاق السنة» أدناه.</div></div>'; return; }
+  if(!list.length){ host.innerHTML=`<div class="arch-empty"><div style="font-size:38px;margin-bottom:8px;">${icon('archive',17,'ico-btn')}</div><div>لا توجد سنوات مؤرشفة بعد.<br>عند بداية محرم استخدم «إغلاق السنة» أدناه.</div></div>`; return; }
   host.innerHTML=list.map(a=>`
     <div class="arch-row" onclick="openArchYear(${a.year})">
       <div>
-        <div class="arch-year">📦 سنة ${a.year} هـ</div>
+        <div class="arch-year">${icon('archive',17,'ico-btn')} سنة ${a.year} هـ</div>
         <div class="arch-meta">${(a.members||[]).length} عضو · ${(a.miqats||[]).length} ميقات · ${(a.meetings||[]).length} اجتماع · ${((a.finance||{}).expenses||[]).length} مصروف</div>
       </div>
       <div class="arch-arrow">›</div>
@@ -828,11 +828,11 @@ function renderArchYear(){
   $('#archYearBody').innerHTML=`
   <div class="panel" style="padding:0;overflow:hidden;">
     <div class="ay-head">
-      <div class="ay-year">📦 ${a.year} هـ</div>
+      <div class="ay-year">${icon('archive',17,'ico-btn')} ${a.year} هـ</div>
       <div class="ay-sub">أُرشِفت في ${a.archivedAt?new Date(a.archivedAt).toLocaleDateString('ar'):'—'}</div>
     </div>
     <div class="ay-sec">
-      <div class="ay-sec-h">📊 ملخّص السنة</div>
+      <div class="ay-sec-h">${icon('chart',17,'ico-btn')} ملخّص السنة</div>
       <div class="ay-kpis">
         <div class="ay-kpi"><div class="v">${(a.members||[]).length}</div><div class="l">عضو</div></div>
         <div class="ay-kpi"><div class="v">${paidMembers}</div><div class="l">سدّدوا الاشتراك</div></div>
@@ -844,18 +844,18 @@ function renderArchYear(){
         <div class="ay-kpi"><div class="v">${projs.length}</div><div class="l">مشروع</div></div>
       </div>
     </div>
-    ${(a.meetings||[]).length?`<div class="ay-sec"><div class="ay-sec-h">🗓️ الاجتماعات</div>
+    ${(a.meetings||[]).length?`<div class="ay-sec"><div class="ay-sec-h">${icon('calendar',17,'ico-btn')} الاجتماعات</div>
       <div class="ay-list">${a.meetings.slice(0,20).map(m=>`<div>${escapeHtml(m.title||'اجتماع')} — ${m.date?fmtDate(m.date):''} <span style="color:var(--muted-2)">(${(m.decisions||[]).length} قرار)</span></div>`).join('')}</div></div>`:''}
-    ${exps.length?`<div class="ay-sec"><div class="ay-sec-h">💰 أعلى المصروفات</div>
+    ${exps.length?`<div class="ay-sec"><div class="ay-sec-h">${icon('money',17,'ico-btn')} أعلى المصروفات</div>
       <div class="ay-list">${Object.entries(exps.reduce((o,e)=>{o[e.type]=(o[e.type]||0)+(Number(e.cost)||0);return o;},{})).sort((x,y)=>y[1]-x[1]).slice(0,8).map(([k,v])=>`<div>${escapeHtml(k)} — <b>${finMoney(v)}</b></div>`).join('')}</div></div>`:''}
-    ${radEvals.length?`<div class="ay-sec"><div class="ay-sec-h">🕯️ تقييمات الرواديد</div>
+    ${radEvals.length?`<div class="ay-sec"><div class="ay-sec-h">${icon('candle',17,'ico-btn')} تقييمات الرواديد</div>
       <div class="ay-list">${radEvals.slice(0,20).map(e=>`<div>${escapeHtml(e.miqatName||'—')} — ${e.pct||Math.round((e.avg||0)/3*100)}%</div>`).join('')}</div></div>`:''}
-    ${projs.length?`<div class="ay-sec"><div class="ay-sec-h">📋 المشاريع</div>
+    ${projs.length?`<div class="ay-sec"><div class="ay-sec-h">${icon('doc',17,'ico-btn')} المشاريع</div>
       <div class="ay-list">${projs.map(p=>`<div>${escapeHtml(p.title||'—')} — ${p.status==='approved'?'✅ معتمد':p.status==='rejected'?'❌ مرفوض':'⏳ معلّق'} ${p.cost?'· '+finMoney(p.cost):''}</div>`).join('')}</div></div>`:''}
     <div style="padding:16px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-accent" style="flex:1;" onclick="printArchYear(${a.year})">🖨️ تقرير السنة PDF</button>
-      <button class="btn btn-ghost" onclick="exportArchYear(${a.year})">⬇️ تصدير</button>
-      <button class="btn" style="background:var(--danger);color:#fff;border:none;" onclick="deleteArchYear(${a.year})">🗑️</button>
+      <button class="btn btn-accent" style="flex:1;" onclick="printArchYear(${a.year})">${icon('print',17,'ico-btn')} تقرير السنة PDF</button>
+      <button class="btn btn-ghost" onclick="exportArchYear(${a.year})">${icon('download',17,'ico-btn')} تصدير</button>
+      <button class="btn" style="background:var(--danger);color:#fff;border:none;" onclick="deleteArchYear(${a.year})">${icon('trash',17,'ico-btn')}</button>
     </div>
     <div style="padding:0 16px 16px;text-align:center;">
       <button class="btn btn-ghost btn-sm" onclick="closeArchYear()">← رجوع للأرشيف</button>
@@ -1078,7 +1078,7 @@ async function renderGdPhotos(){
       <div class="gh-sub">اضغط الصورة لفتحها في Google Drive بحجمها الكامل</div></div>
     <div id="gdPhotosInner"><div class="gd-loading"><div class="gd-spin"></div>جارٍ تحميل الصور…</div></div>
     <div style="padding:0 14px 16px;text-align:center;">
-      <a class="btn btn-ghost btn-sm" href="https://drive.google.com/drive/folders/${p.id}" target="_blank">📂 فتح المجلد في Drive</a>
+      <a class="btn btn-ghost btn-sm" href="https://drive.google.com/drive/folders/${p.id}" target="_blank">${icon('archive',17,'ico-btn')} فتح المجلد في Drive</a>
     </div>
   </div>`;
   const inner=$('#gdPhotosInner');
@@ -1155,7 +1155,7 @@ function renderStats(){
 
   host.innerHTML=`
   <div class="stats-head">
-    <h2>📊 لوحة الإحصائيات</h2>
+    <h2>${icon('chart',17,'ico-btn')} لوحة الإحصائيات</h2>
     <div class="sh-sub">هيئة محبي الحسين (ع) · ${hijriToday()}</div>
   </div>
 
@@ -1165,14 +1165,14 @@ function renderStats(){
     ${card('', '🎫', totalBookings, 'إجمالي الحجوزات', `في ${totalMiqats} ميقات`, "switchTab('miqats')")}
   </div>`:''}
 
-  <div class="stats-sec-title">👥 الأعضاء</div>
+  <div class="stats-sec-title">${icon('users',17,'ico-btn')} الأعضاء</div>
   <div class="stats-grid">
     ${card('','👥',totalMembers,'إجمالي الأعضاء', minors?`منهم ${minors} تحت السن`:'', "switchTab('members')")}
     ${card('ok','💳',paidMembers,'دفعوا الاشتراك', `${totalMembers-paidMembers} لم يدفعوا`, "switchTab('members')")}
     ${card('ok','💰',finMoney(subsCollected),'محصّل من الاشتراكات','','')}
   </div>
 
-  <div class="stats-sec-title">💰 المالية</div>
+  <div class="stats-sec-title">${icon('money',17,'ico-btn')} المالية</div>
   <div class="stats-grid">
     ${card('ok','🏦',finMoney(balance),'رصيد الهيئة','',"enterFinance()")}
     ${card('warn','📤',finMoney(expenses),'إجمالي المصروفات',`${expCount} بند`,"enterFinance()")}
@@ -1180,13 +1180,13 @@ function renderStats(){
     ${card(pendingAmount>0?'danger':'ok','⏳',finMoney(pendingAmount),'متبقٍّ على الحجوزات','','')}
   </div>
 
-  <div class="stats-sec-title">🕯️ لجنة العزاء</div>
+  <div class="stats-sec-title">${icon('candle',17,'ico-btn')} لجنة العزاء</div>
   <div class="stats-grid">
     ${card('','🎤',nRadoods,'الرواديد', nEvals?`${nEvals} تقييم`:'لا تقييمات', "switchTab('meetings')")}
     ${card(avgPct>=80?'ok':avgPct>=50?'warn':'', '⭐', nEvals?avgPct+'%':'—','متوسط التقييم العام','', "switchTab('meetings')")}
   </div>
 
-  <div class="stats-sec-title">📋 المشاريع والإدارة</div>
+  <div class="stats-sec-title">${icon('doc',17,'ico-btn')} المشاريع والإدارة</div>
   <div class="stats-grid">
     ${card(projPending>0?'warn':'','📋',projPending,'مشاريع بانتظار القرار',`${projApproved} معتمد`,"enterFinance()")}
     ${card('','🗓️',nMeetings,'اجتماعات الإدارة', openTasks?`${openTasks} مهمة مفتوحة`:'لا مهام معلّقة', "switchTab('meetings')")}
@@ -1391,14 +1391,14 @@ function renderNotifications(){
   const visible = list.filter(n=>!dismissed.includes(n.key));
   const el=$('#notifList'); const sub=$('#notifSub');
   if(sub) sub.textContent = visible.length?`لديك ${visible.length} تنبيه`:'كل شيء تحت السيطرة';
-  if(!visible.length){ el.innerHTML=`<div class="notif-empty"><div class="big">✅</div><div>لا توجد تنبيهات حالياً</div></div>`; return; }
+  if(!visible.length){ el.innerHTML=`<div class="notif-empty"><div class="big">${icon('check',17,'ico-btn')}</div><div>لا توجد تنبيهات حالياً</div></div>`; return; }
   const order={urgent:0,warn:1,info:2,ok:3};
   visible.sort((a,b)=>(order[a.type]??9)-(order[b.type]??9));
   const groups={};
   visible.forEach((n,i)=>{ (groups[n.cat]=groups[n.cat]||[]).push({...n,_i:i}); });
   window.__notifActions=visible.map(n=>n.action);
   const clearBar=`<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-    <button class="btn btn-ghost btn-sm" onclick="clearAllNotifs()">🧹 مسح الكل</button></div>`;
+    <button class="btn btn-ghost btn-sm" onclick="clearAllNotifs()">${icon('trash',17,'ico-btn')} مسح الكل</button></div>`;
   el.innerHTML=clearBar+Object.entries(groups).map(([cat,items])=>`
     <div class="notif-group">
       <div class="notif-group-title">${cat} <span style="color:var(--muted-2)">(${items.length})</span></div>
@@ -1683,7 +1683,7 @@ function renderRecentMembers(){
       const rc = bookingHasReceipt(b)?'on':'';
       return `<div class="mq-card ${cls}">
         <div class="mq-top">
-          <div class="mq-av">👪</div>
+          <div class="mq-av">${icon('users',17,'ico-btn')}</div>
           <div class="mq-mid" onclick="openFamilyList()">
             <div class="mq-name">${escapeHtml(b.familyName)} <span class="code">عائلة</span></div>
             <div class="mq-line">${escapeHtml(mq.name)} <span class="dt">· ${fmtMiqatDate(mq)}</span></div>
@@ -1976,7 +1976,7 @@ function showMiqatDetail(id){
     const fam=b.familyName?' 👪':'';
     const payLine = rem>0
       ? `<div class="bk-pay">مدفوع ${fmtMoney(pd)} من ${fmtMoney(ag)} · <span class="bk-rem">متبقّي ${fmtMoney(rem)}</span>
-           <button class="bk-add" onclick="openBookingPayment('${mq.id}','${b.memberId}')">➕ دفعة</button></div>`
+           <button class="bk-add" onclick="openBookingPayment('${mq.id}','${b.memberId}')">${icon('plus',17,'ico-btn')} دفعة</button></div>`
       : (ag>0?`<div class="bk-pay" style="color:var(--ok)">مدفوع بالكامل ✓</div>`:'');
     return `<li><span class="name">${escapeHtml(bookingName(b))}${fam} <span style="color:var(--muted)">${escapeHtml(bookingSubtitle(b))}</span><br><span style="font-size:12px;color:var(--muted)">${fmtBooking(b)}</span>${payLine}</span></li>`;
   }).join('');
@@ -2289,8 +2289,8 @@ function miqatRemindersHTML(m){
       <div class="mr-name">${escapeHtml(mq.name)}</div>
       <div class="mr-meta">${fmtMiqatDate(mq)} · ${when}</div>
       <div class="mr-actions">
-        <a href="${whatsappLink(m.phone,msg)}" target="_blank" class="mr-btn wa" onclick="markReminded('${m.id}','${mq.id}')">💬 واتساب</a>
-        <a href="tel:${m.phone}" class="mr-btn call" onclick="markReminded('${m.id}','${mq.id}')">📞 اتصال</a>
+        <a href="${whatsappLink(m.phone,msg)}" target="_blank" class="mr-btn wa" onclick="markReminded('${m.id}','${mq.id}')">${icon('mail',17,'ico-btn')} واتساب</a>
+        <a href="tel:${m.phone}" class="mr-btn call" onclick="markReminded('${m.id}','${mq.id}')">${icon('phone',17,'ico-btn')} اتصال</a>
         ${reminded
           ? `<button class="mr-btn done" onclick="unmarkReminded('${m.id}','${mq.id}')"><span class="mr-done-badge">✓ تم</span></button>`
           : `<button class="mr-btn done" onclick="markReminded('${m.id}','${mq.id}',true)">وضع علامة تم</button>`}
@@ -2343,12 +2343,12 @@ function showDetail(id){
     ${miqatsHTML}
     ${reminderHTML}
     <div class="actions-row">
-      <button class="btn btn-primary" onclick="openAddSubPayment('${m.id}')">💳 تفعيل العضوية</button>
+      <button class="btn btn-primary" onclick="openAddSubPayment('${m.id}')">${icon('wallet',17,'ico-btn')} تفعيل العضوية</button>
       ${active?`<button class="btn btn-ghost" onclick="deactivateMembership('${m.id}')">⛔ إلغاء التفعيل</button>`:''}
-      ${(memberPayments(m).length||memberMiqats(m).length)?`<button class="btn btn-ghost" onclick="printSubReceipt('${m.id}')">🧾 تقرير الأقساط PDF</button>`:''}
+      ${(memberPayments(m).length||memberMiqats(m).length)?`<button class="btn btn-ghost" onclick="printSubReceipt('${m.id}')">${icon('doc',17,'ico-btn')} تقرير الأقساط PDF</button>`:''}
       ${active?`<button class="btn btn-accent" onclick="openCard('${m.id}')">بطاقة العضوية</button>`:''}
-      ${memberMiqats(m).length?`<button class="btn btn-ghost" onclick="openMemberThawab('${m.id}')">🕯️ تثويبات المرحومين</button>`:''}
-      <button class="btn btn-ghost" onclick="openEditMember('${m.id}')">✏️ تعديل الملف</button>
+      ${memberMiqats(m).length?`<button class="btn btn-ghost" onclick="openMemberThawab('${m.id}')">${icon('candle',17,'ico-btn')} تثويبات المرحومين</button>`:''}
+      <button class="btn btn-ghost" onclick="openEditMember('${m.id}')">${icon('edit',17,'ico-btn')} تعديل الملف</button>
       <a href="${whatsappLink(m.phone)}" target="_blank" class="btn wa-btn large">${WA_ICON} واتساب</a>
       ${active?`<button class="btn btn-ghost" onclick="renewPayment('${m.id}')">تجديد سنة</button>`:''}
       <button class="btn btn-ghost btn-sm" onclick="toggleAdmin('${m.id}')">${m.isAdmin?'إزالة من الإدارة':'تعيين كإداري'}</button>
@@ -2393,10 +2393,10 @@ function renderMThawabBody(){
     namesBlock=`
     <div class="field full"><label>أسماء المرحومين (إهداء ثواب هذا الميقات)</label>
       <div id="mThawabNames"></div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="mThawabAddName()">➕ إضافة اسم متوفى</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="mThawabAddName()">${icon('plus',17,'ico-btn')} إضافة اسم متوفى</button>
     </div>
     <div class="actions-row">
-      <button class="btn btn-primary" onclick="saveMemberThawab()">💾 حفظ التثويبات</button>
+      <button class="btn btn-primary" onclick="saveMemberThawab()">${icon('download',17,'ico-btn')} حفظ التثويبات</button>
       ${isMiqatPassed(mThawabMiqatId)?`<button class="btn btn-accent" onclick="sendMemberThankYou('${mThawabMemberId}','${mThawabMiqatId}')">📜 إرسال شهادة الشكر PDF</button>`:''}
     </div>`;
   }
@@ -2970,7 +2970,7 @@ function renderMiqats(){
   const counts={green:0,yellow:0,red:0}; miqats.forEach(mq=>counts[miqatStatus(mq)]++);
   $('#miqatsPanelSub').textContent=`${miqats.length} ميقات · ${counts.green} محجوز · ${counts.yellow} تعزيز · ${counts.red} غير محجوز`;
   const el=$('#miqatsList');
-  if(!list.length){ el.innerHTML=`<div class="empty"><div class="icon">🕯️</div><div class="txt">لا توجد مواقيت. اضغط «إضافة ميقات».</div></div>`; return; }
+  if(!list.length){ el.innerHTML=`<div class="empty"><div class="icon">${icon('candle',17,'ico-btn')}</div><div class="txt">لا توجد مواقيت. اضغط «إضافة ميقات».</div></div>`; return; }
   el.innerHTML=list.map(mq=>{
     const st=miqatStatus(mq), paid=miqatPaid(mq), req=Number(mq.requiredAmount)||0;
     const open=openMiqatRows.has(mq.id);
@@ -3045,7 +3045,7 @@ function contribRender(ctx){
     </div>`).join('');
   box.innerHTML = `${rows}
     <div class="contrib-foot">
-      <button type="button" class="btn btn-ghost btn-sm" onclick="contribAdd('${ctx}')">➕ بند آخر</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="contribAdd('${ctx}')">${icon('plus',17,'ico-btn')} بند آخر</button>
       <span class="contrib-total">الإجمالي: <b data-total="${ctx}">${fmtMoney(contribTotal(ctx))}</b></span>
     </div>`;
 }
@@ -3188,22 +3188,22 @@ function renderFamilyList(){
     const key=mq.id+'__'+b.memberId; const open=famExpanded.has(key);
     return `<div class="fam-card">
       <div class="fc-head" onclick="toggleFamCard('${key}')">
-        <div class="fc-name">👪 ${escapeHtml(b.familyName)}</div>
+        <div class="fc-name">${icon('users',17,'ico-btn')} ${escapeHtml(b.familyName)}</div>
         <span class="fc-chev">${open?'▲':'▼'}</span>
       </div>
       <div class="fc-details" style="display:${open?'block':'none'}">
         <div class="fc-rep">الممثّل: ${escapeHtml(b.repName||'—')} · ${phoneDisp(b.phone)}</div>
-        <div class="fc-miqat">🕯️ ${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div>
+        <div class="fc-miqat">${icon('candle',17,'ico-btn')} ${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div>
         <div class="fc-contrib">${fmtBooking(b)}</div>
         <div class="fc-bar"><span style="width:${pct}%"></span></div>
         <div class="fc-nums"><span class="paid">مُحصّل ${fmtMoney(pd)}</span><span>${rem>0?`متّفق ${fmtMoney(ag)} · <span class="rem">متبقّي ${fmtMoney(rem)}</span>`:'مكتمل ✓'}</span></div>
         <div class="fc-btns">
-          <button class="fb-edit" onclick="editFamilyBooking('${mq.id}','${b.memberId}')">✏️ تعديل</button>
-          <button class="fb-pay" onclick="openBookingPayment('${mq.id}','${b.memberId}')">➕ أقساط</button>
-          <button class="fb-wa" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">💬 تذكير</button>
+          <button class="fb-edit" onclick="editFamilyBooking('${mq.id}','${b.memberId}')">${icon('edit',17,'ico-btn')} تعديل</button>
+          <button class="fb-pay" onclick="openBookingPayment('${mq.id}','${b.memberId}')">${icon('plus',17,'ico-btn')} أقساط</button>
+          <button class="fb-wa" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">${icon('mail',17,'ico-btn')} تذكير</button>
           <button class="fb-del" onclick="deleteFamilyBooking('${mq.id}','${b.memberId}')">🗑 حذف</button>
         </div>
-        <button class="fb-pdf" onclick="printOneFamilyReport('${mq.id}','${b.memberId}')">🧾 تقرير هذه العائلة (PDF)</button>
+        <button class="fb-pdf" onclick="printOneFamilyReport('${mq.id}','${b.memberId}')">${icon('doc',17,'ico-btn')} تقرير هذه العائلة (PDF)</button>
       </div>
     </div>`;
   }).join('');
@@ -3259,7 +3259,7 @@ function printFamilyReport(){
     const ag=bookingAgreed(b), pd=bookingPaid(b), rem=bookingRemaining(b);
     const pays=Array.isArray(b.payments)?b.payments:[];
     const prows=pays.length?pays.map((p,i)=>`<tr><td>${i+1}</td><td>${fmtMoney(p.amount)}</td><td>${p.date?fmtDate(p.date):''}</td><td>${escapeHtml(p.note||'')}</td></tr>`).join(''):`<tr><td colspan="4" class="empty">لا توجد دفعات مستلَمة</td></tr>`;
-    return `<div class="blk"><div class="blk-h">👪 ${escapeHtml(b.familyName)} <span class="st">${rem<=0?'مكتمل':'متبقّي '+fmtMoney(rem)}</span></div>
+    return `<div class="blk"><div class="blk-h">${icon('users',17,'ico-btn')} ${escapeHtml(b.familyName)} <span class="st">${rem<=0?'مكتمل':'متبقّي '+fmtMoney(rem)}</span></div>
       <div class="sm">الممثّل: ${escapeHtml(b.repName||'—')} · ${phoneDisp(b.phone)}</div>
       <div class="sm">الميقات: ${escapeHtml(mq.name)} — ${fmtMiqatDate(mq)} · المساهمة: ${fmtBooking(b)}</div>
       <div class="sm">المتّفق: <b>${fmtMoney(ag)}</b> · المُحصّل: <b class="paid">${fmtMoney(pd)}</b> · المتبقّي: <b class="rem">${fmtMoney(rem)}</b></div>
@@ -3289,9 +3289,9 @@ function printFamilyReport(){
 /* شريط أزرار داخل نافذة الطباعة (لا يظهر في الـ PDF) */
 const PRINT_BAR = `
   <div class="no-print bar">
-    <button onclick="window.print()">🖨️ حفظ / طباعة PDF</button>
+    <button onclick="window.print()">${icon('print',17,'ico-btn')} حفظ / طباعة PDF</button>
     <button onclick="window.close()">↩︎ عودة</button>
-    <button onclick="window.close()">🏠 الرئيسية</button>
+    <button onclick="window.close()">${icon('home',17,'ico-btn')} الرئيسية</button>
   </div>`;
 const PRINT_BAR_CSS = `
   .bar{position:sticky;top:0;display:flex;gap:8px;justify-content:center;padding:12px;background:#123028;margin:-30px -30px 24px;}
@@ -3334,7 +3334,7 @@ function renderAdmins(){
   const admins=members.filter(m=>m.isAdmin);
   $('#adminsCount').textContent=`${admins.length} إداري`;
   const el=$('#adminsList');
-  if(!admins.length){ el.innerHTML=`<div class="empty"><div class="icon">👥</div><div class="txt">لا يوجد أعضاء إدارة بعد.</div></div>`; return; }
+  if(!admins.length){ el.innerHTML=`<div class="empty"><div class="icon">${icon('users',17,'ico-btn')}</div><div class="txt">لا يوجد أعضاء إدارة بعد.</div></div>`; return; }
   el.innerHTML=admins.map(m=>`<div class="admin-row">
     <div><div class="a-name">${escapeHtml(m.name)}</div><div class="a-comm">${escapeHtml(m.committee||'إدارة الهيئة')} · ${memberCode(m)}</div></div>
     <a href="${whatsappLink(m.phone)}" target="_blank" class="wa-btn small">${WA_ICON}</a>
@@ -3391,13 +3391,13 @@ function guardCloudClick(ev){
 function renderBackupStatus(){
   const box=document.getElementById('backupWarnBox'); if(!box) return;
   const lastB=window.__lastBackupAt||'';
-  if(!lastB){ box.innerHTML='<div class="backup-warn">⚠️ لم تُؤخذ نسخة احتياطية من هذا الجهاز بعد — يُنصح بأخذ نسخة الآن.</div>'; return; }
+  if(!lastB){ box.innerHTML=`<div class="backup-warn">${icon('warn',17,'ico-btn')} لم تُؤخذ نسخة احتياطية من هذا الجهاز بعد — يُنصح بأخذ نسخة الآن.</div>`; return; }
   const d=new Date(lastB); const t=new Date(); t.setHours(0,0,0,0); const d0=new Date(d); d0.setHours(0,0,0,0);
   const days=Math.round((t-d0)/86400000);
   const txt = days===0?'اليوم':days===1?'أمس':`قبل ${days} يوماً`;
   box.innerHTML = days>=7
-    ? `<div class="backup-warn">⚠️ آخر نسخة احتياطية كانت ${txt} — يُنصح بأخذ نسخة جديدة.</div>`
-    : `<div class="backup-ok">✅ آخر نسخة احتياطية: ${txt} (${d.toLocaleDateString('ar')})</div>`;
+    ? `<div class="backup-warn">${icon('warn',17,'ico-btn')} آخر نسخة احتياطية كانت ${txt} — يُنصح بأخذ نسخة جديدة.</div>`
+    : `<div class="backup-ok">${icon('check',17,'ico-btn')} آخر نسخة احتياطية: ${txt} (${d.toLocaleDateString('ar')})</div>`;
 }
 function fillSettings(){
   $('#setFee').value=settings.fee; $('#setYear').value=settings.year;
@@ -3616,9 +3616,9 @@ function renderMeetingStats(){
     <div class="mtg-stat late clickable" onclick="openMeetingsFromStat('lateTasks')"><div class="num">${s.lateTasks}</div><div class="lbl">مهام متأخرة</div></div>`;
   const ab=document.getElementById('mtgMostAbsent');
   if(s.topMember){ ab.className='mtg-absent-card';
-    ab.innerHTML=`<span>👤 الأكثر غياباً: <b>${escapeHtml(s.topMember.name)}</b></span><span>${s.topAbsN} غياب · نسبة الغياب ${s.absPct}%</span>`;
+    ab.innerHTML=`<span>${icon('user',17,'ico-btn')} الأكثر غياباً: <b>${escapeHtml(s.topMember.name)}</b></span><span>${s.topAbsN} غياب · نسبة الغياب ${s.absPct}%</span>`;
   } else { ab.className='mtg-absent-card none';
-    ab.innerHTML=`<span>✅ لا توجد غيابات مسجّلة بعد</span><span>نسبة الحضور ${s.attPct}%</span>`; }
+    ab.innerHTML=`<span>${icon('check',17,'ico-btn')} لا توجد غيابات مسجّلة بعد</span><span>نسبة الحضور ${s.attPct}%</span>`; }
   const sum=document.getElementById('mtgDashSummary');
   if(sum) sum.textContent = s.count
     ? `${s.count} اجتماع · حضور ${s.attPct}% · ${s.openDec} قرار · ${s.lateTasks} متأخرة — اضغط للتفاصيل`
@@ -3649,7 +3649,7 @@ function meetingsSummaryCardHTML(){
       ${overdue?'<span class="md-chip late">متأخر</span>':''}</div>`;
   }).join('');
   return `<div class="news-item mtg-summary-card" onclick="openSecretariatFromHome()">
-    <div class="msc-head">📋 لوحة اجتماعات الإدارة</div>
+    <div class="msc-head">${icon('doc',17,'ico-btn')} لوحة اجتماعات الإدارة</div>
     <div class="msc-stats">
       <span><b>${s.count}</b> اجتماع</span>
       <span>الحضور <b>${s.attPct}%</b></span>
@@ -3747,11 +3747,11 @@ function renderRadoods(){
   const cnt=$('#azaRcount'); if(cnt) cnt.textContent=`${radoods.length} رادود`;
   const host=$('#radoodList'); if(!host) return;
   if(!radoods.length){
-    host.innerHTML=`<div class="radood-empty"><div class="re-ic">🎤</div><div>لا يوجد رواديد بعد — أضف أول رادود من زر «➕ إضافة رادود»</div></div>`;
+    host.innerHTML=`<div class="radood-empty"><div class="re-ic">${icon('mic',17,'ico-btn')}</div><div>لا يوجد رواديد بعد — أضف أول رادود من زر «${icon('plus',17,'ico-btn')} إضافة رادود»</div></div>`;
     return;
   }
   const list=radoods.filter(r=>!q||(r.name||'').includes(q)).sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar'));
-  if(!list.length){ host.innerHTML=`<div class="radood-empty"><div class="re-ic">🔍</div><div>لا نتائج للبحث «${escapeHtml(q)}»</div></div>`; return; }
+  if(!list.length){ host.innerHTML=`<div class="radood-empty"><div class="re-ic">${icon('search',17,'ico-btn')}</div><div>لا نتائج للبحث «${escapeHtml(q)}»</div></div>`; return; }
   host.innerHTML=list.map(r=>{
     const nPart=radoodParticipations(r.id);
     const avg=radoodOverallAvg(r.id);
@@ -3765,8 +3765,8 @@ function renderRadoods(){
         </div>
       </div>
       <div class="radood-actions">
-        <button onclick="openEditRadood('${r.id}')" title="تعديل">✏️</button>
-        <button onclick="deleteRadood('${r.id}')" title="حذف">🗑️</button>
+        <button onclick="openEditRadood('${r.id}')" title="تعديل">${icon('edit',17,'ico-btn')}</button>
+        <button onclick="deleteRadood('${r.id}')" title="حذف">${icon('trash',17,'ico-btn')}</button>
       </div>
     </div>`;
   }).join('');
@@ -3860,12 +3860,12 @@ function renderRadoodEvalPage(){
         <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
         <div class="eval-rname">${escapeHtml(r.name)}</div>
       </div>
-      <div class="eval-title">⭐ تقييم الرادود</div>
+      <div class="eval-title">${icon('star',17,'ico-btn')} تقييم الرادود</div>
     </div>
 
     <!-- معلومات المناسبة -->
     <div class="eval-sec">
-      <div class="eval-sec-h">📅 معلومات المناسبة</div>
+      <div class="eval-sec-h">${icon('calendar',17,'ico-btn')} معلومات المناسبة</div>
       <div class="eval-field"><label>الميقات</label>
         <select id="evMiqat" onchange="evalPickMiqat(this.value)">
           <option value="">— اختر الميقات —</option>
@@ -3892,7 +3892,7 @@ function renderRadoodEvalPage(){
 
     <!-- نوع البرنامج العام -->
     <div class="eval-sec">
-      <div class="eval-sec-h">🎭 نوع البرنامج العام <span class="eval-hint">تستطيع اختيار خيارين فقط</span></div>
+      <div class="eval-sec-h">${icon('star',17,'ico-btn')} نوع البرنامج العام <span class="eval-hint">تستطيع اختيار خيارين فقط</span></div>
       <div class="eval-chips">
         ${PROGRAM_TYPES.map(t=>`<button class="eval-chip" onclick="toggleProgram('${escapeHtml(t)}',this)">${t}</button>`).join('')}
       </div>
@@ -3913,7 +3913,7 @@ function renderRadoodEvalPage(){
 
     <!-- نقاط القوة -->
     <div class="eval-sec">
-      <div class="eval-sec-h">💪 أبرز نقاط القوة</div>
+      <div class="eval-sec-h">${icon('star',17,'ico-btn')} أبرز نقاط القوة</div>
       <div class="eval-chips">
         ${STRENGTHS.map(s=>`<button class="eval-chip" data-s="${escapeHtml(s)}" onclick="toggleStrength('${escapeHtml(s)}',this)">${s}</button>`).join('')}
       </div>
@@ -3921,13 +3921,13 @@ function renderRadoodEvalPage(){
 
     <!-- الملاحظات -->
     <div class="eval-sec">
-      <div class="eval-sec-h">📝 الملاحظات</div>
+      <div class="eval-sec-h">${icon('edit',17,'ico-btn')} الملاحظات</div>
       <textarea id="evNotes" rows="4" placeholder="اكتب ملاحظاتك هنا…" oninput="evalData.notes=this.value"></textarea>
     </div>
 
     <!-- التوصيات -->
     <div class="eval-sec">
-      <div class="eval-sec-h">🎯 التوصيات <span class="eval-hint">تستطيع اختيار أكثر من توصية (حتى ٣)</span></div>
+      <div class="eval-sec-h">${icon('star',17,'ico-btn')} التوصيات <span class="eval-hint">تستطيع اختيار أكثر من توصية (حتى ٣)</span></div>
       <div class="eval-chips">
         ${RECOMMENDS.map(s=>`<button class="eval-chip" data-r="${escapeHtml(s)}" onclick="toggleRecommend('${escapeHtml(s)}',this)">${s}</button>`).join('')}
       </div>
@@ -3935,7 +3935,7 @@ function renderRadoodEvalPage(){
 
     <!-- هل أعطى المناسبة حقها -->
     <div class="eval-sec">
-      <div class="eval-sec-h">⚖️ هل أعطى الرادود هذه المناسبة حقّها؟</div>
+      <div class="eval-sec-h">${icon('chart',17,'ico-btn')} هل أعطى الرادود هذه المناسبة حقّها؟</div>
       <div class="eyn-btns" style="margin-bottom:10px;">
         <button class="eyn-btn" id="rightYes" onclick="setGaveRight('yes')">نعم</button>
         <button class="eyn-btn" id="rightNo" onclick="setGaveRight('no')">لا</button>
@@ -3952,7 +3952,7 @@ function renderRadoodEvalPage(){
       <div class="er-stars" id="evalScoreStars"></div>
     </div>
 
-    <button class="btn btn-primary" style="width:100%;margin-top:14px;" onclick="saveRadoodEval()">💾 حفظ التقييم</button>
+    <button class="btn btn-primary" style="width:100%;margin-top:14px;" onclick="saveRadoodEval()">${icon('download',17,'ico-btn')} حفظ التقييم</button>
   </div>`;
 }
 function evalPickMiqat(id){ evalData.miqatId=id; const mq=miqats.find(x=>x.id===id); if(mq && !$('#evOccasion').value){ $('#evOccasion').value=mq.name; evalData.occasion=mq.name; } }
@@ -4086,19 +4086,19 @@ function renderRadoodRecord(){
       <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
       <div class="rec-name">${escapeHtml(r.name)}</div>
     </div>
-      <div class="radood-empty"><div class="re-ic">📋</div><div>لا توجد تقييمات لهذا الرادود بعد</div>
+      <div class="radood-empty"><div class="re-ic">${icon('doc',17,'ico-btn')}</div><div>لا توجد تقييمات لهذا الرادود بعد</div>
         <div style="margin-top:14px;">
-          <button class="btn btn-primary btn-sm" onclick="openRadoodEval('${r.id}')">⭐ إضافة تقييم</button>
+          <button class="btn btn-primary btn-sm" onclick="openRadoodEval('${r.id}')">${icon('star',17,'ico-btn')} إضافة تقييم</button>
         </div>
       </div>
       <div class="rec-sec">
-        <div class="rec-sec-h">🔗 جلسات التقييم الجماعي</div>
-        <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">➕ إنشاء رابط تقييم جديد</button>
+        <div class="rec-sec-h">${icon('link',17,'ico-btn')} جلسات التقييم الجماعي</div>
+        <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">${icon('plus',17,'ico-btn')} إنشاء رابط تقييم جديد</button>
         <div id="recSessionsList"><div class="eval-link-loading">جارٍ تحميل الجلسات…</div></div>
       </div>
       <div class="rec-sec">
-        <div class="rec-sec-h">📋 استبيانات الرادود</div>
-        <button class="btn btn-sm" style="width:100%;background:#7a5c1e;color:#fff;border:none;margin-bottom:10px;" onclick="openSurveyLinkDialog('${r.id}')">➕ إنشاء رابط استبيان جديد</button>
+        <div class="rec-sec-h">${icon('doc',17,'ico-btn')} استبيانات الرادود</div>
+        <button class="btn btn-sm" style="width:100%;background:#7a5c1e;color:#fff;border:none;margin-bottom:10px;" onclick="openSurveyLinkDialog('${r.id}')">${icon('plus',17,'ico-btn')} إنشاء رابط استبيان جديد</button>
         <div id="recSurveysList"><div class="eval-link-loading">جارٍ تحميل الاستبيانات…</div></div>
       </div>
       <div style="padding:14px 18px;text-align:center;border-top:1px solid var(--line);">
@@ -4128,8 +4128,8 @@ function renderRadoodRecord(){
     <div class="rec-head">
       <div class="eval-avatar">${r.img?`<img src="${r.img}" alt="">`:'🎤'}</div>
       <div class="rec-name">${escapeHtml(r.name)}</div>
-      <button class="btn btn-accent btn-sm" style="margin-top:6px;" onclick="printRadoodProfile('${r.id}')">🖨️ طباعة ملف الرادود PDF</button>
-      <button class="btn btn-sm" style="margin-top:6px;background:#25604a;color:#fff;border:none;" onclick="openEvalLinkDialog('${r.id}')">🔗 رابط تقييم جماعي</button>
+      <button class="btn btn-accent btn-sm" style="margin-top:6px;" onclick="printRadoodProfile('${r.id}')">${icon('print',17,'ico-btn')} طباعة ملف الرادود PDF</button>
+      <button class="btn btn-sm" style="margin-top:6px;background:#25604a;color:#fff;border:none;" onclick="openEvalLinkDialog('${r.id}')">${icon('link',17,'ico-btn')} رابط تقييم جماعي</button>
     </div>
 
     <div class="rec-stats">
@@ -4139,10 +4139,10 @@ function renderRadoodRecord(){
     </div>
 
     <div class="rec-highlights">
-      <div class="rec-hl best"><div class="hl-l">🌟 أفضل مناسبة</div><div class="hl-v">${escapeHtml(best.miqatName||'—')}</div><div class="hl-s">${best.pct||Math.round((best.avg||0)*20)}%</div></div>
+      <div class="rec-hl best"><div class="hl-l">${icon('star',17,'ico-btn')} أفضل مناسبة</div><div class="hl-v">${escapeHtml(best.miqatName||'—')}</div><div class="hl-s">${best.pct||Math.round((best.avg||0)*20)}%</div></div>
       <div class="rec-hl low"><div class="hl-l">📉 أقل مناسبة</div><div class="hl-v">${escapeHtml(worst.miqatName||'—')}</div><div class="hl-s">${worst.pct||Math.round((worst.avg||0)*20)}%</div></div>
     </div>
-    ${topEngage?`<div class="rec-engage">🔥 أعلى تفاعل: <b>${escapeHtml(topEngage.miqatName||'—')}</b> (${Math.round(topEngageVal*20)}%)</div>`:''}
+    ${topEngage?`<div class="rec-engage">${icon('star',17,'ico-btn')} أعلى تفاعل: <b>${escapeHtml(topEngage.miqatName||'—')}</b> (${Math.round(topEngageVal*20)}%)</div>`:''}
 
     <div class="rec-sec">
       <div class="rec-sec-h">🕐 آخر ${last5.length} قراءات</div>
@@ -4156,15 +4156,15 @@ function renderRadoodRecord(){
           <div class="rer-score ${pct>=80?'good':pct>=60?'mid':'low'}">${pct}%</div>
         </div>
         <div class="rer-report" id="report_${e.id}" style="display:none">
-          <div class="rer-report-h">📄 التقرير</div>
+          <div class="rer-report-h">${icon('file',17,'ico-btn')} التقرير</div>
           <p>${escapeHtml(buildSmartReport(e))}</p>
           ${e.strengths&&e.strengths.length?`<div class="rer-tags"><b>نقاط القوة:</b> ${e.strengths.map(escapeHtml).join('، ')}</div>`:''}
           ${e.recommends&&e.recommends.length?`<div class="rer-tags"><b>التوصيات:</b> ${e.recommends.map(escapeHtml).join('، ')}</div>`:''}
           ${e.gaveRight?`<div class="rer-tags"><b>أعطى المناسبة حقّها:</b> ${e.gaveRight==='yes'?'نعم ✅':'لا ❌'}${e.gaveRight==='no'&&e.gaveRightReason?' — '+escapeHtml(e.gaveRightReason):''}</div>`:''}
           ${e.notes?`<div class="rer-tags"><b>ملاحظات:</b> ${escapeHtml(e.notes)}</div>`:''}
           <div style="display:flex;gap:8px;margin-top:8px;">
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printRadoodMiqatPDF('${e.id}')" style="color:var(--accent);">🖨️ طباعة هذه المناسبة</button>
-            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteRadoodEval('${e.id}')" style="color:var(--danger);">🗑️ حذف</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();printRadoodMiqatPDF('${e.id}')" style="color:var(--accent);">${icon('print',17,'ico-btn')} طباعة هذه المناسبة</button>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteRadoodEval('${e.id}')" style="color:var(--danger);">${icon('trash',17,'ico-btn')} حذف</button>
           </div>
         </div>`;
       }).join('')}
@@ -4172,15 +4172,15 @@ function renderRadoodRecord(){
 
     <!-- جلسات التقييم الجماعي -->
     <div class="rec-sec">
-      <div class="rec-sec-h">🔗 جلسات التقييم الجماعي</div>
-      <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">➕ إنشاء رابط تقييم جديد</button>
+      <div class="rec-sec-h">${icon('link',17,'ico-btn')} جلسات التقييم الجماعي</div>
+      <button class="btn btn-sm" style="width:100%;background:#25604a;color:#fff;border:none;margin-bottom:10px;" onclick="openEvalLinkDialog('${r.id}')">${icon('plus',17,'ico-btn')} إنشاء رابط تقييم جديد</button>
       <div id="recSessionsList"><div class="eval-link-loading">جارٍ تحميل الجلسات…</div></div>
     </div>
 
     <!-- استبيان الرادود -->
     <div class="rec-sec">
-      <div class="rec-sec-h">📋 استبيانات الرادود</div>
-      <button class="btn btn-sm" style="width:100%;background:#7a5c1e;color:#fff;border:none;margin-bottom:10px;" onclick="openSurveyLinkDialog('${r.id}')">➕ إنشاء رابط استبيان جديد</button>
+      <div class="rec-sec-h">${icon('doc',17,'ico-btn')} استبيانات الرادود</div>
+      <button class="btn btn-sm" style="width:100%;background:#7a5c1e;color:#fff;border:none;margin-bottom:10px;" onclick="openSurveyLinkDialog('${r.id}')">${icon('plus',17,'ico-btn')} إنشاء رابط استبيان جديد</button>
       <div id="recSurveysList"><div class="eval-link-loading">جارٍ تحميل الاستبيانات…</div></div>
     </div>
 
@@ -4225,11 +4225,11 @@ function renderPartsList(radoodId){
   return list.map(p=>{
     const srcs=[...p.sources].join(' · ');
     const btns=[];
-    if(p.surveySessionId) btns.push(`<button class="btn btn-sm" style="background:#7a5c1e;color:#fff;border:none;" onclick="viewPartSurvey('${p.surveySessionId}','${escapeHtml(p.miqatName||'')}')">📋 الاستبيان</button>`);
-    if(p.evalSessionId) btns.push(`<button class="btn btn-sm" style="background:#25604a;color:#fff;border:none;" onclick="viewPartEval('${p.evalSessionId}','${escapeHtml(p.miqatName||'')}')">⭐ التقييم</button>`);
+    if(p.surveySessionId) btns.push(`<button class="btn btn-sm" style="background:#7a5c1e;color:#fff;border:none;" onclick="viewPartSurvey('${p.surveySessionId}','${escapeHtml(p.miqatName||'')}')">${icon('doc',17,'ico-btn')} الاستبيان</button>`);
+    if(p.evalSessionId) btns.push(`<button class="btn btn-sm" style="background:#25604a;color:#fff;border:none;" onclick="viewPartEval('${p.evalSessionId}','${escapeHtml(p.miqatName||'')}')">${icon('star',17,'ico-btn')} التقييم</button>`);
     if(p.manualId){
-      btns.push(`<button class="btn btn-sm" onclick="editParticipation('${p.manualId}')">✏️</button>`);
-      btns.push(`<button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteParticipation('${p.manualId}')">🗑️</button>`);
+      btns.push(`<button class="btn btn-sm" onclick="editParticipation('${p.manualId}')">${icon('edit',17,'ico-btn')}</button>`);
+      btns.push(`<button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteParticipation('${p.manualId}')">${icon('trash',17,'ico-btn')}</button>`);
     }
     return `<div class="els-row part-row">
       <div class="els-body"><div class="els-name">${escapeHtml(p.miqatName||'—')}</div>
@@ -4251,10 +4251,10 @@ async function viewPartSurvey(sessionId, miqatName){
     const genCount={}; surveys.forEach(x=>{ if(x.general) genCount[x.general]=(genCount[x.general]||0)+1; });
     const gen=Object.entries(genCount).map(([k,v])=>`${escapeHtml(k)}: ${v}`).join(' · ')||'—';
     box.innerHTML=`<div class="eval-results-box">
-      <div class="erb-h">📋 ${surveys.length} استبيان</div>
+      <div class="erb-h">${icon('doc',17,'ico-btn')} ${surveys.length} استبيان</div>
       <div class="erb-right" style="text-align:right;">التقييم العام: ${gen}</div>
       <div class="erb-actions">
-        <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض كامل PDF</button>
+        <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">${icon('print',17,'ico-btn')} عرض كامل PDF</button>
       </div></div>`;
   }catch(e){ console.error(e); box.innerHTML='<div class="eval-link-err">تعذّر جلب الإجابات.</div>'; }
 }
@@ -4272,8 +4272,8 @@ async function viewPartEval(sessionId, miqatName){
       <div class="erb-main"><div class="erb-pct">${pct}%</div><div class="erb-sub">${n} مقيّم</div></div>
       <div class="erb-right">أعطى المناسبة حقّها: ${yes} نعم · ${no} لا</div>
       <div class="erb-actions">
-        <button class="btn btn-accent btn-sm" onclick="printGroupEvalPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض كامل PDF</button>
-        <button class="btn btn-primary btn-sm" onclick="saveGroupEvalToRecord('${sessionId}','${escapeHtml(miqatName)}')">💾 حفظ في السجل</button>
+        <button class="btn btn-accent btn-sm" onclick="printGroupEvalPDF('${sessionId}','${escapeHtml(miqatName)}')">${icon('print',17,'ico-btn')} عرض كامل PDF</button>
+        <button class="btn btn-primary btn-sm" onclick="saveGroupEvalToRecord('${sessionId}','${escapeHtml(miqatName)}')">${icon('download',17,'ico-btn')} حفظ في السجل</button>
       </div></div>`;
   }catch(e){ console.error(e); box.innerHTML='<div class="eval-link-err">تعذّر جلب النتائج.</div>'; }
 }
@@ -4329,8 +4329,8 @@ async function loadRecordSessions(radoodId){
       <div class="els-row">
         <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
           <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلقة':'· 🟢 مفتوحة'}</div></div>
-        <button class="btn btn-sm" onclick="viewRecordResults('${s._id}','${escapeHtml(s.miqatName||'')}')">👁️ النتائج</button>
-        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteEvalSessionRec('${s._id}')">🗑️</button>
+        <button class="btn btn-sm" onclick="viewRecordResults('${s._id}','${escapeHtml(s.miqatName||'')}')">${icon('search',17,'ico-btn')} النتائج</button>
+        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteEvalSessionRec('${s._id}')">${icon('trash',17,'ico-btn')}</button>
       </div>
       <div id="recRes_${s._id}" class="rec-session-result" style="display:none;"></div>`).join('');
   }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err">تعذّر تحميل الجلسات.</div>'; }
@@ -4351,8 +4351,8 @@ async function loadRecordSurveys(radoodId){
       <div class="els-row">
         <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
           <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلق':'· 🟢 مفتوح'}</div></div>
-        <button class="btn btn-sm" onclick="viewSurveyResults('${s._id}','${escapeHtml(s.miqatName||'')}')">👁️ الإجابات</button>
-        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteSurveySession('${s._id}')">🗑️</button>
+        <button class="btn btn-sm" onclick="viewSurveyResults('${s._id}','${escapeHtml(s.miqatName||'')}')">${icon('search',17,'ico-btn')} الإجابات</button>
+        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteSurveySession('${s._id}')">${icon('trash',17,'ico-btn')}</button>
       </div>
       <div id="recSurv_${s._id}" class="rec-session-result" style="display:none;"></div>`).join('');
   }catch(e){ console.error('survey load error:',e);
@@ -4380,9 +4380,9 @@ async function viewRecordResults(sessionId, miqatName){
         <div class="erb-main"><div class="erb-pct">${pct}%</div><div class="erb-sub">${n} مقيّم</div></div>
         <div class="erb-right">أعطى المناسبة حقّها: ${yes} قالوا نعم · ${no} قالوا لا</div>
         <div class="erb-actions">
-          <button class="btn btn-primary btn-sm" onclick="saveGroupEvalToRecord('${sessionId}','${escapeHtml(miqatName)}')">💾 حفظ في السجل</button>
-          <button class="btn btn-accent btn-sm" onclick="printGroupEvalPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ PDF</button>
-          <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleEvalSessionRec('${sessionId}')">🔒 إغلاق</button>
+          <button class="btn btn-primary btn-sm" onclick="saveGroupEvalToRecord('${sessionId}','${escapeHtml(miqatName)}')">${icon('download',17,'ico-btn')} حفظ في السجل</button>
+          <button class="btn btn-accent btn-sm" onclick="printGroupEvalPDF('${sessionId}','${escapeHtml(miqatName)}')">${icon('print',17,'ico-btn')} PDF</button>
+          <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleEvalSessionRec('${sessionId}')">${icon('lock',17,'ico-btn')} إغلاق</button>
         </div>
       </div>`;
   }catch(e){ console.error(e); box.innerHTML='<div class="eval-link-err">تعذّر جلب النتائج.</div>'; }
@@ -4556,7 +4556,7 @@ function openSurveyLinkDialog(radoodId){
   const r=radoods.find(x=>x.id===radoodId); if(!r) return;
   const miqatOpts=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
   $('#evalLinkBody').innerHTML=`
-    <h3>📋 رابط استبيان الرادود</h3>
+    <h3>${icon('doc',17,'ico-btn')} رابط استبيان الرادود</h3>
     <div class="subtitle">لـ <b>${escapeHtml(r.name)}</b> — أنشئ رابطاً يرسله للرادود لتعبئة الاستبيان</div>
     <div class="field full"><label>اختر المناسبة</label>
       <select id="surveyLinkMiqat">
@@ -4564,7 +4564,7 @@ function openSurveyLinkDialog(radoodId){
         ${miqatOpts.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
       </select></div>
     <div class="actions-row">
-      <button class="btn btn-primary" onclick="createSurveyLink()">📋 إنشاء الرابط</button>
+      <button class="btn btn-primary" onclick="createSurveyLink()">${icon('doc',17,'ico-btn')} إنشاء الرابط</button>
     </div>
     <div id="surveyLinkResult" style="margin-top:14px;"></div>`;
   $('#evalLinkModal').classList.add('open');
@@ -4583,11 +4583,11 @@ async function createSurveyLink(){
     const url=surveyPageURL(sessionId);
     res.innerHTML=`
       <div class="eval-link-box">
-        <div class="elb-label">✅ الرابط جاهز — أرسله للرادود</div>
+        <div class="elb-label">${icon('check',17,'ico-btn')} الرابط جاهز — أرسله للرادود</div>
         <div class="elb-url">${escapeHtml(url)}</div>
         <div class="elb-actions">
-          <button class="btn btn-primary btn-sm" onclick="copyEvalLink('${escapeHtml(url)}')">📋 نسخ</button>
-          <a class="btn btn-sm" style="background:#25d366;color:#fff;" href="https://wa.me/?text=${encodeURIComponent(surveyWhatsappText(r.name, mq?mq.name:'', url))}" target="_blank">💬 واتساب</a>
+          <button class="btn btn-primary btn-sm" onclick="copyEvalLink('${escapeHtml(url)}')">${icon('doc',17,'ico-btn')} نسخ</button>
+          <a class="btn btn-sm" style="background:#25d366;color:#fff;" href="https://wa.me/?text=${encodeURIComponent(surveyWhatsappText(r.name, mq?mq.name:'', url))}" target="_blank">${icon('mail',17,'ico-btn')} واتساب</a>
         </div>
       </div>`;
     loadRecordSurveys(currentSurveyRadoodId);
@@ -4612,7 +4612,7 @@ async function viewSurveyResults(sessionId, miqatName){
     surveys.forEach(s=>{ Object.values(s.texts||{}).forEach(v=>{ if(v&&String(v).trim()) noteCount++; }); (s.golden||[]).forEach(x=>{ if(x&&x.trim()) noteCount++; }); });
     box.innerHTML=`
       <div class="eval-results-box">
-        <div class="erb-h">📋 ${surveys.length} استبيان وصل</div>
+        <div class="erb-h">${icon('doc',17,'ico-btn')} ${surveys.length} استبيان وصل</div>
         <div class="erb-right" style="text-align:right;line-height:1.9;">
           <div><b>التقييم العام:</b> ${genSummary}</div>
           <div><b>يرغب بالمشاركة مستقبلاً:</b> ${wantYes} من ${surveys.length}</div>
@@ -4621,8 +4621,8 @@ async function viewSurveyResults(sessionId, miqatName){
           <div><b>عدد الملاحظات المكتوبة:</b> ${noteCount}</div>
         </div>
         <div class="erb-actions">
-          <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ عرض كل الإجابات PDF</button>
-          <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleSurveySession('${sessionId}')">🔒 إغلاق</button>
+          <button class="btn btn-accent btn-sm" onclick="printSurveyPDF('${sessionId}','${escapeHtml(miqatName)}')">${icon('print',17,'ico-btn')} عرض كل الإجابات PDF</button>
+          <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleSurveySession('${sessionId}')">${icon('lock',17,'ico-btn')} إغلاق</button>
         </div>
       </div>`;
   }catch(e){ console.error(e); box.innerHTML='<div class="eval-link-err">تعذّر جلب الإجابات.</div>'; }
@@ -4644,7 +4644,7 @@ function openEvalLinkDialog(radoodId){
   const r=radoods.find(x=>x.id===radoodId); if(!r) return;
   const miqatOpts=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
   $('#evalLinkBody').innerHTML=`
-    <h3>🔗 رابط تقييم جماعي</h3>
+    <h3>${icon('link',17,'ico-btn')} رابط تقييم جماعي</h3>
     <div class="subtitle">لـ <b>${escapeHtml(r.name)}</b> — أنشئ رابطاً يقيّم عبره أي عدد من الأشخاص</div>
     <div class="field full"><label>اختر المناسبة</label>
       <select id="evalLinkMiqat">
@@ -4652,7 +4652,7 @@ function openEvalLinkDialog(radoodId){
         ${miqatOpts.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
       </select></div>
     <div class="actions-row">
-      <button class="btn btn-primary" onclick="createEvalLink()">🔗 إنشاء الرابط</button>
+      <button class="btn btn-primary" onclick="createEvalLink()">${icon('link',17,'ico-btn')} إنشاء الرابط</button>
     </div>
     <div id="evalLinkResult" style="margin-top:14px;"></div>`;
   $('#evalLinkModal').classList.add('open');
@@ -4672,11 +4672,11 @@ async function createEvalLink(){
     const url=evalPageURL(sessionId);
     res.innerHTML=`
       <div class="eval-link-box">
-        <div class="elb-label">✅ الرابط جاهز — انسخه وأرسله للمقيّمين</div>
+        <div class="elb-label">${icon('check',17,'ico-btn')} الرابط جاهز — انسخه وأرسله للمقيّمين</div>
         <div class="elb-url" id="elbUrl">${escapeHtml(url)}</div>
         <div class="elb-actions">
-          <button class="btn btn-primary btn-sm" onclick="copyEvalLink('${escapeHtml(url)}')">📋 نسخ</button>
-          <a class="btn btn-sm" style="background:#25d366;color:#fff;" href="https://wa.me/?text=${encodeURIComponent('السلام عليكم، نرجو تقييم قراءة الرادود '+r.name+(mq?' في '+mq.name:'')+' عبر الرابط: '+url)}" target="_blank">💬 واتساب</a>
+          <button class="btn btn-primary btn-sm" onclick="copyEvalLink('${escapeHtml(url)}')">${icon('doc',17,'ico-btn')} نسخ</button>
+          <a class="btn btn-sm" style="background:#25d366;color:#fff;" href="https://wa.me/?text=${encodeURIComponent('السلام عليكم، نرجو تقييم قراءة الرادود '+r.name+(mq?' في '+mq.name:'')+' عبر الرابط: '+url)}" target="_blank">${icon('mail',17,'ico-btn')} واتساب</a>
         </div>
       </div>`;
     loadRecordSessions(currentEvalRadoodId);
@@ -4697,11 +4697,11 @@ async function loadRadoodSessions(radoodId){
     const all=await CloudSync.fetchEvalSessions();
     const mine=all.filter(s=>s.radoodId===radoodId);
     if(!mine.length){ host.innerHTML='<div class="eval-link-note">لا توجد جلسات تقييم لهذا الرادود بعد.</div>'; return; }
-    host.innerHTML=`<div class="els-title">📊 جلسات التقييم السابقة</div>`+mine.map(s=>`
+    host.innerHTML=`<div class="els-title">${icon('chart',17,'ico-btn')} جلسات التقييم السابقة</div>`+mine.map(s=>`
       <div class="els-row">
         <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
           <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلقة':'· 🟢 مفتوحة'}</div></div>
-        <button class="btn btn-sm" onclick="viewEvalResults('${s._id}','${escapeHtml(s.miqatName||'')}')">👁️ النتائج</button>
+        <button class="btn btn-sm" onclick="viewEvalResults('${s._id}','${escapeHtml(s.miqatName||'')}')">${icon('search',17,'ico-btn')} النتائج</button>
       </div>`).join('');
   }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err">تعذّر تحميل الجلسات.</div>'; }
 }
@@ -4717,13 +4717,13 @@ async function viewEvalResults(sessionId, miqatName){
     const gaveRightYes=evals.filter(e=>e.gaveRight==='yes').length;
     res.innerHTML=`
       <div class="eval-results-box">
-        <div class="erb-h">📊 نتائج «${escapeHtml(miqatName)}»</div>
+        <div class="erb-h">${icon('chart',17,'ico-btn')} نتائج «${escapeHtml(miqatName)}»</div>
         <div class="erb-main"><div class="erb-pct">${pct}%</div><div class="erb-sub">${n} مقيّم · متوسط ${Math.round(avg*100)/100}/5</div></div>
         <div class="erb-right">أعطى المناسبة حقّها: ${gaveRightYes} من ${n}</div>
         <div class="erb-actions">
-          <button class="btn btn-primary btn-sm" onclick="saveGroupEvalToRecord('${sessionId}','${escapeHtml(miqatName)}')">💾 حفظ في سجل الرادود</button>
-          <button class="btn btn-accent btn-sm" onclick="printGroupEvalPDF('${sessionId}','${escapeHtml(miqatName)}')">🖨️ PDF</button>
-          <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleEvalSession('${sessionId}')">🔒 إغلاق التقييم</button>
+          <button class="btn btn-primary btn-sm" onclick="saveGroupEvalToRecord('${sessionId}','${escapeHtml(miqatName)}')">${icon('download',17,'ico-btn')} حفظ في سجل الرادود</button>
+          <button class="btn btn-accent btn-sm" onclick="printGroupEvalPDF('${sessionId}','${escapeHtml(miqatName)}')">${icon('print',17,'ico-btn')} PDF</button>
+          <button class="btn btn-sm" style="background:var(--warn);color:#fff;" onclick="toggleEvalSession('${sessionId}')">${icon('lock',17,'ico-btn')} إغلاق التقييم</button>
         </div>
       </div>`;
     window.__lastGroupEvals={ sessionId, miqatName, evals, avg, pct, n, radoodId:(evals[0]&&evals[0].radoodId)||recordRadoodId||currentEvalRadoodId };
@@ -4873,11 +4873,11 @@ function printSurveyPDF(sessionId, miqatName){
       <p><b>يتمنى إضافته:</b> ${txt(s.texts&&s.texts.wish)}</p>
       <p><b>أفكار ومقترحات:</b> ${txt(s.texts&&s.texts.ideas)}</p>
       <p><b>الرغبة بالمشاركة مستقبلاً:</b> ${s.future?escapeHtml(s.future):'—'}</p>
-      <h3>📢 أسئلة اللجنة الإعلامية</h3>
+      <h3>${icon('news',17,'ico-btn')} أسئلة اللجنة الإعلامية</h3>
       <p><b>هل تم التنسيق معك إعلامياً قبل المجلس؟</b> ${s.mediaCoord?escapeHtml(s.mediaCoord):'—'}</p>
       <p><b>هل لديك مقاطع تقترح نشرها؟</b> ${s.mediaClips?escapeHtml(s.mediaClips):'—'}</p>
       ${(s.texts&&s.texts.media)?`<p><b>تحديد المقاطع:</b> ${escapeHtml(s.texts.media)}</p>`:''}
-      <h3>🌟 السؤال الذهبي (أول ٣ أمور للتطوير)</h3>
+      <h3>${icon('star',17,'ico-btn')} السؤال الذهبي (أول ٣ أمور للتطوير)</h3>
       ${(s.golden&&s.golden.length)?`<ol>${s.golden.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`:'<p>—</p>'}
       <h3>ملاحظة أخيرة</h3>
       <p>${txt(s.texts&&s.texts.other)}</p>
@@ -4992,20 +4992,20 @@ function finHomeHTML(){
   <div class="fin-total-card">
     <div class="fin-total-lbl">المبلغ الكلي لهيئة محبي الحسين</div>
     <div class="fin-total-val">${finMoney(finance.total)}
-      <button class="fin-edit" onclick="editFinanceTotal()" title="تعديل">✏️</button>
+      <button class="fin-edit" onclick="editFinanceTotal()" title="تعديل">${icon('edit',17,'ico-btn')}</button>
     </div>
   </div>
   <div class="fin-big-btns">
     <button class="fin-big rev" onclick="openFinancePage('revenue')">
-      <span class="fb-ic">📥</span><span class="fb-t">الإيرادات</span></button>
+      <span class="fb-ic">${icon('download',17,'ico-btn')}</span><span class="fb-t">الإيرادات</span></button>
     <button class="fin-big exp" onclick="openFinancePage('expenses')">
-      <span class="fb-ic">📤</span><span class="fb-t">المصروفات</span></button>
+      <span class="fb-ic">${icon('upload',17,'ico-btn')}</span><span class="fb-t">المصروفات</span></button>
   </div>
   <button class="fin-reports-btn" onclick="openFinancePage('reports')">
-    📊 التقارير الذكية للمصروفات
+    ${icon('chart',17,'ico-btn')} التقارير الذكية للمصروفات
   </button>
   <button class="fin-reports-btn" style="background:#7a5c1e;margin-top:10px;" onclick="copyProjectLink()">
-    📎 تقديم مشروع للهيئة (نسخ الرابط)
+    ${icon('link',17,'ico-btn')} تقديم مشروع للهيئة (نسخ الرابط)
   </button>`;
 }
 function projectPageURL(){
@@ -5035,7 +5035,7 @@ function finRevenueHTML(){
   return `
   <div class="fin-yearstart">
     <div><div class="fys-lbl">مبلغ بداية العام</div><div class="fys-val">${finMoney(finance.yearStart)}</div></div>
-    <button class="fin-edit" onclick="editYearStart()" title="تعديل">✏️</button>
+    <button class="fin-edit" onclick="editYearStart()" title="تعديل">${icon('edit',17,'ico-btn')}</button>
   </div>
   <div class="fin-grid">
     ${btns.map(([t,k])=> k==='tathwib'
@@ -5065,7 +5065,7 @@ function finExpMiqatHTML(){
   return `
   <div class="fin-grid">
     <button class="fin-cell mood farah" onclick="openFinancePage('expMood',{mood:'farah'})">🎉 مناسبة فرح</button>
-    <button class="fin-cell mood hzn" onclick="openFinancePage('expHzn',{mood:'hzn'})">🕯️ مناسبة حزن</button>
+    <button class="fin-cell mood hzn" onclick="openFinancePage('expHzn',{mood:'hzn'})">${icon('candle',17,'ico-btn')} مناسبة حزن</button>
   </div>`;
 }
 
@@ -5142,7 +5142,7 @@ function finExpEntryHTML(opts){
       <input id="expDate" type="date" value="${today()}" /></div>
     <div class="fin-field"><label>ملاحظة (اختياري)</label>
       <input id="expNote" type="text" placeholder="ملاحظة" /></div>
-    <button class="btn btn-primary" onclick='addExpense(${JSON.stringify(opts)})'>➕ إضافة مصروف</button>
+    <button class="btn btn-primary" onclick='addExpense(${JSON.stringify(opts)})'>${icon('plus',17,'ico-btn')} إضافة مصروف</button>
   </div>
   <div class="fin-exp-list">
     <div class="fel-head"><span>المصروفات المسجّلة</span><b>الإجمالي: ${finMoney(total)}</b></div>
@@ -5152,7 +5152,7 @@ function finExpEntryHTML(opts){
       <div class="fel-cost">${finMoney(e.cost)}<button class="fel-del" onclick="deleteExpense('${e.id}')">×</button></div>
     </div>`).join(''):'<div class="fel-empty">لا توجد مصروفات بعد</div>'}
   </div>
-  ${rows.length?`<button class="btn btn-accent" style="width:100%;margin-top:12px;" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>🖨️ تقرير المناسبة PDF</button>`:''}`;
+  ${rows.length?`<button class="btn btn-accent" style="width:100%;margin-top:12px;" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>${icon('print',17,'ico-btn')} تقرير المناسبة PDF</button>`:''}`;
 }
 function expTypeChange(){
   const t=$('#expType').value;
@@ -5275,9 +5275,9 @@ const PROJECT_COMMITTEES=['المالية','الضيافة','العلاقات ا
 function finProjectsHTML(){
   const list=[...projects].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
   return `
-  <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="openFinancePage('projectAdd',{})">➕ إضافة مشروع جديد</button>
+  <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="openFinancePage('projectAdd',{})">${icon('plus',17,'ico-btn')} إضافة مشروع جديد</button>
   <div class="proj-incoming" id="projIncoming"><div class="eval-link-loading">جارٍ فحص الطلبات الواردة…</div></div>
-  ${list.length?`<div class="proj-list-title">📋 المشاريع المسجّلة</div><div class="proj-list">${list.map(p=>projectCardHTML(p)).join('')}</div>`
+  ${list.length?`<div class="proj-list-title">${icon('doc',17,'ico-btn')} المشاريع المسجّلة</div><div class="proj-list">${list.map(p=>projectCardHTML(p)).join('')}</div>`
     :'<div class="fel-empty">لا توجد مشاريع مسجّلة بعد</div>'}`;
 }
 async function loadIncomingProjects(){
@@ -5290,7 +5290,7 @@ async function loadIncomingProjects(){
     ]);
     if(!incoming.length){ host.innerHTML=''; return; }
     window.__incomingProjects = incoming;
-    host.innerHTML=`<div class="proj-incoming-title">📥 طلبات واردة عبر الرابط (${incoming.length})</div>`+
+    host.innerHTML=`<div class="proj-incoming-title">${icon('download',17,'ico-btn')} طلبات واردة عبر الرابط (${incoming.length})</div>`+
       `<div class="inc-list">`+incoming.map(p=>`
         <div class="inc-row" onclick="openIncomingProject('${p._id}')">
           <div class="inc-body">
@@ -5319,16 +5319,16 @@ function renderIncomingDetail(){
       <div class="inc-h-title">${escapeHtml(p.title||'—')}</div>
       <div class="inc-h-badge ${p.source==='budget'?'budget':'donor'}">${srcLbl}</div>
     </div>
-    <div class="inc-sec"><div class="inc-k">👤 مقدّم الطلب</div><div class="inc-v">${escapeHtml(p.submitter||'—')}${p.committee?' — '+escapeHtml(p.committee):''}</div></div>
-    <div class="inc-sec"><div class="inc-k">📅 تاريخ المشروع</div><div class="inc-v">${p.date?fmtDate(p.date):'—'}${p.date?'<br><span class="inc-hijri">'+escapeHtml(gregToHijri(p.date))+'</span>':''}</div></div>
-    <div class="inc-sec"><div class="inc-k">💰 التكلفة</div><div class="inc-v">${finMoney(p.cost||0)}</div></div>
-    ${p.description?`<div class="inc-sec col"><div class="inc-k">📝 وصف المشروع</div><div class="inc-v">${escapeHtml(p.description)}</div></div>`:''}
-    ${p.goal?`<div class="inc-sec col"><div class="inc-k">🎯 الهدف من المشروع</div><div class="inc-v">${escapeHtml(p.goal)}</div></div>`:''}
-    ${p.source==='budget'?`<div class="proj-warn" style="margin:14px 16px;">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+    <div class="inc-sec"><div class="inc-k">${icon('user',17,'ico-btn')} مقدّم الطلب</div><div class="inc-v">${escapeHtml(p.submitter||'—')}${p.committee?' — '+escapeHtml(p.committee):''}</div></div>
+    <div class="inc-sec"><div class="inc-k">${icon('calendar',17,'ico-btn')} تاريخ المشروع</div><div class="inc-v">${p.date?fmtDate(p.date):'—'}${p.date?'<br><span class="inc-hijri">'+escapeHtml(gregToHijri(p.date))+'</span>':''}</div></div>
+    <div class="inc-sec"><div class="inc-k">${icon('money',17,'ico-btn')} التكلفة</div><div class="inc-v">${finMoney(p.cost||0)}</div></div>
+    ${p.description?`<div class="inc-sec col"><div class="inc-k">${icon('edit',17,'ico-btn')} وصف المشروع</div><div class="inc-v">${escapeHtml(p.description)}</div></div>`:''}
+    ${p.goal?`<div class="inc-sec col"><div class="inc-k">${icon('star',17,'ico-btn')} الهدف من المشروع</div><div class="inc-v">${escapeHtml(p.goal)}</div></div>`:''}
+    ${p.source==='budget'?`<div class="proj-warn" style="margin:14px 16px;">${icon('warn',17,'ico-btn')} يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
     <div class="inc-actions">
-      <button class="btn btn-accent" onclick="printIncomingProjectPDF()">🖨️ طباعة PDF</button>
-      <button class="btn btn-primary" onclick='acceptIncomingProject(window.__incomingCurrent)'>✅ اعتماد وحفظ</button>
-      <button class="btn" style="background:var(--danger);color:#fff;border:none;" onclick="rejectIncomingProject('${p._id}')">🗑️ رفض</button>
+      <button class="btn btn-accent" onclick="printIncomingProjectPDF()">${icon('print',17,'ico-btn')} طباعة PDF</button>
+      <button class="btn btn-primary" onclick='acceptIncomingProject(window.__incomingCurrent)'>${icon('check',17,'ico-btn')} اعتماد وحفظ</button>
+      <button class="btn" style="background:var(--danger);color:#fff;border:none;" onclick="rejectIncomingProject('${p._id}')">${icon('trash',17,'ico-btn')} رفض</button>
     </div>
     <div style="padding:14px 16px;text-align:center;border-top:1px solid var(--line);">
       <button class="btn btn-ghost btn-sm" onclick="closeIncomingProject()">← رجوع لقائمة الطلبات</button>
@@ -5402,34 +5402,34 @@ function projectCardHTML(p){
   const srcClass = p.source==='budget' ? 'budget' : 'donor';
   const st = p.status || 'pending';
   const stBox = st==='approved'
-    ? `<div class="proj-status ok">✅ تمت الموافقة على المشروع${p.decisionDate?` · ${fmtDate(p.decisionDate)}`:''}</div>`
+    ? `<div class="proj-status ok">${icon('check',17,'ico-btn')} تمت الموافقة على المشروع${p.decisionDate?` · ${fmtDate(p.decisionDate)}`:''}</div>`
     : st==='rejected'
-    ? `<div class="proj-status no">❌ تم رفض المشروع${p.decisionDate?` · ${fmtDate(p.decisionDate)}`:''}${p.rejectReason?`<div class="ps-reason">السبب: ${escapeHtml(p.rejectReason)}</div>`:''}</div>`
-    : `<div class="proj-status wait">⏳ بانتظار القرار</div>`;
+    ? `<div class="proj-status no">${icon('x',17,'ico-btn')} تم رفض المشروع${p.decisionDate?` · ${fmtDate(p.decisionDate)}`:''}${p.rejectReason?`<div class="ps-reason">السبب: ${escapeHtml(p.rejectReason)}</div>`:''}</div>`
+    : `<div class="proj-status wait">${icon('clock',17,'ico-btn')} بانتظار القرار</div>`;
   return `<div class="proj-card">
     <div class="proj-head">
       <div class="proj-title">${escapeHtml(p.title||'—')}</div>
       <span class="proj-src ${srcClass}">${srcLbl}</span>
     </div>
     <div class="proj-meta">
-      ${p.date?`📅 ${fmtDate(p.date)}`:''}
-      ${p.cost?` · 💰 ${finMoney(p.cost)}`:''}
+      ${p.date?`${icon('calendar',17,'ico-btn')} ${fmtDate(p.date)}`:''}
+      ${p.cost?` · ${icon('money',17,'ico-btn')} ${finMoney(p.cost)}`:''}
       ${p.viaLink?' · 📎 عبر الرابط':''}
     </div>
     ${p.submitter?`<div class="proj-submitter">مقدّم الطلب: <b>${escapeHtml(p.submitter)}</b>${p.committee?' — '+escapeHtml(p.committee):''}</div>`:''}
     ${p.description?`<div class="proj-desc">${escapeHtml(p.description)}</div>`:''}
-    ${(p.source==='budget'&&st==='pending')?`<div class="proj-warn">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
+    ${(p.source==='budget'&&st==='pending')?`<div class="proj-warn">${icon('warn',17,'ico-btn')} يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>`:''}
     ${stBox}
     ${st==='pending'?`
       <div class="proj-actions">
-        <button class="btn btn-sm" style="background:var(--ok);color:#fff;border:none;" onclick="decideProject('${p.id}','approved')">✅ موافقة</button>
-        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="decideProject('${p.id}','rejected')">❌ رفض</button>
+        <button class="btn btn-sm" style="background:var(--ok);color:#fff;border:none;" onclick="decideProject('${p.id}','approved')">${icon('check',17,'ico-btn')} موافقة</button>
+        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="decideProject('${p.id}','rejected')">${icon('x',17,'ico-btn')} رفض</button>
       </div>`:''}
     <div class="proj-actions">
-      <button class="btn btn-accent btn-sm" onclick="printProjectPDF('${p.id}')">🖨️ ${st==='pending'?'طباعة PDF':'أمر القرار PDF'}</button>
-      ${st!=='pending'?`<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" onclick="sendProjectDecisionWA('${p.id}')">💬 واتساب</button>`:''}
+      <button class="btn btn-accent btn-sm" onclick="printProjectPDF('${p.id}')">${icon('print',17,'ico-btn')} ${st==='pending'?'طباعة PDF':'أمر القرار PDF'}</button>
+      ${st!=='pending'?`<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" onclick="sendProjectDecisionWA('${p.id}')">${icon('mail',17,'ico-btn')} واتساب</button>`:''}
       ${st!=='pending'?`<button class="btn btn-ghost btn-sm" onclick="decideProject('${p.id}','pending')">↺ تراجع</button>`:''}
-      <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteProject('${p.id}')">🗑️</button>
+      <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteProject('${p.id}')">${icon('trash',17,'ico-btn')}</button>
     </div>
   </div>`;
 }
@@ -5486,14 +5486,14 @@ function finProjectAddHTML(opts){
       <input id="projCost" type="number" min="0" step="0.001" placeholder="0.000" /></div>
     <div class="fin-field"><label>تمويل المشروع</label>
       <div class="proj-src-btns">
-        <button type="button" class="proj-src-btn" id="srcDonor" onclick="setProjectSource('donor')">🎁 متبرّع</button>
-        <button type="button" class="proj-src-btn" id="srcBudget" onclick="setProjectSource('budget')">🏛️ ميزانية الهيئة</button>
+        <button type="button" class="proj-src-btn" id="srcDonor" onclick="setProjectSource('donor')">${icon('gift',17,'ico-btn')} متبرّع</button>
+        <button type="button" class="proj-src-btn" id="srcBudget" onclick="setProjectSource('budget')">${icon('building',17,'ico-btn')} ميزانية الهيئة</button>
       </div>
     </div>
     <div class="fin-field" id="donorNameWrap" style="display:none"><label>اسم المتبرّع (اختياري)</label>
       <input id="projDonor" type="text" placeholder="اسم المتبرّع" /></div>
-    <div id="budgetWarn" class="proj-warn" style="display:none;margin-bottom:14px;">⚠️ يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>
-    <button class="btn btn-primary" onclick="saveProject()">💾 حفظ المشروع</button>
+    <div id="budgetWarn" class="proj-warn" style="display:none;margin-bottom:14px;">${icon('warn',17,'ico-btn')} يُشترط موافقة ٣ من أعضاء الإدارة يختارهم الأمين المالي</div>
+    <button class="btn btn-primary" onclick="saveProject()">${icon('download',17,'ico-btn')} حفظ المشروع</button>
   </div>`;
 }
 let projectSource='';
@@ -5644,9 +5644,9 @@ let reportYear=null;
 function finTathwibHTML(){
   return `
   <div class="fin-grid one">
-    <button class="fin-cell big" onclick="openFinancePage('tathwibMiqat')">🕌 تثويبات المساهمين في المواقيت</button>
-    <button class="fin-cell big" onclick="openFinancePage('tathwibPaid')">💳 التثويبات المدفوعة</button>
-    <button class="fin-cell big" onclick="openFinancePage('tathwibReports')">📊 تقارير التثويبات</button>
+    <button class="fin-cell big" onclick="openFinancePage('tathwibMiqat')">${icon('building',17,'ico-btn')} تثويبات المساهمين في المواقيت</button>
+    <button class="fin-cell big" onclick="openFinancePage('tathwibPaid')">${icon('wallet',17,'ico-btn')} التثويبات المدفوعة</button>
+    <button class="fin-cell big" onclick="openFinancePage('tathwibReports')">${icon('chart',17,'ico-btn')} تقارير التثويبات</button>
   </div>`;
 }
 
@@ -5859,7 +5859,7 @@ function finTathwibPaidHTML(){
       </select></div>
     <div class="fin-field"><label>أسماء المرحومين</label>
       <div id="ptNames"></div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="ptAddName()">➕ إضافة اسم متوفى</button></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="ptAddName()">${icon('plus',17,'ico-btn')} إضافة اسم متوفى</button></div>
     <div class="fin-field"><label>المبلغ المقدّم (د.ب)</label>
       <input id="ptAmount" type="number" min="0" step="0.001" placeholder="0.000" /></div>
     <div class="fin-field"><label>ملاحظات <span class="opt">اختياري</span></label>
@@ -5874,7 +5874,7 @@ function finTathwibPaidHTML(){
         <div><div class="fel-type">${escapeHtml(p.name)}${p.deceased&&p.deceased.length?` · ${p.deceased.length} مرحوم`:''}</div>
           <div class="fel-meta">${mq?escapeHtml(mq.name):'—'}${p.at?' · '+new Date(p.at).toLocaleDateString('ar'):''}</div></div>
         <div class="fel-cost">${finMoney(p.amount)}
-          <button class="fel-del" onclick="reprintPaidThawab('${p.id}')" title="طباعة" style="color:var(--accent)">🖨️</button>
+          <button class="fel-del" onclick="reprintPaidThawab('${p.id}')" title="طباعة" style="color:var(--accent)">${icon('print',17,'ico-btn')}</button>
           <button class="fel-del" onclick="deletePaidThawab('${p.id}')">×</button></div>
       </div>`;
     }).join(''):'<div class="fel-empty">لا توجد تثويبات مدفوعة بعد</div>'}
@@ -6034,20 +6034,20 @@ function finTathwibReportsHTML(){
     <div class="rep-card net clickable" onclick="openFinancePage('tathwibAmountList')"><div class="rc-lbl">إجمالي المبالغ المدفوعة</div><div class="rc-val">${finMoney(grandTotal)}</div><div class="rc-hint">اضغط للتفصيل ›</div></div>
   </div>
 
-  ${topPerson||topMiqat?`<div class="rep-sec"><div class="rep-h">🏆 الأبرز</div>
+  ${topPerson||topMiqat?`<div class="rep-sec"><div class="rep-h">${icon('star',17,'ico-btn')} الأبرز</div>
     ${topPerson?`<div class="tath-top"><span>أكثر من ثوّب</span><b>${escapeHtml(topPerson.name)}</b><span class="tt-n">${topPerson.count} تثويب</span></div>`:''}
     ${topMiqat?`<div class="tath-top"><span>أكثر مناسبة تثويباً</span><b>${escapeHtml(topMiqat.name)}</b><span class="tt-n">${topMiqat.count} تثويب</span></div>`:''}
   </div>`:''}
 
   <div class="rep-sec">
-    <div class="rep-h">🕌 التثويبات لكل مناسبة</div>
+    <div class="rep-h">${icon('building',17,'ico-btn')} التثويبات لكل مناسبة</div>
     ${byMiqat.length?`<table class="rep-tbl"><tr><th>المناسبة</th><th>عدد التثويبات</th></tr>
       ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${m.count}</td></tr>`).join('')}
       </table>`:'<div class="rep-empty">لا توجد تثويبات</div>'}
   </div>
 
   <div class="rep-sec">
-    <div class="rep-h">🕯️ أسماء المرحومين في مناسبة</div>
+    <div class="rep-h">${icon('candle',17,'ico-btn')} أسماء المرحومين في مناسبة</div>
     <select class="rep-year" style="width:100%;margin-bottom:10px;" onchange="tathReportMiqat=this.value; renderFinancePage('tathwibReports',{})">
       <option value="">— اختر المناسبة —</option>
       ${miqatOpts.map(mq=>`<option value="${mq.id}" ${mq.id===selMiqat?'selected':''}>${escapeHtml(mq.name)}</option>`).join('')}
@@ -6056,7 +6056,7 @@ function finTathwibReportsHTML(){
   </div>
 
   <div class="rep-sec">
-    <div class="rep-h">👤 تثويبات مساهم معيّن</div>
+    <div class="rep-h">${icon('user',17,'ico-btn')} تثويبات مساهم معيّن</div>
     <select class="rep-year" style="width:100%;margin-bottom:10px;" onchange="tathReportPerson=this.value; renderFinancePage('tathwibReports',{})">
       <option value="">— اختر المساهم —</option>
       ${persons.map(nm=>`<option value="${escapeHtml(nm)}" ${nm===selPerson?'selected':''}>${escapeHtml(nm)}</option>`).join('')}
@@ -6066,17 +6066,17 @@ function finTathwibReportsHTML(){
       </table>`:'<div class="rep-empty">لا تثويبات لهذا المساهم</div>'):''}
   </div>
 
-  ${months.length?`<div class="rep-sec"><div class="rep-h">📅 المجاميع الشهرية (المدفوعة)</div>
+  ${months.length?`<div class="rep-sec"><div class="rep-h">${icon('calendar',17,'ico-btn')} المجاميع الشهرية (المدفوعة)</div>
     <table class="rep-tbl"><tr><th>الشهر</th><th>المبلغ</th><th>عدد</th></tr>
     ${months.map(m=>`<tr><td>${m.key}</td><td>${finMoney(m.total)}</td><td>${m.count}</td></tr>`).join('')}
     </table></div>`:''}
 
-  ${years.length?`<div class="rep-sec"><div class="rep-h">🗓️ المجاميع السنوية (المدفوعة)</div>
+  ${years.length?`<div class="rep-sec"><div class="rep-h">${icon('calendar',17,'ico-btn')} المجاميع السنوية (المدفوعة)</div>
     <table class="rep-tbl"><tr><th>السنة</th><th>المبلغ</th><th>عدد</th></tr>
     ${years.map(y=>`<tr><td>${y.year}</td><td>${finMoney(y.total)}</td><td>${y.count}</td></tr>`).join('')}
     </table></div>`:''}
 
-  <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="printThawabReport()">🖨️ طباعة تقرير التثويبات PDF</button>`;
+  <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="printThawabReport()">${icon('print',17,'ico-btn')} طباعة تقرير التثويبات PDF</button>`;
 }
 
 /* تقرير التثويبات PDF */
@@ -6173,7 +6173,7 @@ function finThawabAmountListHTML(){
     }).join('')}
     <tr class="rep-sum"><td colspan="2">الإجمالي</td><td>${finMoney(total)}</td></tr>
     </table>
-    <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="printThawabAmountList()">🖨️ طباعة القائمة التفصيلية PDF</button>
+    <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="printThawabAmountList()">${icon('print',17,'ico-btn')} طباعة القائمة التفصيلية PDF</button>
     `:'<div class="rep-empty">لا توجد تثويبات مدفوعة</div>'}`;
 }
 function printThawabAmountList(){
@@ -6228,7 +6228,7 @@ function finReportsHTML(){
   </div>
 
   <div class="rep-sec">
-    <div class="rep-h">💰 الإيرادات مقابل المصروفات</div>
+    <div class="rep-h">${icon('money',17,'ico-btn')} الإيرادات مقابل المصروفات</div>
     <div class="rep-bar-wrap">
       <div class="rep-bar-row"><span>المبلغ الكلي</span><div class="rep-bar"><div class="rb-fill in" style="width:${rev? Math.min(100,rev/Math.max(rev,totalExp)*100):0}%"></div></div><b>${finMoney(rev)}</b></div>
       <div class="rep-bar-row"><span>المصروفات</span><div class="rep-bar"><div class="rb-fill out" style="width:${rev||totalExp? Math.min(100,totalExp/Math.max(rev,totalExp)*100):0}%"></div></div><b>${finMoney(totalExp)}</b></div>
@@ -6236,14 +6236,14 @@ function finReportsHTML(){
   </div>
 
   <div class="rep-sec">
-    <div class="rep-h">🕌 إجمالي مصروفات كل ميقات</div>
+    <div class="rep-h">${icon('building',17,'ico-btn')} إجمالي مصروفات كل ميقات</div>
     ${byMiqat.length?`<table class="rep-tbl"><tr><th>الميقات</th><th>المصروفات</th><th>عدد</th></tr>
       ${byMiqat.map(m=>`<tr><td>${escapeHtml(m.name)}</td><td>${finMoney(m.total)}</td><td>${m.count}</td></tr>`).join('')}
       </table>`:'<div class="rep-empty">لا توجد مصروفات مسجّلة</div>'}
   </div>
 
   <div class="rep-sec">
-    <div class="rep-h">📋 كم صُرف على كل بند
+    <div class="rep-h">${icon('doc',17,'ico-btn')} كم صُرف على كل بند
       ${years.length>1?`<select class="rep-year" onchange="reportYear=this.value; renderFinancePage('reports',{})">
         ${years.map(y=>`<option value="${y}" ${y==reportYear?'selected':''}>${y}</option>`).join('')}</select>`:`<span class="rep-year-static">${reportYear}</span>`}
     </div>
@@ -6252,7 +6252,7 @@ function finReportsHTML(){
       </table>`:`<div class="rep-empty">لا توجد مصروفات في ${reportYear}</div>`}
   </div>
 
-  <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="printFinanceReport()">🖨️ طباعة التقرير PDF</button>`;
+  <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="printFinanceReport()">${icon('print',17,'ico-btn')} طباعة التقرير PDF</button>`;
 }
 
 /* طباعة التقرير الذكي PDF */
@@ -6350,7 +6350,7 @@ function meetingCardHTML(m){
       <span class="mtg-badge ${ended?'ended':'open'}">${ended?'منتهٍ':'لم ينتهِ'}</span>
     </div>
     <div class="mtg-card-meta">
-      <span class="mi">🗓️ ${fmtMeetingDT(m.datetime)}</span>
+      <span class="mi">${icon('calendar',17,'ico-btn')} ${fmtMeetingDT(m.datetime)}</span>
       ${m.committee?`<span class="mi">🏷️ ${escapeHtml(m.committee)}</span>`:''}
       ${dur?`<span class="mi">⏱️ ${dur}</span>`:''}
     </div>
@@ -6373,8 +6373,8 @@ function renderMeetingsList(){
     return true;
   });
   const el=$('#meetingsList');
-  if(!meetings.length){ el.innerHTML=`<div class="empty"><div class="icon">📋</div><div class="txt">لا توجد اجتماعات بعد. اضغط «➕ اجتماع جديد» للبدء.</div></div>`; return; }
-  if(!list.length){ el.innerHTML=`<div class="empty"><div class="icon">🔍</div><div class="txt">لا نتائج مطابقة.</div></div>`; return; }
+  if(!meetings.length){ el.innerHTML=`<div class="empty"><div class="icon">${icon('doc',17,'ico-btn')}</div><div class="txt">لا توجد اجتماعات بعد. اضغط «${icon('plus',17,'ico-btn')} اجتماع جديد» للبدء.</div></div>`; return; }
+  if(!list.length){ el.innerHTML=`<div class="empty"><div class="icon">${icon('search',17,'ico-btn')}</div><div class="txt">لا نتائج مطابقة.</div></div>`; return; }
   el.innerHTML=list.map(meetingCardHTML).join('');
 }
 
@@ -6500,14 +6500,14 @@ function renderMeetingAttachments(){
         <div class="mai-top">
           <img class="mai-thumb" src="${a.data}" alt="" onclick="window.open('${a.data}','_blank')" />
           <div class="mai-info">
-            <div class="mai-name">🖼️ ${escapeHtml(a.name)}</div>
+            <div class="mai-name">${icon('image',17,'ico-btn')} ${escapeHtml(a.name)}</div>
             <input class="mai-caption" type="text" placeholder="اكتب تعليقاً على الصورة…" value="${escapeHtml(a.caption||'')}" oninput="setAttachCaption('${a.id}',this.value)" />
           </div>
           <button type="button" class="remove-btn" onclick="removeMeetingAttach('${a.id}')">×</button>
         </div>
       </div>`;
     }
-    return `<div class="mtg-attach-row"><a href="${a.data}" download="${escapeHtml(a.name)}" target="_blank">📎 ${escapeHtml(a.name)}</a><button type="button" class="remove-btn" onclick="removeMeetingAttach('${a.id}')">×</button></div>`;
+    return `<div class="mtg-attach-row"><a href="${a.data}" download="${escapeHtml(a.name)}" target="_blank">${icon('link',17,'ico-btn')} ${escapeHtml(a.name)}</a><button type="button" class="remove-btn" onclick="removeMeetingAttach('${a.id}')">×</button></div>`;
   }).join('');
 }
 function setAttachCaption(id,val){
@@ -6591,8 +6591,8 @@ function detailItemList(m,kind){
     return `<div class="md-item ${it.done?'done':''}">
       <div class="md-item-text">${escapeHtml(it.text)}</div>
       <div class="md-item-meta">
-        <span>👤 ${it.owner?escapeHtml(it.owner):'—'}</span>
-        <span>📅 ${it.due||'بدون موعد'}</span> ${chip}
+        <span>${icon('user',17,'ico-btn')} ${it.owner?escapeHtml(it.owner):'—'}</span>
+        <span>${icon('calendar',17,'ico-btn')} ${it.due||'بدون موعد'}</span> ${chip}
         <button class="btn btn-ghost btn-sm" onclick="toggleItemDone('${kind}','${it.id}')">${it.done?'إلغاء الإنجاز':'وضع كمنجز'}</button>
       </div></div>`;
   }).join('');
@@ -6623,15 +6623,15 @@ function renderDetailPanes(m){
   $('#md-decisions').innerHTML=detailItemList(m,'decision');
   $('#md-tasks').innerHTML=detailItemList(m,'task');
   const at=(m.attachments||[]);
-  $('#md-attachments').innerHTML=at.length?at.map(a=>`<div class="mtg-attach-row"><a href="${a.data}" download="${escapeHtml(a.name)}" target="_blank">📎 ${escapeHtml(a.name)}</a></div>`).join(''):`<div class="empty"><div class="txt">لا مرفقات.</div></div>`;
+  $('#md-attachments').innerHTML=at.length?at.map(a=>`<div class="mtg-attach-row"><a href="${a.data}" download="${escapeHtml(a.name)}" target="_blank">${icon('link',17,'ico-btn')} ${escapeHtml(a.name)}</a></div>`).join(''):`<div class="empty"><div class="txt">لا مرفقات.</div></div>`;
   $('#md-minutes').innerHTML=`
     ${m.speech?`<div class="md-section-title">كلمة الاجتماع</div><div class="md-text" style="margin-bottom:12px">${escapeHtml(m.speech)}</div>`:''}
     <div class="md-section-title">محضر الاجتماع (راجعه وعدّله)</div>
     <textarea id="mdMinutesEdit" rows="7" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;background:var(--bg);color:var(--ink);resize:vertical">${escapeHtml(m.minutes||'')}</textarea>
     <div class="actions-row" style="margin-top:10px">
-      <button class="btn btn-ghost btn-sm" onclick="saveMinutesEdit()">💾 حفظ التعديل</button>
+      <button class="btn btn-ghost btn-sm" onclick="saveMinutesEdit()">${icon('download',17,'ico-btn')} حفظ التعديل</button>
       <button class="btn btn-accent btn-sm" onclick="summarizeMinutes('${m.id}')">✨ اختصار المحضر</button>
-      <button class="btn btn-primary btn-sm" onclick="printMeetingMinutes('${m.id}')">🖨️ طباعة المحضر PDF</button>
+      <button class="btn btn-primary btn-sm" onclick="printMeetingMinutes('${m.id}')">${icon('print',17,'ico-btn')} طباعة المحضر PDF</button>
       <button class="btn wa-btn btn-sm" onclick="shareMeetingMinutesWA('${m.id}')">${WA_ICON}<span style="margin-right:4px">واتساب</span></button>
     </div>
     <div class="note" style="margin-top:10px">«اختصار المحضر» ينسخ النص ويفتح موقع ذكاء اصطناعي — الصقه (Ctrl+V) واطلب الاختصار. لإرسال المحضر PDF في واتساب: اطبعه واحفظه كـ PDF ثم أرفقه في المحادثة.</div>`;
@@ -6734,9 +6734,9 @@ function renderFollowup(){
         <span class="fu-kind ${r.kind}">${r.kind==='decision'?'قرار':'مهمة'}</span>
       </div>
       <div class="fu-meta">
-        <span>👤 ${r.owner?escapeHtml(r.owner):'—'}</span>
-        <span>📅 ${r.due||'بدون موعد'}</span>
-        <span>📋 اجتماع ${escapeHtml(r.mNo)}</span> ${chip}
+        <span>${icon('user',17,'ico-btn')} ${r.owner?escapeHtml(r.owner):'—'}</span>
+        <span>${icon('calendar',17,'ico-btn')} ${r.due||'بدون موعد'}</span>
+        <span>${icon('doc',17,'ico-btn')} اجتماع ${escapeHtml(r.mNo)}</span> ${chip}
       </div></div>`;
   }).join('');
 }
@@ -6981,7 +6981,7 @@ function renderAsmSearch(){
   if(!q){ el.innerHTML=''; return; }
   const matches=members.filter(m=>m.name.toLowerCase().includes(q)||memberCode(m).toLowerCase().includes(q)).slice(0,15);
   if(!matches.length){
-    el.innerHTML=`<div class="asm-new-btn" onclick="asmAddNewMember()">➕ «${escapeHtml($('#asmSearch').value.trim())}» غير مسجّل — سجّله كعضو جديد وأضِف حضوره</div>`;
+    el.innerHTML=`<div class="asm-new-btn" onclick="asmAddNewMember()">${icon('plus',17,'ico-btn')} «${escapeHtml($('#asmSearch').value.trim())}» غير مسجّل — سجّله كعضو جديد وأضِف حضوره</div>`;
     return;
   }
   el.innerHTML=matches.map(m=>{

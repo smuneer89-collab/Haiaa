@@ -615,6 +615,10 @@
   /* Tabs */
   /* ═══ الأيقونات الخطّية ═══ */
   .ico { display:inline-block; vertical-align:-3px; flex-shrink:0; }
+  .ico-btn { vertical-align:-3.5px; margin-left:5px; }
+  .btn .ico, button .ico { margin-left:6px; }
+  .panel-title .ico, h2 .ico, h3 .ico { margin-left:7px; vertical-align:-3px; opacity:.9; }
+  .idara-card .ic-ico .ico, .fin-cell .ico { vertical-align:middle; }
   .ico-btn { vertical-align:-3px; margin-left:6px; }
 
   /* ═══ شريط التنقّل — جوال: سفلي ثابت ═══ */
@@ -1565,7 +1569,7 @@
 
     <div class="panel" id="recentMembersPanel" style="display:none">
       <div class="panel-header">
-        <div class="panel-title">🕯️ مواقيت تقترب</div>
+        <div class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s2 2.2 2 3.8a2 2 0 0 1-4 0C10 5.2 12 3 12 3z"/><rect x="8.5" y="10" width="7" height="11" rx="1.5"/><path d="M12 10V8.5"/></svg> مواقيت تقترب</div>
         <span class="panel-sub">خلال الشهرين القادمين · الأقرب أولاً</span>
       </div>
       <div class="mq-soon-list" id="recentMembersCarousel"></div>
@@ -1573,7 +1577,7 @@
 
     <div class="panel" id="duesPanel" style="display:none">
       <div class="panel-header">
-        <div class="panel-title">🧾 أقساط متبقّية</div>
+        <div class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> أقساط متبقّية</div>
         <span class="panel-sub">اشتراكات ومساهمات لم تُسدَّد بالكامل</span>
       </div>
       <div id="duesList"></div>
@@ -1581,7 +1585,7 @@
 
     <div class="panel" id="photoCarouselPanel" style="display:none">
       <div class="panel-header">
-        <div class="panel-title">📷 ألبوم الصور</div>
+        <div class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg> ألبوم الصور</div>
         <span class="panel-sub">من فعاليات الهيئة</span>
       </div>
       <div class="photo-carousel" id="photoCarousel"></div>
@@ -1589,7 +1593,7 @@
 
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">📢 أخبار وإعلانات الهيئة</div>
+        <div class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13a1 1 0 0 1 1 1v13a2 2 0 0 0 2-2V8"/><rect x="2" y="3" width="16" height="18" rx="1.5"/><path d="M6 8h8M6 12h8M6 16h5"/></svg> أخبار وإعلانات الهيئة</div>
         <button class="btn btn-primary btn-sm" onclick="openNewsModal()">+ إضافة خبر</button>
       </div>
       <div id="newsList"></div>
@@ -1633,7 +1637,7 @@
   <section id="tab-notifications" class="tab-content" style="display:none">
     <div class="panel-header" style="margin-bottom:14px;">
       <div>
-        <div class="panel-title">🔔 الإشعارات والتنبيهات</div>
+        <div class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 14 18 8"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/></svg> الإشعارات والتنبيهات</div>
         <div class="panel-sub" id="notifSub">كل ما يحتاج انتباهك</div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="switchTab('dashboard')">← الرئيسية</button>
@@ -1669,10 +1673,10 @@
   <section id="tab-finance" class="tab-content" style="display:none">
     <div class="page-bar">
       <button class="btn btn-ghost btn-sm" onclick="finBack()" id="finBackBtn"><span id="finBackLabel">← الإدارة</span></button>
-      <button class="btn btn-accent btn-sm" onclick="printFinanceReport()">🖨️ تقرير PDF</button>
+      <button class="btn btn-accent btn-sm" onclick="printFinanceReport()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> تقرير PDF</button>
     </div>
     <div class="panel">
-      <div class="page-title" style="display:flex;align-items:center;gap:8px;"><span>🔐 اللجنة المالية</span></div>
+      <div class="page-title" style="display:flex;align-items:center;gap:8px;"><span><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> اللجنة المالية</span></div>
       <div id="finBody"></div>
     </div>
   </section>
@@ -1697,7 +1701,7 @@
     <div class="panel">
       <div class="panel-title" style="margin-bottom:10px;">📌 التذكيرات</div>
       <div id="calReminders"></div>
-      <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openAddReminder()">➕ إضافة تذكير</button>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openAddReminder()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة تذكير</button>
     </div>
   </section>
 
@@ -1705,7 +1709,7 @@
   <!-- نافذة تثويبات المرحومين (من ملف العضو) -->
   <div class="modal-backdrop" id="memberThawabModal"><div class="modal">
     <button class="modal-close" onclick="closeModal('memberThawabModal')">×</button>
-    <h3>🕯️ تثويبات المرحومين</h3>
+    <h3><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s2 2.2 2 3.8a2 2 0 0 1-4 0C10 5.2 12 3 12 3z"/><rect x="8.5" y="10" width="7" height="11" rx="1.5"/><path d="M12 10V8.5"/></svg> تثويبات المرحومين</h3>
     <div class="subtitle">إهداء ثواب الميقات لأرواح المرحومين — <b id="mThawabMemberName"></b></div>
     <div id="mThawabBody"></div>
   </div></div>
@@ -1740,7 +1744,7 @@
   <section id="tab-memberpage" class="tab-content" style="display:none">
     <div class="page-bar">
       <button class="btn btn-ghost btn-sm" onclick="switchTab('members')">← قائمة الأعضاء</button>
-      <button class="btn btn-accent btn-sm" onclick="printMemberProfile(currentMemberPageId)">🖨️ طباعة الملف PDF</button>
+      <button class="btn btn-accent btn-sm" onclick="printMemberProfile(currentMemberPageId)"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> طباعة الملف PDF</button>
     </div>
     <div class="panel">
       <h3 class="page-title" id="detailTitle">تفاصيل العضو</h3>
@@ -1753,7 +1757,7 @@
   <section id="tab-miqatpage" class="tab-content" style="display:none">
     <div class="page-bar">
       <button class="btn btn-ghost btn-sm" onclick="switchTab('miqats')">← قائمة المواقيت</button>
-      <button class="btn btn-accent btn-sm" onclick="printMiqatPDF(currentMiqatPageId)">🖨️ طباعة التفاصيل PDF</button>
+      <button class="btn btn-accent btn-sm" onclick="printMiqatPDF(currentMiqatPageId)"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> طباعة التفاصيل PDF</button>
     </div>
     <div class="panel">
       <h3 class="page-title" id="miqatDetailTitle">تفاصيل الميقات</h3>
@@ -1768,7 +1772,7 @@
       <div class="panel-header">
         <div><h2 class="panel-title">سجل الأعضاء</h2><div class="panel-sub" id="membersCount">0 عضو</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="openAddMember()">➕ إضافة عضو</button>
+          <button class="btn btn-primary" onclick="openAddMember()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة عضو</button>
           <button class="btn btn-ghost" onclick="openBulkMessage()">رسالة جماعية</button>
         </div>
       </div>
@@ -1795,7 +1799,7 @@
     <button class="btn btn-ghost btn-sm idara-back" onclick="backToMembers()">← رجوع للأعضاء</button>
     <div class="panel">
       <div class="panel-header">
-        <div><h2 class="panel-title" id="addFormTitle">➕ تسجيل عضو جديد</h2>
+        <div><h2 class="panel-title" id="addFormTitle"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> تسجيل عضو جديد</h2>
           <div class="panel-sub" id="addFormSub">رقم العضوية يُنشأ تلقائياً حسب نوع العضوية (مثال: A0001)</div></div>
       </div>
       <form id="addForm">
@@ -1818,7 +1822,7 @@
             <input name="address" autocomplete="off" /></div>
           <div class="field full"><label>الصورة الشخصية <span class="opt">اختياري — تظهر على البطاقة</span></label>
             <div class="photo-upload">
-              <div class="photo-preview" id="photoPreview">👤</div>
+              <div class="photo-preview" id="photoPreview"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></div>
               <div>
                 <button type="button" class="photo-btn" onclick="document.getElementById('photoInput').click()">اختر صورة</button>
                 <div class="photo-hint">يفضّل صورة مربعة، سيتم تصغيرها تلقائياً</div>
@@ -1874,11 +1878,11 @@
   <section id="tab-miqats" class="tab-content" style="display:none">
     <div class="panel">
       <div class="panel-header">
-        <div><h2 class="panel-title">🕯️ المواقيت</h2>
+        <div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s2 2.2 2 3.8a2 2 0 0 1-4 0C10 5.2 12 3 12 3z"/><rect x="8.5" y="10" width="7" height="11" rx="1.5"/><path d="M12 10V8.5"/></svg> المواقيت</h2>
           <div class="panel-sub" id="miqatsPanelSub">قائمة المواقيت وحالة حجزها</div></div>
         <div class="mq-head-btns"><button class="btn btn-primary btn-sm" onclick="openMiqatModal()">+ إضافة ميقات</button>
-          <button class="btn btn-ghost btn-sm" onclick="openFamilyBooking()">👪 ميقات عائلي</button>
-          <button class="btn btn-ghost btn-sm" onclick="openFamilyList()">📋 قائمة العائلات</button></div>
+          <button class="btn btn-ghost btn-sm" onclick="openFamilyBooking()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16.5 7.2a2.8 2.8 0 0 1 0 5.6"/><path d="M18 19.8c0-2.4-.9-4.2-2.4-5.3"/></svg> ميقات عائلي</button>
+          <button class="btn btn-ghost btn-sm" onclick="openFamilyList()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> قائمة العائلات</button></div>
       </div>
       <div class="toolbar">
         <select id="miqatFilter" onchange="renderMiqats()">
@@ -1889,9 +1893,9 @@
         </select>
       </div>
       <div class="actions-row" style="margin-top:0; margin-bottom:14px;">
-        <button class="btn btn-ghost btn-sm" onclick="printMiqats('red')">🖨️ غير المحجوزة PDF</button>
-        <button class="btn btn-ghost btn-sm" onclick="printMiqats('yellow')">🖨️ تحتاج تعزيز PDF</button>
-        <button class="btn btn-ghost btn-sm" onclick="printMiqats('green')">🖨️ المحجوزة PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="printMiqats('red')"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> غير المحجوزة PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="printMiqats('yellow')"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> تحتاج تعزيز PDF</button>
+        <button class="btn btn-ghost btn-sm" onclick="printMiqats('green')"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> المحجوزة PDF</button>
       </div>
       <div id="miqatsList"></div>
     </div>
@@ -1904,36 +1908,36 @@
     <!-- HUB: committee cards -->
     <div id="idara-hub">
       <div class="panel">
-        <div class="panel-header"><div><h2 class="panel-title">🏛️ الإدارة</h2>
+        <div class="panel-header"><div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M13 10h6a1 1 0 0 1 1 1v10"/><path d="M2 21h20M7 9h2M7 13h2M7 17h2M16 14h1M16 18h1"/></svg> الإدارة</h2>
           <div class="panel-sub">لجان مجلس الإدارة</div></div></div>
         <div class="idara-cards">
           <div class="idara-card" onclick="openIdara('sec')">
-            <div class="ic-ico">🖋️</div>
+            <div class="ic-ico"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
             <div class="ic-name">أمانة السر</div>
             <div class="ic-sub">الاجتماعات والمحاضر ولوحة المتابعة</div>
           </div>
           <div class="idara-card" onclick="openIdara('finance')">
-            <div class="ic-ico">💰</div>
+            <div class="ic-ico"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M14.5 9.5c0-1-1.1-1.5-2.5-1.5s-2.5.6-2.5 1.7 1.2 1.5 2.5 1.8 2.5.7 2.5 1.8-1.1 1.7-2.5 1.7-2.5-.5-2.5-1.5"/></svg></div>
             <div class="ic-name">اللجنة المالية</div>
             <div class="ic-sub">قريباً</div>
           </div>
           <div class="idara-card" onclick="openIdara('media')">
-            <div class="ic-ico">🎥</div>
+            <div class="ic-ico"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg></div>
             <div class="ic-name">اللجنة الإعلامية</div>
             <div class="ic-sub">قريباً</div>
           </div>
           <div class="idara-card" onclick="openIdara('aza')">
-            <div class="ic-ico">🕯️</div>
+            <div class="ic-ico"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s2 2.2 2 3.8a2 2 0 0 1-4 0C10 5.2 12 3 12 3z"/><rect x="8.5" y="10" width="7" height="11" rx="1.5"/><path d="M12 10V8.5"/></svg></div>
             <div class="ic-name">لجنة العزاء</div>
             <div class="ic-sub" id="idaraAzaCount">تقييم الرواديد وسجل الأداء</div>
           </div>
           <div class="idara-card" onclick="openIdara('archive')">
-            <div class="ic-ico">📦</div>
+            <div class="ic-ico"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4.5" rx="1.5"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5"/><path d="M10 12.5h4"/></svg></div>
             <div class="ic-name">الأرشيف</div>
             <div class="ic-sub">سنوات سابقة · إغلاق السنة</div>
           </div>
           <div class="idara-card" onclick="openIdara('admins')">
-            <div class="ic-ico">👥</div>
+            <div class="ic-ico"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16.5 7.2a2.8 2.8 0 0 1 0 5.6"/><path d="M18 19.8c0-2.4-.9-4.2-2.4-5.3"/></svg></div>
             <div class="ic-name">أعضاء الإدارة</div>
             <div class="ic-sub" id="idaraAdminsCount">0 إداري</div>
           </div>
@@ -1947,7 +1951,7 @@
 
       <!-- لوحة الإحصائيات -->
       <details class="set-acc" id="secStatsAcc" ontoggle="if(this.open) renderStats()">
-        <summary class="set-sum"><span class="ss-ic">📊</span><span class="ss-txt"><b>لوحة الإحصائيات</b><small>أرقام حيّة عن نشاط الهيئة</small></span><span class="ss-arrow">›</span></summary>
+        <summary class="set-sum"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><span class="ss-txt"><b>لوحة الإحصائيات</b><small>أرقام حيّة عن نشاط الهيئة</small></span><span class="ss-arrow">›</span></summary>
         <div class="set-body"><div id="statsBody"></div></div>
       </details>
 
@@ -1955,7 +1959,7 @@
       <!-- Collapsible dashboard -->
       <div class="panel mtg-dash-panel">
         <div class="panel-header mtg-dash-toggle" onclick="toggleDash()">
-          <div><h2 class="panel-title">📋 لوحة أمانة السر</h2>
+          <div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> لوحة أمانة السر</h2>
             <div class="panel-sub" id="mtgDashSummary">اضغط لعرض الإحصائيات</div></div>
           <div class="mtg-dash-actions">
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();toggleDarkMode()" id="darkModeBtn">🌙 داكن</button>
@@ -1966,21 +1970,21 @@
           <div class="mtg-stat-grid" id="mtgStats"></div>
           <div class="mtg-absent-card" id="mtgMostAbsent"></div>
           <div class="actions-row" style="margin-top:12px;">
-            <button class="btn btn-ghost btn-sm" onclick="printMeetingStats()">🖨️ طباعة الإحصائية PDF</button>
+            <button class="btn btn-ghost btn-sm" onclick="printMeetingStats()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> طباعة الإحصائية PDF</button>
           </div>
         </div>
       </div>
 
       <div class="idara-actions">
-        <button class="btn btn-primary" onclick="openMeetingModal()">➕ اجتماع جديد</button>
-        <button class="btn btn-accent" onclick="openInviteModal()">📨 دعوة اجتماع</button>
+        <button class="btn btn-primary" onclick="openMeetingModal()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> اجتماع جديد</button>
+        <button class="btn btn-accent" onclick="openInviteModal()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7l9.5 6 9.5-6"/></svg> دعوة اجتماع</button>
       </div>
 
       <!-- sub-tabs -->
       <div class="tabs mtg-subtabs">
         <button class="tab active" data-mtab="list" onclick="switchMeetingSubtab('list')">قائمة الاجتماعات</button>
         <button class="tab" data-mtab="followup" onclick="switchMeetingSubtab('followup')">📌 لوحة المتابعة</button>
-        <button class="tab" data-mtab="assembly" onclick="switchMeetingSubtab('assembly')">🏛️ الجمعية العمومية</button>
+        <button class="tab" data-mtab="assembly" onclick="switchMeetingSubtab('assembly')"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M13 10h6a1 1 0 0 1 1 1v10"/><path d="M2 21h20M7 9h2M7 13h2M7 17h2M16 14h1M16 18h1"/></svg> الجمعية العمومية</button>
       </div>
 
       <!-- LIST -->
@@ -2030,10 +2034,10 @@
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <label style="font-size:13px;color:var(--muted);font-weight:600;">الجمعية:</label>
               <select id="asmYear" onchange="switchAssembly()"></select>
-              <button class="btn btn-ghost btn-sm" onclick="newAssembly()">➕ جمعية جديدة</button>
+              <button class="btn btn-ghost btn-sm" onclick="newAssembly()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> جمعية جديدة</button>
             </div>
           </div>
-          <div id="asmEmpty" class="empty" style="display:none"><div class="icon">🏛️</div><div class="txt">لا توجد جمعية عمومية بعد. اضغط «➕ جمعية جديدة».</div></div>
+          <div id="asmEmpty" class="empty" style="display:none"><div class="icon"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M13 10h6a1 1 0 0 1 1 1v10"/><path d="M2 21h20M7 9h2M7 13h2M7 17h2M16 14h1M16 18h1"/></svg></div><div class="txt">لا توجد جمعية عمومية بعد. اضغط «<svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> جمعية جديدة».</div></div>
           <div id="asmBody" style="display:none">
             <div class="asm-pills">
               <button class="asm-pill active" data-apill="attend" onclick="switchAsmPill('attend')">الحضور</button>
@@ -2072,7 +2076,7 @@
                   <option value="أخرى">أخرى</option>
                 </select>
                 <input id="projCategory" placeholder="التصنيف (خدمي/ثقافي...)" />
-                <button class="btn btn-primary btn-sm" onclick="addProject()">➕</button>
+                <button class="btn btn-primary btn-sm" onclick="addProject()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
               </div>
               <div id="projectsList" class="projects-list"></div>
             </div>
@@ -2097,7 +2101,7 @@
                 <div class="field full"><label>التكريم الحسيني لخادم الإمام الحسين</label><textarea id="rpHonoring" rows="3" oninput="saveReportField()"></textarea></div>
               </div>
               <div class="actions-row" style="margin-top:14px;">
-                <button class="btn btn-primary" onclick="printAssemblyReport()">🖨️ طباعة التقرير الأدبي PDF</button>
+                <button class="btn btn-primary" onclick="printAssemblyReport()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> طباعة التقرير الأدبي PDF</button>
               </div>
             </div>
 
@@ -2109,7 +2113,7 @@
     <!-- FINANCE -->
     <div id="idara-finance" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
-      <div class="panel"><div class="empty"><div class="icon">💰</div><div class="txt">اللجنة المالية — قريباً</div></div></div>
+      <div class="panel"><div class="empty"><div class="icon"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M14.5 9.5c0-1-1.1-1.5-2.5-1.5s-2.5.6-2.5 1.7 1.2 1.5 2.5 1.8 2.5.7 2.5 1.8-1.1 1.7-2.5 1.7-2.5-.5-2.5-1.5"/></svg></div><div class="txt">اللجنة المالية — قريباً</div></div></div>
     </div>
 
     <!-- MEDIA -->
@@ -2118,16 +2122,16 @@
 
       <!-- مكتبة الصور من Google Drive -->
       <div class="panel">
-        <div class="panel-header"><div><h2 class="panel-title">🖼️ مكتبة الصور</h2>
+        <div class="panel-header"><div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg> مكتبة الصور</h2>
           <div class="panel-sub">الصور محفوظة في Google Drive — أضفها هناك وتظهر هنا تلقائياً</div></div></div>
         <div class="gd-cats" id="gdCats"></div>
       </div>
 
       <div class="panel">
         <div class="panel-header">
-          <div><h2 class="panel-title">📷 ألبوم الصور</h2>
+          <div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg> ألبوم الصور</h2>
             <div class="panel-sub" id="albumCount">0 صورة</div></div>
-          <button class="btn btn-primary" onclick="openAddPhoto()">➕ إضافة صورة</button>
+          <button class="btn btn-primary" onclick="openAddPhoto()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة صورة</button>
         </div>
         <div id="albumGrid" class="album-grid"></div>
       </div>
@@ -2138,9 +2142,9 @@
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
       <div class="panel">
         <div class="panel-header">
-          <div><h2 class="panel-title">🕯️ لجنة العزاء</h2>
+          <div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s2 2.2 2 3.8a2 2 0 0 1-4 0C10 5.2 12 3 12 3z"/><rect x="8.5" y="10" width="7" height="11" rx="1.5"/><path d="M12 10V8.5"/></svg> لجنة العزاء</h2>
             <div class="panel-sub" id="azaRcount">0 رادود</div></div>
-          <button class="btn btn-primary" onclick="openAddRadood()">➕ إضافة رادود</button>
+          <button class="btn btn-primary" onclick="openAddRadood()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة رادود</button>
         </div>
         <input type="text" class="tath-search" id="radoodSearch" placeholder="🔍 ابحث عن رادود…" oninput="renderRadoods()" />
         <div id="radoodList" class="radood-list"></div>
@@ -2151,12 +2155,12 @@
     <div id="idara-archive" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
       <div class="panel">
-        <div class="panel-header"><div><h2 class="panel-title">📦 الأرشيف</h2>
+        <div class="panel-header"><div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4.5" rx="1.5"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5"/><path d="M10 12.5h4"/></svg> الأرشيف</h2>
           <div class="panel-sub" id="archSub">سنوات الهيئة المؤرشفة</div></div></div>
         <div id="archList"></div>
       </div>
       <div class="panel" style="border-color:var(--warn);background:#fdfaf3;">
-        <div class="panel-header"><div><h2 class="panel-title">🗓️ إغلاق السنة الحالية</h2>
+        <div class="panel-header"><div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> إغلاق السنة الحالية</h2>
           <div class="panel-sub">يُنفَّذ مرة واحدة في بداية محرم</div></div></div>
         <div class="note" style="margin-bottom:12px;">
           يحفظ نسخة كاملة من السنة في الأرشيف، ثم يبدأ سنة جديدة:
@@ -2164,7 +2168,7 @@
           <b>وتبقى</b> الأعضاء والمواقيت وحجوزاتها والرواديد،
           <b>وتصير كل العضويات غير مفعّلة</b> لتُفعَّل يدوياً عند الدفع.
         </div>
-        <button class="btn" style="width:100%;background:var(--warn);color:#fff;border:none;" onclick="closeYearWizard()">📦 إغلاق السنة وبدء سنة جديدة</button>
+        <button class="btn" style="width:100%;background:var(--warn);color:#fff;border:none;" onclick="closeYearWizard()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4.5" rx="1.5"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5"/><path d="M10 12.5h4"/></svg> إغلاق السنة وبدء سنة جديدة</button>
       </div>
     </div>
 
@@ -2173,7 +2177,7 @@
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
       <div class="panel">
         <div class="panel-header">
-          <div><h2 class="panel-title">👥 أعضاء الإدارة</h2>
+          <div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16.5 7.2a2.8 2.8 0 0 1 0 5.6"/><path d="M18 19.8c0-2.4-.9-4.2-2.4-5.3"/></svg> أعضاء الإدارة</h2>
             <div class="panel-sub" id="adminsCount">0 إداري</div></div>
           <button class="btn btn-primary" onclick="openAdminBulk()">رسالة للإدارة</button>
         </div>
@@ -2191,12 +2195,12 @@
 
     <!-- ① النسخ الاحتياطي — بالأعلى للانتباه -->
     <details class="set-acc" open>
-      <summary class="set-sum"><span class="ss-ic">💾</span><span class="ss-txt"><b>النسخ الاحتياطي والبيانات</b><small>احفظ نسخة من كل شيء حتى لا تضيع البيانات</small></span><span class="ss-arrow">›</span></summary>
+      <summary class="set-sum"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg></span><span class="ss-txt"><b>النسخ الاحتياطي والبيانات</b><small>احفظ نسخة من كل شيء حتى لا تضيع البيانات</small></span><span class="ss-arrow">›</span></summary>
       <div class="set-body">
         <div id="backupWarnBox"></div>
         <div class="actions-row" style="margin-top:0;">
-          <button class="btn btn-primary" onclick="backupExport()">💾 نسخة احتياطية كاملة</button>
-          <button class="btn btn-ghost" onclick="document.getElementById('backupImportInput').click()">📥 استعادة نسخة</button>
+          <button class="btn btn-primary" onclick="backupExport()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> نسخة احتياطية كاملة</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('backupImportInput').click()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> استعادة نسخة</button>
           <input type="file" id="backupImportInput" style="display:none" accept="application/json,.json" onchange="backupImport(event)" />
         </div>
         <div class="actions-row" style="margin-top:8px;">
@@ -2211,7 +2215,7 @@
 
     <!-- ①-ب سجل التغييرات — يظهر لأمين السر فقط -->
     <details class="set-acc" id="auditAcc" style="display:none" ontoggle="if(this.open) renderAuditLog()">
-      <summary class="set-sum"><span class="ss-ic">📋</span><span class="ss-txt"><b>سجل التغييرات</b><small>من فعل ماذا ومتى — خاص بأمين السر</small></span><span class="ss-arrow">›</span></summary>
+      <summary class="set-sum"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></span><span class="ss-txt"><b>سجل التغييرات</b><small>من فعل ماذا ومتى — خاص بأمين السر</small></span><span class="ss-arrow">›</span></summary>
       <div class="set-body">
         <div class="audit-filters">
           <select id="auditCat" onchange="renderAuditLog()">
@@ -2225,14 +2229,14 @@
         </div>
         <div id="auditList"></div>
         <div class="actions-row" style="margin-top:10px;">
-          <button class="btn btn-ghost btn-sm" onclick="clearAuditLog()">🧹 مسح السجل</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearAuditLog()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg> مسح السجل</button>
         </div>
       </div>
     </details>
 
     <!-- ② الإعدادات العامة -->
     <details class="set-acc">
-      <summary class="set-sum"><span class="ss-ic">⚙️</span><span class="ss-txt"><b>الإعدادات العامة</b><small>قيم افتراضية تُستخدم في النظام</small></span><span class="ss-arrow">›</span></summary>
+      <summary class="set-sum"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.1 14.6a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-3-1.2l-.1.1a2 2 0 1 1-2.9-2.9l.1-.1a1.7 1.7 0 0 0-1.2-2.9H2.4a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.2-3l-.1-.1A2 2 0 1 1 6.6 4l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.6V2.4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 3 1.2l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0 1.2 3h.2a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg></span><span class="ss-txt"><b>الإعدادات العامة</b><small>قيم افتراضية تُستخدم في النظام</small></span><span class="ss-arrow">›</span></summary>
       <div class="set-body">
         <div class="form-grid">
           <div class="field"><label>قيمة الاشتراك السنوي (د.ب)</label>
@@ -2248,7 +2252,7 @@
     <details class="set-acc">
       <summary class="set-sum"><span class="ss-ic">📇</span><span class="ss-txt"><b>دليل الأرقام</b><small>أعضاء + ممثّلو العوائل — بلا تكرار</small></span><span class="ss-arrow">›</span></summary>
       <div class="set-body">
-        <div class="actions-row" style="margin-top:0;"><button class="btn btn-ghost btn-sm" onclick="printPhoneDirectory()">🧾 طباعة PDF</button></div>
+        <div class="actions-row" style="margin-top:0;"><button class="btn btn-ghost btn-sm" onclick="printPhoneDirectory()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> طباعة PDF</button></div>
         <div class="dir-total" id="dirTotal"></div>
         <input type="text" id="dirSearch" class="fam-search" placeholder="🔍 بحث بالاسم أو الرقم…" oninput="renderPhoneDirectory()" style="margin-top:10px" />
         <div id="phoneDirList"></div>
@@ -2257,7 +2261,7 @@
 
     <!-- ④ قوالب الرسائل -->
     <details class="set-acc">
-      <summary class="set-sum"><span class="ss-ic">✏️</span><span class="ss-txt"><b>قوالب الرسائل</b><small>عدّل نصوص الرسائل الجاهزة</small></span><span class="ss-arrow">›</span></summary>
+      <summary class="set-sum"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span><span class="ss-txt"><b>قوالب الرسائل</b><small>عدّل نصوص الرسائل الجاهزة</small></span><span class="ss-arrow">›</span></summary>
       <div class="set-body">
         <div class="form-grid">
           <div class="field full"><label>تذكير بالاشتراك</label>
@@ -2275,10 +2279,10 @@
 
     <!-- ⑤ استمارة فارغة -->
     <details class="set-acc">
-      <summary class="set-sum"><span class="ss-ic">🖨️</span><span class="ss-txt"><b>استمارة تسجيل عضو (فارغة)</b><small>للتعبئة اليدوية ثم الإدخال لاحقاً</small></span><span class="ss-arrow">›</span></summary>
+      <summary class="set-sum"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg></span><span class="ss-txt"><b>استمارة تسجيل عضو (فارغة)</b><small>للتعبئة اليدوية ثم الإدخال لاحقاً</small></span><span class="ss-arrow">›</span></summary>
       <div class="set-body">
         <div class="actions-row" style="margin-top:0;">
-          <button class="btn btn-primary" onclick="printBlankMemberForm()">🖨️ طباعة استمارة فارغة PDF</button>
+          <button class="btn btn-primary" onclick="printBlankMemberForm()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> طباعة استمارة فارغة PDF</button>
         </div>
         <div class="note" style="margin-top:12px;">
           تحتوي على كل حقول تسجيل العضو (الاسم، الهاتف، نوع العضوية، المنطقة، البريد، العنوان، تاريخ الميلاد، اللجنة…) بمساحات للكتابة بخط اليد.
@@ -2288,11 +2292,11 @@
 
     <!-- ⑥ السحابة — بالأسفل -->
     <details class="set-acc cloud-acc" id="cloudAcc">
-      <summary class="set-sum" onclick="return guardCloudClick(event)"><span class="ss-ic">🔐</span><span class="ss-txt"><b>السحابة والمزامنة</b><small>محمية برقم سري — للمسؤول فقط</small></span><span class="cloud-status offline" id="cloudStatus">غير متصل</span><span class="ss-arrow">›</span></summary>
+      <summary class="set-sum" onclick="return guardCloudClick(event)"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><span class="ss-txt"><b>السحابة والمزامنة</b><small>محمية برقم سري — للمسؤول فقط</small></span><span class="cloud-status offline" id="cloudStatus">غير متصل</span><span class="ss-arrow">›</span></summary>
       <div class="set-body" id="cloudBody">
         <div class="rcpt-agreed">الحساب الحالي: <b id="cloudUser">—</b></div>
         <div class="actions-row">
-          <button class="btn btn-primary btn-sm" id="uploadLocalBtn" onclick="CloudSync.uploadLocal()">⬆️ رفع بيانات هذا الجهاز (آمن)</button>
+          <button class="btn btn-primary btn-sm" id="uploadLocalBtn" onclick="CloudSync.uploadLocal()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg> رفع بيانات هذا الجهاز (آمن)</button>
           <button class="btn btn-ghost btn-sm" onclick="CloudSync.signOut()">تسجيل الخروج</button>
         </div>
         <div class="note" style="margin-top:12px;">
@@ -2300,11 +2304,11 @@
           بعدها تتم المزامنة تلقائياً مع كل تعديل.
         </div>
         <details style="margin-top:12px;">
-          <summary style="font-size:12.5px;color:var(--danger);cursor:pointer;">⚠️ خيار متقدّم (خطر)</summary>
+          <summary style="font-size:12.5px;color:var(--danger);cursor:pointer;"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg> خيار متقدّم (خطر)</summary>
           <div class="note" style="margin-top:8px;">
             <strong>استبدال السحابة</strong> يمسح ما في السحابة ويضع بيانات هذا الجهاز مكانها. لا تستخدمه إلا عند الضرورة القصوى.
           </div>
-          <button class="btn btn-ghost btn-sm" id="migrateBtn" style="color:var(--danger);margin-top:8px;" onclick="CloudSync.migrate()">☁️ استبدال بيانات السحابة</button>
+          <button class="btn btn-ghost btn-sm" id="migrateBtn" style="color:var(--danger);margin-top:8px;" onclick="CloudSync.migrate()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 18.5a4 4 0 0 0 .5-8 6.2 6.2 0 0 0-11.8-1.4A3.8 3.8 0 0 0 7 18.5z"/></svg> استبدال بيانات السحابة</button>
         </details>
       </div>
     </details>
@@ -2313,7 +2317,7 @@
   <section id="tab-family" class="tab-content" style="display:none">
     <button class="btn btn-ghost btn-sm idara-back" onclick="backFromFamily()">← رجوع للمواقيت</button>
     <div class="panel">
-      <div class="panel-header"><div><h2 class="panel-title" id="famFormTitle">👪 ميقات عائلي</h2>
+      <div class="panel-header"><div><h2 class="panel-title" id="famFormTitle"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16.5 7.2a2.8 2.8 0 0 1 0 5.6"/><path d="M18 19.8c0-2.4-.9-4.2-2.4-5.3"/></svg> ميقات عائلي</h2>
         <div class="panel-sub">حجز باسم عائلة يمثّلها شخص واحد</div></div></div>
       <div class="field"><label>اسم العائلة</label><input type="text" id="famName" placeholder="مثلاً: عائلة آل فلان" /></div>
       <div class="field" style="margin-top:10px;"><label>اختر الميقات</label><select id="famMiqat"></select></div>
@@ -2337,9 +2341,9 @@
   <section id="tab-familyList" class="tab-content" style="display:none">
     <button class="btn btn-ghost btn-sm idara-back" onclick="backFromFamily()">← رجوع للمواقيت</button>
     <div class="panel">
-      <div class="panel-header"><div><h2 class="panel-title">📋 الحجوزات العائلية</h2>
+      <div class="panel-header"><div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> الحجوزات العائلية</h2>
         <div class="panel-sub">كل الحجوزات باسم العائلات</div></div>
-        <button class="btn btn-ghost btn-sm" onclick="printFamilyReport()">🧾 تقرير PDF</button></div>
+        <button class="btn btn-ghost btn-sm" onclick="printFamilyReport()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> تقرير PDF</button></div>
       <div class="fam-summary" id="famListSummary"></div>
       <input type="text" id="famSearch" class="fam-search" placeholder="🔍 بحث باسم العائلة أو الممثّل…" oninput="renderFamilyList()" />
       <div id="famListBody"></div>
@@ -2376,7 +2380,7 @@
     <div class="field full"><label>العنوان <span class="opt">اختياري</span></label><input id="editAddress" /></div>
     <div class="field full"><label>الصورة الشخصية <span class="opt">اختياري</span></label>
       <div class="photo-upload">
-        <div class="photo-preview" id="editPhotoPreview">👤</div>
+        <div class="photo-preview" id="editPhotoPreview"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg></div>
         <div>
           <button type="button" class="photo-btn" onclick="document.getElementById('editPhotoInput').click()">تغيير الصورة</button>
         </div>
@@ -2481,7 +2485,7 @@
     </label>
     <div id="thawabNamesWrap" style="display:none">
       <div id="thawabNames"></div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="addThawabName()">➕ إضافة اسم متوفى</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addThawabName()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة اسم متوفى</button>
     </div>
   </div>
   <div class="actions-row"><button class="btn btn-primary" onclick="saveBooking()">إضافة الحجز</button></div>
@@ -2519,8 +2523,8 @@
     <textarea class="bulk-textarea" id="bulkMessage" placeholder="اكتب رسالتك هنا..."></textarea>
   </div>
   <div class="actions-row" style="gap:6px;">
-    <button class="btn btn-primary" onclick="copyBulkPhones()">📋 نسخ الأرقام</button>
-    <button class="btn btn-ghost" onclick="copyBulkMessage()">📋 نسخ الرسالة</button>
+    <button class="btn btn-primary" onclick="copyBulkPhones()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> نسخ الأرقام</button>
+    <button class="btn btn-ghost" onclick="copyBulkMessage()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> نسخ الرسالة</button>
     <button class="btn wa-btn large" onclick="openWhatsAppBroadcast()">فتح واتساب</button>
   </div>
   <div class="note" style="margin-top:12px;">
@@ -2571,7 +2575,7 @@
   <!-- Attendance -->
   <div class="mtg-block">
     <div class="mtg-block-head">
-      <span class="mtg-block-title">👥 الحضور والغياب</span>
+      <span class="mtg-block-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16.5 7.2a2.8 2.8 0 0 1 0 5.6"/><path d="M18 19.8c0-2.4-.9-4.2-2.4-5.3"/></svg> الحضور والغياب</span>
       <span class="mtg-att-summary" id="mtgAttSummary">0 حاضر · 0 غائب</span>
     </div>
     <div class="mtg-block-help">اختر من قائمة أعضاء الإدارة من حضر ومن غاب</div>
@@ -2590,7 +2594,7 @@
   <!-- Decisions -->
   <div class="mtg-block">
     <div class="mtg-block-head">
-      <span class="mtg-block-title">✅ القرارات <span class="mtg-count" id="mtgDecCount">0</span></span>
+      <span class="mtg-block-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> القرارات <span class="mtg-count" id="mtgDecCount">0</span></span>
       <button type="button" class="btn btn-ghost btn-sm" onclick="addDecisionEntry()">+ قرار</button>
     </div>
     <div id="mtgDecisions" class="mtg-items"></div>
@@ -2599,7 +2603,7 @@
   <!-- Tasks -->
   <div class="mtg-block">
     <div class="mtg-block-head">
-      <span class="mtg-block-title">📝 المهام <span class="mtg-count" id="mtgTaskCount">0</span></span>
+      <span class="mtg-block-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> المهام <span class="mtg-count" id="mtgTaskCount">0</span></span>
       <button type="button" class="btn btn-ghost btn-sm" onclick="addTaskEntry()">+ مهمة</button>
     </div>
     <div id="mtgTasks" class="mtg-items"></div>
@@ -2614,7 +2618,7 @@
   <!-- Attachments -->
   <div class="mtg-block">
     <div class="mtg-block-head">
-      <span class="mtg-block-title">📎 المرفقات</span>
+      <span class="mtg-block-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg> المرفقات</span>
       <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('mtgAttachInput').click()">+ إرفاق ملف</button>
       <input type="file" id="mtgAttachInput" style="display:none" multiple onchange="handleMeetingAttach(event)" />
     </div>
@@ -2633,7 +2637,7 @@
   <div class="page-bar">
     <button class="btn btn-ghost btn-sm" onclick="closeMeetingDetail()">← الإدارة</button>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-primary btn-sm" onclick="editCurrentMeeting()">✏️ تعديل</button>
+      <button class="btn btn-primary btn-sm" onclick="editCurrentMeeting()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> تعديل</button>
       <button class="btn btn-danger btn-sm" onclick="deleteCurrentMeeting()">حذف</button>
     </div>
   </div>
@@ -2667,7 +2671,7 @@
 <!-- Meeting Invitation Modal -->
 <div class="modal-backdrop" id="inviteModal"><div class="modal">
   <button class="modal-close" onclick="closeModal('inviteModal')">×</button>
-  <h3>📨 دعوة اجتماع إداري</h3>
+  <h3><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7l9.5 6 9.5-6"/></svg> دعوة اجتماع إداري</h3>
   <div class="subtitle">عبّئ الحقول ثم عدّل النص وانسخه أو أرسله لكل عضو في الخاص</div>
   <div class="form-grid">
     <div class="field"><label>رقم الاجتماع</label><input id="invNumber" inputmode="numeric" /></div>
@@ -2682,7 +2686,7 @@
   <div class="field full" style="margin-top:10px"><label>نص الدعوة</label>
     <textarea id="invText" rows="9"></textarea></div>
   <div class="actions-row">
-    <button class="btn btn-primary" onclick="copyInvite()">📋 نسخ النص</button>
+    <button class="btn btn-primary" onclick="copyInvite()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> نسخ النص</button>
   </div>
   <div class="section-label" style="margin-top:14px">إرسال في الخاص عبر واتساب</div>
   <div id="inviteAdmins" class="invite-admins"></div>
@@ -2700,10 +2704,10 @@
 <!-- نافذة إضافة/تعديل رادود -->
 <div class="modal-backdrop" id="radoodModal"><div class="modal">
   <button class="modal-close" onclick="closeModal('radoodModal')">×</button>
-  <h3 id="radoodModalTitle">➕ إضافة رادود</h3>
+  <h3 id="radoodModalTitle"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة رادود</h3>
   <div class="field full"><label>صورة الرادود</label>
     <div class="photo-row">
-      <div class="photo-preview" id="radoodPhotoPreview">🎤</div>
+      <div class="photo-preview" id="radoodPhotoPreview"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7"/></svg></div>
       <div>
         <input type="file" id="radoodPhotoInput" accept="image/*" style="display:none" onchange="handleRadoodPhotoSelect(event)">
         <button type="button" class="photo-btn" id="radoodPhotoPickLabel" onclick="document.getElementById('radoodPhotoInput').click()">اختر صورة</button>
@@ -2721,10 +2725,10 @@
 
 <div class="modal-backdrop" id="addPhotoModal"><div class="modal">
   <button class="modal-close" onclick="closeModal('addPhotoModal')">×</button>
-  <h3 id="addPhotoTitle">➕ إضافة صورة</h3>
+  <h3 id="addPhotoTitle"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة صورة</h3>
   <div class="field full"><label>الصورة</label>
     <div class="photo-row">
-      <div class="photo-preview" id="albumPhotoPreview">🖼️</div>
+      <div class="photo-preview" id="albumPhotoPreview"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg></div>
       <div>
         <input type="file" id="albumPhotoInput" accept="image/*" style="display:none" onchange="handleAlbumPhotoSelect(event)">
         <button type="button" class="photo-btn" id="albumPhotoPickLabel" onclick="document.getElementById('albumPhotoInput').click()">اختر صورة</button>
@@ -2750,8 +2754,8 @@
     <div class="lightbox-by" id="lightboxBy"></div>
     <p id="lightboxDesc"></p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-primary btn-sm" id="lightboxEdit">✏️ تعديل البيانات</button>
-      <button class="btn btn-ghost btn-sm" id="lightboxDel">🗑️ حذف الصورة</button>
+      <button class="btn btn-primary btn-sm" id="lightboxEdit"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> تعديل البيانات</button>
+      <button class="btn btn-ghost btn-sm" id="lightboxDel"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg> حذف الصورة</button>
     </div>
   </div>
 </div></div>
@@ -2766,7 +2770,7 @@
   <div class="inst-listwrap"><div class="inst-lbl">الدفعات المسجّلة</div><div id="instMgrList"></div></div>
 
   <div class="inst-schedule">
-    <div class="inst-lbl">📅 مواعيد الاستحقاق المجدولة <span class="opt">اختياري</span></div>
+    <div class="inst-lbl"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg> مواعيد الاستحقاق المجدولة <span class="opt">اختياري</span></div>
     <div class="sched-hint">حدّد تاريخ استحقاق القسط بالهجري، ويُنبّهك الجرس قبله بـ 10 أيام.</div>
     <div id="instSchedList"></div>
     <div class="sched-add">
@@ -2779,7 +2783,7 @@
         <input type="number" id="schedAmount" min="0" step="0.001" placeholder="مبلغ القسط (اختياري)" />
         <span class="sched-greg" id="schedGreg">—</span>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="schedAdd()">➕ إضافة موعد استحقاق</button>
+      <button class="btn btn-primary btn-sm" onclick="schedAdd()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة موعد استحقاق</button>
     </div>
   </div>
 
@@ -2788,9 +2792,9 @@
       <input type="number" id="instAddAmount" min="0" step="0.001" placeholder="مبلغ الدفعة" />
       <input type="text" id="instAddNote" placeholder="ملاحظة (اختياري)" />
     </div>
-    <button class="btn btn-primary" onclick="instAdd()">➕ إضافة دفعة</button>
-    <button class="btn btn-accent" id="instPayFullBtn" style="display:none" onclick="instPayFull()">✅ دفع كامل للعضوية</button>
-    <button class="btn btn-ghost" id="instPdfBtn" style="display:none" onclick="instPrintStatement()">🧾 كشف PDF</button>
+    <button class="btn btn-primary" onclick="instAdd()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة دفعة</button>
+    <button class="btn btn-accent" id="instPayFullBtn" style="display:none" onclick="instPayFull()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> دفع كامل للعضوية</button>
+    <button class="btn btn-ghost" id="instPdfBtn" style="display:none" onclick="instPrintStatement()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg> كشف PDF</button>
   </div>
 </div></div>
 
@@ -2805,7 +2809,7 @@
   <div class="field" style="margin-top:8px"><label>ملاحظة <span class="opt">اختياري</span></label>
     <input type="text" id="receiptNote" placeholder="مثال: استُلم نقداً" /></div>
   <div class="actions-row">
-    <button class="btn btn-primary" onclick="saveReceipt()">✅ تم الاستلام</button>
+    <button class="btn btn-primary" onclick="saveReceipt()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> تم الاستلام</button>
     <button class="btn btn-ghost" id="receiptClearBtn" onclick="clearReceipt()" style="display:none">إلغاء الاستلام</button>
     <button class="btn btn-ghost" onclick="closeModal('receiptModal')">إغلاق</button>
   </div>
