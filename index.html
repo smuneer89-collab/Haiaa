@@ -377,6 +377,23 @@
   .cmp-picked { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:10px; padding-top:9px; border-top:1px dashed var(--line); font-size:11.5px; color:var(--muted); }
   .cmp-tag { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:4px 9px; font-size:11px; color:var(--ink); cursor:pointer; }
   .cmp-tag i { font-style:normal; color:var(--muted-2); font-size:10px; }
+  /* الرسائل الرسمية */
+  .lt-row { display:flex; align-items:center; gap:11px; background:var(--surface); border:1px solid var(--line);
+    border-right:3px solid var(--gold); border-radius:11px; padding:12px 14px; margin-bottom:8px; cursor:pointer; }
+  .lt-subj { font-size:14px; font-weight:600; color:var(--ink); }
+  .lt-meta { font-size:11.5px; color:var(--muted); margin-top:3px; }
+  .lt-arrow { font-size:20px; color:var(--muted-2); }
+  .lt-empty { text-align:center; padding:26px 16px; color:var(--muted-2); font-size:13px; }
+  .lt-form { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .lt-fld { margin-bottom:13px; }
+  .lt-fld label { display:block; font-size:12.5px; font-weight:600; color:var(--accent); margin-bottom:6px; }
+  .lt-fld input, .lt-fld textarea { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px;
+    font-family:var(--font-sans); font-size:14px; background:var(--bg); color:var(--ink); box-sizing:border-box; }
+  .lt-fld textarea { resize:vertical; line-height:1.9; }
+  .lt-fld .hint { font-size:11px; color:var(--muted); margin-top:5px; }
+  .lt-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .lt-actions .btn { flex:1; min-width:120px; }
+  .lt-date { background:var(--accent-soft); border-radius:10px; padding:10px 13px; font-size:12.5px; color:var(--accent); margin-bottom:13px; }
   /* صفحة مساهمة العضو */
   .rc-head { background:linear-gradient(150deg,var(--accent-deep),var(--accent)); padding:20px 18px; color:#fff; border-radius:14px 14px 0 0; text-align:center; }
   .rc-who { font-size:18px; font-weight:800; }
@@ -1797,6 +1814,14 @@
     <div id="notifList"></div>
   </section>
 
+  <!-- محرّر الرسالة الرسمية -->
+  <section id="tab-letter" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeLetterEditor()">← رجوع لأمانة السر</button>
+    </div>
+    <div id="letterBody"></div>
+  </section>
+
   <!-- صفحة مساهمة العضو (استلام) -->
   <section id="tab-receipt" class="tab-content" style="display:none">
     <div class="page-bar">
@@ -2118,6 +2143,18 @@
     <!-- SECRETARIAT -->
     <div id="idara-sec" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+
+      <!-- الرسائل الرسمية -->
+      <details class="set-acc" id="lettersAcc" ontoggle="if(this.open) renderLetters()">
+        <summary class="set-sum"><span class="ss-ic"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7l9.5 6 9.5-6"/></svg></span>
+          <span class="ss-txt"><b>الرسائل الرسمية</b><small>كتابة وطباعة وأرشيف الصادر</small></span><span class="ss-arrow">›</span></summary>
+        <div class="set-body">
+          <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openLetterEditor()">
+            <svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            رسالة جديدة</button>
+          <div id="lettersList"></div>
+        </div>
+      </details>
 
       <!-- لوحة الإحصائيات -->
       <details class="set-acc" id="secStatsAcc" ontoggle="if(this.open) renderStats()">

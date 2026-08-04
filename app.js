@@ -107,6 +107,7 @@ let financeLog = []; // سجل دخول اللجنة المالية: {id, email,
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
 let revenues = []; // إيرادات المواقيت: {id, kind:'vow'|'donation', miqatId, name, amount, note, date, at}
+let letters = []; // الرسائل الرسمية الصادرة
 let archives = []; // أرشيف السنوات
 let radoodParts = []; // مشاركات مسجّلة يدوياً: {id, radoodId, miqatId, miqatName, note, at}
 let auditLog = []; // سجل التغييرات: {id, at, who, act, cat, what}
@@ -247,6 +248,7 @@ async function loadData(){
   try { const rp=await storage.get('radoodParts'); if(rp) radoodParts=JSON.parse(rp); } catch(e){ radoodParts=[]; }
   try { const ar=await storage.get('archives'); if(ar) archives=JSON.parse(ar); } catch(e){ archives=[]; }
   try { const rv=await storage.get('revenues'); if(rv) revenues=JSON.parse(rv); } catch(e){ revenues=[]; }
+  try { const lt=await storage.get('letters'); if(lt) letters=JSON.parse(lt); } catch(e){ letters=[]; }
   try { const gi=await storage.get('gdIndexCache'); if(gi) gdIndex=JSON.parse(gi); } catch(e){}
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
@@ -265,6 +267,7 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveLetters(){ try{ await storage.set('letters',JSON.stringify(letters)); }catch(e){} cloudPush('letters',letters); }
 async function saveRevenues(){ try{ await storage.set('revenues',JSON.stringify(revenues)); }catch(e){} cloudPush('revenues',revenues); }
 async function saveArchives(){ try{ await storage.set('archives',JSON.stringify(archives)); }catch(e){} cloudPush('archives',archives); }
 async function saveRadoodParts(){ try{ await storage.set('radoodParts',JSON.stringify(radoodParts)); }catch(e){} cloudPush('radoodParts',radoodParts); }
@@ -851,6 +854,185 @@ function printAnnualReport(){
   w.document.close(); w.focus();
 }
 
+
+
+/* ═══════════ الرسائل الرسمية ═══════════ */
+let editingLetterId = null;
+
+function renderLetters(){
+  const box=$('#lettersList'); if(!box) return;
+  const list=[...letters].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  if(!list.length){ box.innerHTML='<div class="lt-empty">لا رسائل بعد — اضغط «رسالة جديدة» للبدء</div>'; return; }
+  box.innerHTML=`<div class="stats-sec-title">أرشيف الصادر (${list.length})</div>`+
+    list.map(l=>`<div class="lt-row" onclick="openLetterEditor('${l.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="lt-subj">${escapeHtml(l.subject||'بلا موضوع')}</div>
+        <div class="lt-meta">${escapeHtml(l.to||'—')} · ${l.date?fmtDate(l.date):''}</div>
+      </div>
+      <span class="lt-arrow">›</span>
+    </div>`).join('');
+}
+
+function openLetterEditor(id){
+  editingLetterId = id || null;
+  renderLetterEditor();
+  openFullPage('letter');
+}
+function closeLetterEditor(){
+  switchTab('meetings');
+  setTimeout(()=>{ openIdara('sec'); const a=document.getElementById('lettersAcc'); if(a){ a.open=true; renderLetters(); } },80);
+}
+function renderLetterEditor(){
+  const l = editingLetterId ? letters.find(x=>x.id===editingLetterId) : null;
+  const d = l ? l.date : today();
+  $('#letterBody').innerHTML=`
+  <div class="lt-form">
+    <div class="stats-sec-title" style="margin-top:0">${l?'تعديل الرسالة':'رسالة رسمية جديدة'}</div>
+    <div class="lt-date">${icon('calendar',15,'ico-btn')} التاريخ: <b>${gregToHijri(d)}</b> · الموافق ${fmtDate(d)}</div>
+    <div class="lt-fld"><label>التاريخ</label>
+      <input id="ltDate" type="date" value="${d}" onchange="renderLetterEditor()" /></div>
+    <div class="lt-fld"><label>المرسل إليه</label>
+      <input id="ltTo" type="text" placeholder="سعادة الأخ الكريم / رئيس مجلس إدارة …" value="${escapeHtml(l?l.to:'')}" /></div>
+    <div class="lt-fld"><label>صفة إضافية <span style="font-weight:400;color:var(--muted)">(اختياري)</span></label>
+      <input id="ltToSub" type="text" placeholder="حفظه الله ورعاه" value="${escapeHtml(l?(l.toSub||'حفظه الله ورعاه'):'حفظه الله ورعاه')}" /></div>
+    <div class="lt-fld"><label>الموضوع</label>
+      <input id="ltSubject" type="text" placeholder="موضوع الرسالة" value="${escapeHtml(l?l.subject:'')}" /></div>
+    <div class="lt-fld"><label>نص الرسالة</label>
+      <textarea id="ltBody" rows="11" placeholder="اكتب نص الرسالة هنا…">${escapeHtml(l?l.body:'')}</textarea>
+      <div class="hint">اترك سطراً فارغاً بين الفقرات — سيظهر التباعد في الطباعة</div></div>
+    <div class="lt-fld"><label>التوقيع</label>
+      <input id="ltSigner" type="text" value="${escapeHtml(l?(l.signer||'صادق الغسرة'):'صادق الغسرة')}" /></div>
+    <div class="lt-fld"><label>الصفة</label>
+      <input id="ltRole" type="text" value="${escapeHtml(l?(l.role||'أمين السر'):'أمين السر')}" /></div>
+    <div class="lt-actions">
+      <button class="btn btn-primary" onclick="saveLetter()">${icon('check',16,'ico-btn')} حفظ</button>
+      <button class="btn btn-accent" onclick="printLetter()">${icon('print',16,'ico-btn')} طباعة</button>
+      ${l?`<button class="btn" style="background:var(--danger);color:#fff;border:none" onclick="deleteLetter('${l.id}')">${icon('trash',16,'ico-btn')} حذف</button>`:''}
+    </div>
+  </div>`;
+}
+function readLetterForm(){
+  return {
+    date: $('#ltDate').value||today(),
+    to: ($('#ltTo').value||'').trim(),
+    toSub: ($('#ltToSub').value||'').trim(),
+    subject: ($('#ltSubject').value||'').trim(),
+    body: ($('#ltBody').value||'').trim(),
+    signer: ($('#ltSigner').value||'').trim()||'صادق الغسرة',
+    role: ($('#ltRole').value||'').trim()||'أمين السر'
+  };
+}
+async function saveLetter(){
+  const f=readLetterForm();
+  if(!f.subject){ toast('اكتب موضوع الرسالة'); return; }
+  if(editingLetterId){
+    const l=letters.find(x=>x.id===editingLetterId);
+    if(l) Object.assign(l, f, { updatedAt:new Date().toISOString() });
+    logAudit('تعديل','الرسائل',`رسالة «${f.subject}»`);
+  } else {
+    const id='lt_'+Date.now();
+    letters.push({ id, ...f, at:new Date().toISOString() });
+    editingLetterId=id;
+    logAudit('إضافة','الرسائل',`رسالة «${f.subject}» إلى ${f.to||'—'}`);
+  }
+  await saveLetters();
+  toast('حُفظت الرسالة');
+  renderLetterEditor();
+}
+async function deleteLetter(id){
+  const l=letters.find(x=>x.id===id); if(!l) return;
+  if(!confirm(`حذف الرسالة «${l.subject}»؟`)) return;
+  letters=letters.filter(x=>x.id!==id);
+  await saveLetters();
+  logAudit('حذف','الرسائل',`رسالة «${l.subject}»`);
+  closeLetterEditor();
+}
+
+/* طباعة الرسالة بالترويسة والختم */
+function printLetter(){
+  const f = readLetterForm();
+  if(!f.subject && !f.body){ toast('اكتب الرسالة أولاً'); return; }
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(f.subject||'رسالة رسمية')}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;background:#e9e5dd;padding:20px}
+  .page{width:210mm;min-height:297mm;background:#fff;margin:0 auto;padding:22mm 20mm 18mm;position:relative;
+    box-shadow:0 8px 30px -14px rgba(0,0,0,.3);display:flex;flex-direction:column}
+  .lh{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:3px double #c19a3e}
+  .lh-logo{max-width:150px;max-height:62px}
+  .lh-txt{text-align:left;font-size:11px;color:#8a7c6b;line-height:1.9}
+  .lh-txt b{display:block;font-family:'Amiri',serif;font-size:15px;color:#1c4536;margin-bottom:2px}
+  .meta{font-size:12px;color:#5a5148;margin:14px 0 20px}
+  .meta b{color:#1c4536}
+  .to{font-size:15px;font-weight:700;color:#1c4536;margin-bottom:4px}
+  .to-sub{font-size:12.5px;color:#8a7c6b;margin-bottom:16px}
+  .subj{background:#f6f2ea;border-right:4px solid #c19a3e;border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:18px}
+  .subj span{font-size:11.5px;color:#8a7c6b;display:block;margin-bottom:3px}
+  .subj b{font-size:14.5px;color:#1c4536}
+  .salam{font-size:14px;color:#1c4536;font-weight:600;margin-bottom:12px}
+  .body-txt{font-size:14px;line-height:2.15;text-align:justify;color:#241f1b;white-space:pre-wrap;flex:1}
+  .sign-area{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;margin-top:30px;gap:14px}
+  .sign{text-align:center;grid-column:3}
+  .sign img{max-width:150px;display:block;margin:0 auto 2px}
+  .sign-line{border-bottom:1px solid #8a7c6b;margin-bottom:7px}
+  .sign-t{font-size:12px;color:#8a7c6b}
+  .sign-n{font-size:14.5px;font-weight:700;color:#1c4536}
+  .stamp-mid{grid-column:2;display:flex;justify-content:center;align-items:flex-end;padding-bottom:6px}
+  .ink-stamp{position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:15px 28px 13px;border:5px solid #123a6b;border-radius:9px;transform:rotate(-8deg);
+    filter:url(#inkRough);opacity:.97;background:transparent}
+  .ink-stamp::before{content:'';position:absolute;inset:6px;border:2px solid #123a6b;border-radius:5px}
+  .ink-stamp img{max-width:140px;max-height:52px;display:block;
+    filter:url(#inkRough2) invert(15%) sepia(88%) saturate(2400%) hue-rotate(206deg) brightness(78%) contrast(105%)}
+  .ink-stamp .st-sub{font-size:10px;font-weight:700;color:#123a6b;letter-spacing:.8px;margin-top:6px;filter:url(#inkRough2)}
+  .lf{margin-top:auto;padding-top:14px;border-top:1px solid #e6ddcb;text-align:center;font-size:10.5px;color:#b3a894}
+  .no-print{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99}
+  .no-print button{border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;color:#fff}
+  @media print{body{background:#fff;padding:0}.page{box-shadow:none;margin:0;width:100%;min-height:auto}
+    .no-print{display:none}
+    .ink-stamp,.ink-stamp img,.ink-stamp .st-sub{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body>
+  <svg width="0" height="0" style="position:absolute">
+   <filter id="inkRough">
+     <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="7" result="n"/>
+     <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+     <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="3" result="n2"/>
+     <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0, 0 0 0 0 0, 0 0 0 0 0, 0 0 0 -1.4 1.05" result="mask"/>
+     <feComposite in="d" in2="mask" operator="in"/>
+   </filter>
+   <filter id="inkRough2">
+     <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="12" result="n"/>
+     <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G" result="d"/>
+     <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="4" seed="9" result="n2"/>
+     <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0, 0 0 0 0 0, 0 0 0 0 0, 0 0 0 -1.6 1.12" result="mask"/>
+     <feComposite in="d" in2="mask" operator="in"/>
+   </filter>
+  </svg>
+  <div class="no-print">
+    <button onclick="window.print()" style="background:#1c4536">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b">↩︎ عودة</button>
+  </div>
+  <div class="page">
+    <div class="lh"><img class="lh-logo" src="${HAIAA_LOGO}" alt="" />
+      <div class="lh-txt"><b>هيئة محبي الحسين (ع)</b>بني جمرة — مملكة البحرين</div></div>
+    <div class="meta">التاريخ: <b>${escapeHtml(gregToHijri(f.date))}</b> · الموافق ${fmtDate(f.date)}</div>
+    ${f.to?`<div class="to">${escapeHtml(f.to)}</div>`:''}
+    ${f.toSub?`<div class="to-sub">${escapeHtml(f.toSub)}</div>`:''}
+    ${f.subject?`<div class="subj"><span>الموضوع</span><b>${escapeHtml(f.subject)}</b></div>`:''}
+    <div class="salam">السلام عليكم ورحمة الله وبركاته، وبعد؛</div>
+    <div class="body-txt">${escapeHtml(f.body)}</div>
+    <div class="sign-area">
+      <div class="stamp-mid">
+        <div class="ink-stamp"><img src="${HAIAA_LOGO}" alt="" /><div class="st-sub">بني جمرة — البحرين</div></div>
+      </div>
+      <div class="sign"><img src="${HAIAA_SIGNATURE}" alt="" /><div class="sign-line"></div>
+        <div class="sign-t">${escapeHtml(f.role)}</div><div class="sign-n">${escapeHtml(f.signer)}</div></div>
+    </div>
+    <div class="lf">هيئة محبي الحسين (ع) — بني جمرة · وثيقة رسمية صادرة عن أمانة السر</div>
+  </div></body></html>`);
+  w.document.close(); w.focus();
+}
 
 /* ═══════════ الأرشيف السنوي ═══════════ */
 function renderArchive(){
@@ -3716,7 +3898,7 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues
+    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -3758,10 +3940,11 @@ async function backupImport(e){
     if(Array.isArray(backup.radoodParts)) radoodParts=backup.radoodParts;
     if(Array.isArray(backup.archives)) archives=backup.archives;
     if(Array.isArray(backup.revenues)) revenues=backup.revenues;
+    if(Array.isArray(backup.letters)) letters=backup.letters;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
-    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues();
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
