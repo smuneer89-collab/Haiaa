@@ -5306,12 +5306,51 @@ function miqatFinData(miqatId, arch){
   const exps = ((src.finance||{}).expenses||[]).filter(e=>e.miqatId===miqatId);
   const expTotal = exps.reduce((s,e)=>s+(Number(e.cost)||0),0);
   const income = cash+vows+donations+thawab;
+  // مساهمات الأعضاء بلا أسماء: النوع + البنود + السعر التقريبي + الملاحظات
+  const contribs=[]; let inKindTotal=0;
+  (mq.bookings||[]).forEach(b=>{
+    const its = Array.isArray(b.rcptItems) ? b.rcptItems : [];
+    if(!its.length) return;
+    const cashItems = its.filter(i=>isCashItem(i.kind));
+    const kindItems = its.filter(i=>!isCashItem(i.kind));
+    const type = (cashItems.length && kindItems.length) ? 'نقدي + عيني' : (kindItems.length ? 'عيني' : 'نقدي');
+    const names = [...new Set(its.map(i=>i.kind).filter(Boolean))];
+    const est = its.reduce((t,i)=>t+(Number(i.value)||0),0);
+    inKindTotal += kindItems.reduce((t,i)=>t+(Number(i.value)||0),0);
+    const notes = [ ...its.map(i=>(i.note||'').trim()).filter(Boolean), (b.receivedNote||'').trim() ].filter(Boolean);
+    contribs.push({ type, items:names, est, note:[...new Set(notes)].join(' · '),
+                    kindNames: kindItems.map(i=>i.kind) });
+  });
   return { id:miqatId, name:mq.name, date:fmtMiqatDate(mq), cash, vows, donations, thawab, income,
-           expTotal, net:income-expTotal, expenses:exps };
+           expTotal, net:income-expTotal, expenses:exps, contribs, inKindTotal };
 }
+/* جدول المساهمات (بلا أسماء) — مشترك بين التقارير */
+function contribTableHTML(allContribs){
+  if(!allContribs.length) return '';
+  const tot=allContribs.reduce((s,c)=>s+(c.est||0),0);
+  const cls=(t)=> t==='نقدي' ? 'cash' : (t==='عيني' ? 'ink' : 'mix');
+  return `<h2>مساهمات الأعضاء</h2>
+  <table class="contrib-t"><tr><th style="width:15%">نوع المساهمة</th><th style="width:32%">المساهمة</th><th style="width:18%">السعر التقريبي</th><th>ملاحظات</th></tr>
+    ${allContribs.map(c=>`<tr>
+      <td><span class="kind ${cls(c.type)}">${c.type}</span></td>
+      <td>${c.items.map(escapeHtml).join(' + ')}</td>
+      <td class="est">${finMoney(c.est)}</td>
+      <td>${c.note?escapeHtml(c.note):'—'}</td></tr>`).join('')}
+    <tr class="sum-row"><td colspan="2">إجمالي المساهمات</td><td>${finMoney(tot)}</td><td>${allContribs.length} مساهمة</td></tr>
+  </table>
+  <div class="note-sm">السعر التقريبي للمساهمات العينية تقديري — يُستخدم لتحديد حالة الميقات، ولا يدخل في الرصيد النقدي للهيئة.</div>`;
+}
+const CONTRIB_CSS = `
+  .contrib-t td{vertical-align:top;}
+  .kind{font-size:10.5px;padding:2px 8px;border-radius:6px;font-weight:700;white-space:nowrap;display:inline-block;}
+  .kind.cash{background:#e6f3ea;color:#2f8f5b;}
+  .kind.ink{background:#fbf0e6;color:#b5763a;}
+  .kind.mix{background:#eef1f8;color:#4a5f8f;}
+  .est{color:#8a7c6b;font-size:11.5px;}
+  .note-sm{font-size:11px;color:#8a7c6b;margin:-4px 0 14px;line-height:1.7;}`;
 function sumFin(list){
-  const z={cash:0,vows:0,donations:0,thawab:0,income:0,expTotal:0,net:0};
-  list.forEach(d=>{ if(!d) return; ['cash','vows','donations','thawab','income','expTotal','net'].forEach(k=>z[k]+=d[k]||0); });
+  const z={cash:0,vows:0,donations:0,thawab:0,income:0,expTotal:0,net:0,inKindTotal:0};
+  list.forEach(d=>{ if(!d) return; ['cash','vows','donations','thawab','income','expTotal','net','inKindTotal'].forEach(k=>z[k]+=d[k]||0); });
   return z;
 }
 
@@ -5396,6 +5435,7 @@ function printMergedReport(){
   tr:nth-child(even){background:#faf7f0;}
   .sum-row td{background:#e6f0ea;font-weight:800;color:#1c4536;}
   .pos{color:#2f8f5b;font-weight:700;} .neg{color:#b85c5c;font-weight:700;}
+  ${CONTRIB_CSS}
   .foot{margin-top:26px;padding-top:11px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
   @media print{body{padding:22px;} .no-print{display:none;} table{page-break-inside:auto;} tr{page-break-inside:avoid;}}
   </style></head><body>
@@ -5422,6 +5462,8 @@ function printMergedReport(){
     <tr><td>التثويبات المدفوعة</td><td>${finMoney(tot.thawab)}</td><td>${tot.income?Math.round(tot.thawab/tot.income*100):0}%</td></tr>
     <tr class="sum-row"><td>الإجمالي</td><td>${finMoney(tot.income)}</td><td>100%</td></tr>
   </table>
+
+  ${contribTableHTML(data.flatMap(d=>d.contribs||[]))}
 
   <h2>تفصيل كل ميقات</h2>
   <table><tr><th>الميقات</th><th>التاريخ</th><th>الإيرادات</th><th>المصروفات</th><th>الصافي</th></tr>
@@ -5589,6 +5631,7 @@ function printCompareReport(){
   .up{color:#2f8f5b;font-weight:700;} .down{color:#b85c5c;font-weight:700;}
   .bar{display:flex;height:20px;border-radius:6px;overflow:hidden;margin:3px 0;}
   .bar .pa{background:#2f8f5b;} .bar .pb{background:#8a5a9f;}
+  ${CONTRIB_CSS}
   h2{font-size:14px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 17px;border-radius:0 15px 15px 0;margin:16px 0 9px;}
   .foot{margin-top:24px;padding-top:11px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
   @media print{body{padding:20px;} .no-print{display:none;} tr{page-break-inside:avoid;}}
@@ -5630,6 +5673,24 @@ function printCompareReport(){
         <span style="font-size:11px;color:#8a7c6b">${finMoney(va)} مقابل ${finMoney(vb)}</span></td></tr>`;
     }).join('')}
   </table>
+
+  ${(()=>{ const ca=A.flatMap(d=>d.contribs||[]), cb=B.flatMap(d=>d.contribs||[]);
+    if(!ca.length && !cb.length) return '';
+    const kA=ca.filter(c=>c.type!=='نقدي'), kB=cb.filter(c=>c.type!=='نقدي');
+    const eA=kA.reduce((s,c)=>s+(c.est||0),0), eB=kB.reduce((s,c)=>s+(c.est||0),0);
+    const nA=[...new Set(kA.flatMap(c=>c.kindNames||[]))], nB=[...new Set(kB.flatMap(c=>c.kindNames||[]))];
+    const d1=kA.length-kB.length, d2=eA-eB;
+    return `<h2>المساهمات العينية</h2>
+    <table><tr><th>البند</th><th class="ca">المجموعة الأولى</th><th class="cb">المجموعة الثانية</th><th>الفرق</th></tr>
+      <tr><td>عدد المساهمات العينية</td><td class="ca">${kA.length}</td><td class="cb">${kB.length}</td><td class="${d1>=0?'up':'down'}">${d1>=0?'+':''}${d1}</td></tr>
+      <tr><td>السعر التقريبي الإجمالي</td><td class="ca">${finMoney(eA)}</td><td class="cb">${finMoney(eB)}</td><td class="${d2>=0?'up':'down'}">${d2>=0?'+':''}${finMoney(d2)}</td></tr>
+      <tr class="sum-row"><td>البنود المغطّاة</td><td colspan="3" style="background:#fdfbf7;font-weight:400;text-align:right">
+        <b style="color:#2f8f5b">الأولى:</b> ${nA.length?nA.map(escapeHtml).join(' · '):'—'}<br>
+        <b style="color:#8a5a9f">الثانية:</b> ${nB.length?nB.map(escapeHtml).join(' · '):'—'}</td></tr>
+    </table>
+    <div class="note-sm">لا تُذكر أسماء المساهمين — يُكتفى بنوع المساهمة وبنودها وسعرها التقريبي.</div>
+    ${contribTableHTML([...ca.map(c=>({...c,g:'الأولى'})), ...cb.map(c=>({...c,g:'الثانية'}))])}`;
+  })()}
 
   <h2>تفصيل المواقيت</h2>
   <table><tr><th>المجموعة</th><th>الميقات</th><th>المصدر</th><th>الإيرادات</th><th>المصروفات</th><th>الصافي</th></tr>
