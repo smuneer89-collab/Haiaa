@@ -5511,6 +5511,20 @@ function cmpGroupHTML(which){
     }).join('')}
   </div>`:''}`;
 }
+/* طيّ/فتح المجموعة */
+let cmpOpen = { a:true, b:true };
+function cmpToggleGroup(w){ cmpOpen[w]=!cmpOpen[w]; renderFinancePage('compare',{}); }
+/* ملخّص مختصر يظهر عند الطيّ */
+function cmpSummaryHTML(which){
+  const sel = which==='a'?cmpA:cmpB;
+  if(!sel.size) return '<div class="cmp-empty">مطويّة — اضغط لفتح القائمة والاختيار</div>';
+  const data=[...sel].map(cmpData).filter(Boolean);
+  const t=sumFin(data);
+  return `<div class="cmp-collapsed">
+    <div class="cc-tags">${data.map(d=>`<span class="cmp-tag">${escapeHtml(d.name)} <i>${d.srcLabel.replace('السنة الحالية','')}</i></span>`).join('')}</div>
+    <div class="cc-sum"><span>الإيرادات: <b>${finMoney(t.income)}</b></span><span>المصروفات: <b>${finMoney(t.expTotal)}</b></span></div>
+  </div>`;
+}
 function cmpOpenYear(which, year){ cmpOpenSrc[which]=year; renderFinancePage('compare',{}); }
 function finCompareHTML(){
   const a=[...cmpA].map(cmpData).filter(Boolean), b=[...cmpB].map(cmpData).filter(Boolean);
@@ -5520,14 +5534,20 @@ function finCompareHTML(){
     <div class="mg-t">${icon('chart',18,'ico-btn')} مقارنة التقارير</div>
     <div class="mg-s">قارن بين مواقيت السنة الحالية والأرشيف</div>
   </div>
-  <div class="cmp-grp ga">
-    <div class="cmp-grp-h">◤ المجموعة الأولى ${cmpA.size?`<b>${cmpA.size}</b>`:''}</div>
-    ${cmpGroupHTML('a')}
+  <div class="cmp-grp ga ${cmpOpen.a?'':'collapsed'}">
+    <div class="cmp-grp-h" onclick="cmpToggleGroup('a')">
+      <span class="cgh-t">◤ المجموعة الأولى ${cmpA.size?`<b>${cmpA.size}</b>`:''}</span>
+      <span class="cgh-arrow">${icon('chevron',18)}</span>
+    </div>
+    ${cmpOpen.a?cmpGroupHTML('a'):cmpSummaryHTML('a')}
   </div>
   <div class="cmp-vs">— مقابل —</div>
-  <div class="cmp-grp gb">
-    <div class="cmp-grp-h">◤ المجموعة الثانية ${cmpB.size?`<b>${cmpB.size}</b>`:''}</div>
-    ${cmpGroupHTML('b')}
+  <div class="cmp-grp gb ${cmpOpen.b?'':'collapsed'}">
+    <div class="cmp-grp-h" onclick="cmpToggleGroup('b')">
+      <span class="cgh-t">◤ المجموعة الثانية ${cmpB.size?`<b>${cmpB.size}</b>`:''}</span>
+      <span class="cgh-arrow">${icon('chevron',18)}</span>
+    </div>
+    ${cmpOpen.b?cmpGroupHTML('b'):cmpSummaryHTML('b')}
   </div>
   ${(a.length&&b.length)?`
   <div class="cmp-quick">
