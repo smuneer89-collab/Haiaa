@@ -213,7 +213,10 @@
   .proj-meta { font-size:12px; color:var(--muted); margin-bottom:6px; }
   .proj-submitter { font-size:12.5px; color:var(--ink); margin-bottom:6px; }
   .proj-submitter b { color:var(--accent); }
-  .proj-desc { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:8px; }
+  .proj-desc { font-size:13px; color:var(--muted); line-height:1.7; margin-bottom:8px;
+    display:block; width:100%; white-space:normal; word-break:break-word; overflow-wrap:anywhere; }
+  .proj-title { min-width:0; overflow-wrap:anywhere; }
+  .proj-card { display:block; }
   .proj-warn { background:var(--warn-soft); border:1px solid #e0b088; border-radius:8px; padding:8px 12px; font-size:12px; color:#8a5a2a; font-weight:600; margin:8px 0; }
   .proj-actions { display:flex; gap:8px; margin-top:8px; }
   .proj-src-btns { display:flex; gap:10px; }
@@ -1503,11 +1506,11 @@
     border-radius:9px; font-family:inherit; font-size:13px; background:var(--bg); color:var(--ink); }
   .projects-list { display:flex; flex-direction:column; gap:14px; }
   .proj-group h4 { font-size:14px; color:var(--accent); margin:0 0 8px; padding-right:8px; border-right:3px solid var(--gold); }
-  .proj-card { display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--surface);
+  .asm-proj-card { display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--surface);
     border:1px solid var(--line); border-radius:10px; padding:10px 13px; margin-bottom:6px; }
-  .proj-card .pt { font-size:14px; color:var(--ink); font-weight:500; }
-  .proj-card .pc { font-size:11px; color:var(--muted); }
-  .proj-card .cat { font-size:11px; font-weight:600; background:var(--accent-soft); color:var(--accent); padding:2px 10px; border-radius:12px; }
+  .asm-proj-card .pt { font-size:14px; color:var(--ink); font-weight:500; }
+  .asm-proj-card .pc { font-size:11px; color:var(--muted); }
+  .asm-proj-card .cat { font-size:11px; font-weight:600; background:var(--accent-soft); color:var(--accent); padding:2px 10px; border-radius:12px; }
   .asm-season { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
   @media (max-width:560px){ .asm-season { grid-template-columns:repeat(2,1fr); } }
   .asm-dec-card { margin-top:14px; background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center; }

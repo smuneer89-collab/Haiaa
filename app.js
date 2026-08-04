@@ -7914,7 +7914,7 @@ function renderAsmProjects(){
   const groups={}; a.projects.forEach(p=>{ (groups[p.committee]=groups[p.committee]||[]).push(p); });
   el.innerHTML=Object.entries(groups).map(([comm,list])=>`<div class="proj-group">
     <h4>${escapeHtml(comm)}</h4>
-    ${list.map(p=>`<div class="proj-card">
+    ${list.map(p=>`<div class="asm-proj-card">
       <div class="pt">${escapeHtml(p.title)}</div>
       <div style="display:flex;align-items:center;gap:8px;">
         ${p.category?`<span class="cat">${escapeHtml(p.category)}</span>`:''}
