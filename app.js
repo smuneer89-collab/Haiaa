@@ -5156,7 +5156,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','revenue','revMiqat','revEntry','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
+const FIN_PAGES=['home','merge','compare','revenue','revMiqat','revEntry','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -5181,6 +5181,8 @@ function renderFinancePage(page, opts){
   const host=$('#finBody'); if(!host) return;
   opts=opts||{};
   if(page==='home') host.innerHTML=finHomeHTML();
+  else if(page==='merge'){ host.innerHTML=finMergeHTML(); }
+  else if(page==='compare'){ host.innerHTML=finCompareHTML(); }
   else if(page==='revenue') host.innerHTML=finRevenueHTML();
   else if(page==='revMiqat') host.innerHTML=finRevMiqatHTML(opts);
   else if(page==='revEntry') host.innerHTML=finRevEntryHTML(opts);
@@ -5223,10 +5225,7 @@ function finHomeHTML(){
     <button class="fin-big exp" onclick="openFinancePage('expenses')">
       <span class="fb-ic">${icon('upload',17,'ico-btn')}</span><span class="fb-t">المصروفات</span></button>
   </div>
-  <button class="fin-reports-btn" onclick="openFinancePage('reports')">
-    ${icon('chart',17,'ico-btn')} التقارير الذكية للمصروفات
-  </button>
-  <button class="fin-reports-btn" style="background:#7a5c1e;margin-top:10px;" onclick="copyProjectLink()">
+  <button class="fin-reports-btn" style="background:#7a5c1e;" onclick="copyProjectLink()">
     ${icon('link',17,'ico-btn')} تقديم مشروع للهيئة (نسخ الرابط)
   </button>`;
 }
@@ -5274,6 +5273,319 @@ async function editYearStart(){
   finance.yearStart=num; await saveFinance(); renderFinancePage('revenue',{}); toast('تم التحديث');
 }
 
+
+
+/* ═══════════ تقارير مدموجة ═══════════ */
+let mergeSel = new Set();
+let mergeSearch = '';
+
+/* بيانات مالية موحّدة لميقات (من السنة الحالية أو الأرشيف) */
+function miqatFinData(miqatId, arch){
+  const src = arch || { miqats, revenues, paidThawab, finance };
+  const mq = (src.miqats||[]).find(x=>x.id===miqatId);
+  if(!mq) return null;
+  const cash = (mq.bookings||[]).reduce((s,b)=>{
+    if(Array.isArray(b.rcptItems) && b.rcptItems.length) return s+b.rcptItems.filter(i=>isCashItem(i.kind)).reduce((t,i)=>t+(Number(i.value)||0),0);
+    if(b.received!=null && b.received!=='') return s+(Number(b.received)||0);
+    if(Array.isArray(b.payments)) return s+b.payments.reduce((t,p)=>t+(Number(p.amount)||0),0);
+    return s;
+  },0);
+  const vows = (src.revenues||[]).filter(r=>r.miqatId===miqatId && r.kind==='vow').reduce((s,r)=>s+(Number(r.amount)||0),0);
+  const donations = (src.revenues||[]).filter(r=>r.miqatId===miqatId && r.kind==='donation').reduce((s,r)=>s+(Number(r.amount)||0),0);
+  const thawab = (src.paidThawab||[]).filter(t=>t.miqatId===miqatId).reduce((s,t)=>s+(Number(t.amount)||0),0);
+  const exps = ((src.finance||{}).expenses||[]).filter(e=>e.miqatId===miqatId);
+  const expTotal = exps.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  const income = cash+vows+donations+thawab;
+  return { id:miqatId, name:mq.name, date:fmtMiqatDate(mq), cash, vows, donations, thawab, income,
+           expTotal, net:income-expTotal, expenses:exps };
+}
+function sumFin(list){
+  const z={cash:0,vows:0,donations:0,thawab:0,income:0,expTotal:0,net:0};
+  list.forEach(d=>{ if(!d) return; ['cash','vows','donations','thawab','income','expTotal','net'].forEach(k=>z[k]+=d[k]||0); });
+  return z;
+}
+
+function finMergeHTML(){
+  const q=mergeSearch.trim();
+  const list=[...miqats].filter(mq=>!q||(mq.name||'').includes(q)).sort((a,b)=>a.month-b.month||a.day-b.day);
+  const selData=[...mergeSel].map(id=>miqatFinData(id)).filter(Boolean);
+  const tot=sumFin(selData);
+  return `
+  <div class="mg-head">
+    <div class="mg-t">${icon('doc',18,'ico-btn')} تقارير مدموجة</div>
+    <div class="mg-s">اختر المواقيت لدمجها في تقرير واحد</div>
+  </div>
+  <div class="mg-search">
+    ${icon('search',16,'ico-btn')}
+    <input type="text" id="mergeQ" placeholder="ابحث عن ميقات…" value="${escapeHtml(mergeSearch)}" oninput="mergeSetSearch(this.value)" />
+  </div>
+  <div class="mg-selbar">
+    <span>محدَّد: <b>${mergeSel.size}</b> ${mergeSel.size===1?'ميقات':'مواقيت'}</span>
+    <span class="mg-links">
+      <a onclick="mergeSelectAll()">تحديد الكل</a>
+      ${mergeSel.size?`<a onclick="mergeClear()">مسح</a>`:''}
+    </span>
+  </div>
+  <div class="mg-list">
+    ${list.length?list.map(mq=>{
+      const on=mergeSel.has(mq.id);
+      const d=miqatFinData(mq.id);
+      return `<div class="mg-row ${on?'on':''}" onclick="mergeToggle('${mq.id}')">
+        <span class="mg-chk ${on?'on':''}">${on?icon('check',14):''}</span>
+        <div class="mg-body">
+          <div class="mg-n">${escapeHtml(mq.name)}</div>
+          <div class="mg-d">${fmtMiqatDate(mq)}</div>
+        </div>
+        <div class="mg-v">${finMoney(d?d.income:0)}</div>
+      </div>`;
+    }).join(''):`<div class="fel-empty">${q?'لا نتائج':'لا مواقيت'}</div>`}
+  </div>
+  ${mergeSel.size?`
+  <div class="mg-sum">
+    <div class="mg-s3 inc"><div class="v">${finMoney(tot.income)}</div><div class="l">الإيرادات</div></div>
+    <div class="mg-s3 exp"><div class="v">${finMoney(tot.expTotal)}</div><div class="l">المصروفات</div></div>
+    <div class="mg-s3 ${tot.net>=0?'net-p':'net-n'}"><div class="v">${finMoney(tot.net)}</div><div class="l">الصافي</div></div>
+  </div>
+  <button class="btn btn-primary" style="width:100%" onclick="printMergedReport()">${icon('print',17,'ico-btn')} إصدار التقرير المدموج PDF</button>
+  `:'<div class="fin-hint">اختر ميقاتاً أو أكثر لعرض المجموع وإصدار التقرير</div>'}`;
+}
+function mergeSetSearch(v){ mergeSearch=v; const host=$('#finBody'); if(host){ host.innerHTML=finMergeHTML(); const i=$('#mergeQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } } }
+function mergeToggle(id){ mergeSel.has(id)?mergeSel.delete(id):mergeSel.add(id); renderFinancePage('merge',{}); }
+function mergeSelectAll(){ const q=mergeSearch.trim(); miqats.filter(mq=>!q||(mq.name||'').includes(q)).forEach(mq=>mergeSel.add(mq.id)); renderFinancePage('merge',{}); }
+function mergeClear(){ mergeSel.clear(); renderFinancePage('merge',{}); }
+
+function printMergedReport(){
+  const data=[...mergeSel].map(id=>miqatFinData(id)).filter(Boolean);
+  if(!data.length){ toast('اختر ميقاتاً على الأقل'); return; }
+  const tot=sumFin(data);
+  // تجميع المصروفات حسب النوع
+  const byType={};
+  data.forEach(d=>d.expenses.forEach(e=>{ byType[e.type]=(byType[e.type]||0)+(Number(e.cost)||0); }));
+  const typeArr=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير مدموج — ${data.length} مواقيت</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:32px 36px;color:#1a2620;line-height:1.85;font-size:14px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:180px;max-height:68px;}
+  .pdf-head{text-align:center;padding-bottom:13px;border-bottom:3px double #c19a3e;margin-bottom:16px;}
+  .doc-title{font-family:'Amiri',serif;font-size:21px;font-weight:700;color:#1c4536;margin:8px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:12.5px;}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:16px;}
+  .chip{background:#eef3ef;border:1px solid #d6e3da;border-radius:20px;padding:5px 13px;font-size:12px;color:#1c4536;}
+  .sum3{display:flex;gap:11px;margin-bottom:18px;}
+  .s3{flex:1;text-align:center;border-radius:13px;padding:16px 10px;border:1px solid #e6ddcb;}
+  .s3 .v{font-size:19px;font-weight:800;} .s3 .l{font-size:11.5px;color:#8a7c6b;margin-top:4px;}
+  .s3.inc{background:#e9f4ed;} .s3.inc .v{color:#2f8f5b;}
+  .s3.exp{background:#fbf0e6;} .s3.exp .v{color:#b5763a;}
+  .s3.np{background:#e6f0ea;} .s3.np .v{color:#1c4536;}
+  .s3.nn{background:#f9ecec;} .s3.nn .v{color:#b85c5c;}
+  h2{font-size:14.5px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 18px;border-radius:0 16px 16px 0;margin:18px 0 9px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px;}
+  th,td{border:1px solid #e6ddcb;padding:7px 10px;text-align:right;}
+  th{background:#1c4536;color:#fff;font-size:12.5px;}
+  tr:nth-child(even){background:#faf7f0;}
+  .sum-row td{background:#e6f0ea;font-weight:800;color:#1c4536;}
+  .pos{color:#2f8f5b;font-weight:700;} .neg{color:#b85c5c;font-weight:700;}
+  .foot{margin-top:26px;padding-top:11px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:22px;} .no-print{display:none;} table{page-break-inside:auto;} tr{page-break-inside:avoid;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">تقرير مالي مدموج</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
+  <div class="chips">${data.map(d=>`<span class="chip">${escapeHtml(d.name)}</span>`).join('')}</div>
+
+  <div class="sum3">
+    <div class="s3 inc"><div class="v">${finMoney(tot.income)}</div><div class="l">إجمالي الإيرادات</div></div>
+    <div class="s3 exp"><div class="v">${finMoney(tot.expTotal)}</div><div class="l">إجمالي المصروفات</div></div>
+    <div class="s3 ${tot.net>=0?'np':'nn'}"><div class="v">${finMoney(tot.net)}</div><div class="l">الصافي</div></div>
+  </div>
+
+  <h2>الإيرادات المجمّعة</h2>
+  <table><tr><th>المصدر</th><th>المبلغ</th><th>النسبة</th></tr>
+    <tr><td>مساهمات الأعضاء (نقدي)</td><td>${finMoney(tot.cash)}</td><td>${tot.income?Math.round(tot.cash/tot.income*100):0}%</td></tr>
+    <tr><td>النذور</td><td>${finMoney(tot.vows)}</td><td>${tot.income?Math.round(tot.vows/tot.income*100):0}%</td></tr>
+    <tr><td>التبرعات</td><td>${finMoney(tot.donations)}</td><td>${tot.income?Math.round(tot.donations/tot.income*100):0}%</td></tr>
+    <tr><td>التثويبات المدفوعة</td><td>${finMoney(tot.thawab)}</td><td>${tot.income?Math.round(tot.thawab/tot.income*100):0}%</td></tr>
+    <tr class="sum-row"><td>الإجمالي</td><td>${finMoney(tot.income)}</td><td>100%</td></tr>
+  </table>
+
+  <h2>تفصيل كل ميقات</h2>
+  <table><tr><th>الميقات</th><th>التاريخ</th><th>الإيرادات</th><th>المصروفات</th><th>الصافي</th></tr>
+    ${data.map(d=>`<tr><td>${escapeHtml(d.name)}</td><td>${d.date}</td><td>${finMoney(d.income)}</td><td>${finMoney(d.expTotal)}</td><td class="${d.net>=0?'pos':'neg'}">${finMoney(d.net)}</td></tr>`).join('')}
+    <tr class="sum-row"><td colspan="2">الإجمالي</td><td>${finMoney(tot.income)}</td><td>${finMoney(tot.expTotal)}</td><td>${finMoney(tot.net)}</td></tr>
+  </table>
+
+  ${typeArr.length?`<h2>المصروفات حسب النوع</h2>
+  <table><tr><th>البند</th><th>المبلغ</th><th>النسبة</th></tr>
+    ${typeArr.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${tot.expTotal?Math.round(v/tot.expTotal*100):0}%</td></tr>`).join('')}
+    <tr class="sum-row"><td>الإجمالي</td><td>${finMoney(tot.expTotal)}</td><td>100%</td></tr>
+  </table>`:''}
+
+  <div class="foot">هيئة محبي الحسين (ع) — تقرير مالي مدموج (${data.length} مواقيت)</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
+
+/* ═══════════ مقارنة التقارير ═══════════ */
+let cmpA = new Set(), cmpB = new Set();   // معرّفات بصيغة "year|miqatId" (year=0 للسنة الحالية)
+let cmpQ = { a:'', b:'' };
+
+function cmpSources(){
+  const out=[{ year:0, label:`السنة الحالية ${settings.year||''}`, miqats, revenues, paidThawab, finance }];
+  (archives||[]).slice().sort((x,y)=>(y.year||0)-(x.year||0)).forEach(a=>{
+    out.push({ year:a.year, label:`أرشيف ${a.year} هـ`, miqats:a.miqats||[], revenues:a.revenues||[], paidThawab:a.paidThawab||[], finance:a.finance||{} });
+  });
+  return out;
+}
+function cmpKey(year, id){ return `${year}|${id}`; }
+function cmpData(key){
+  const [y,id]=key.split('|');
+  const src=cmpSources().find(s=>String(s.year)===y);
+  if(!src) return null;
+  const d=miqatFinData(id, src.year===0?null:src);
+  if(d) d.srcLabel=src.label;
+  return d;
+}
+function cmpGroupHTML(which){
+  const sel = which==='a'?cmpA:cmpB;
+  const q=(cmpQ[which]||'').trim();
+  const srcs=cmpSources();
+  return `
+  <div class="cmp-search">
+    ${icon('search',15,'ico-btn')}
+    <input type="text" id="cmpQ${which}" placeholder="ابحث…" value="${escapeHtml(q)}" oninput="cmpSetQ('${which}',this.value)" />
+  </div>
+  ${srcs.map(src=>{
+    const list=(src.miqats||[]).filter(mq=>!q||(mq.name||'').includes(q)).sort((a,b)=>a.month-b.month||a.day-b.day);
+    if(!list.length) return '';
+    const cnt=list.filter(mq=>sel.has(cmpKey(src.year,mq.id))).length;
+    return `<div class="cmp-src">
+      <div class="cmp-src-h"><span>${escapeHtml(src.label)}</span>${cnt?`<b>${cnt} محدَّد</b>`:''}</div>
+      ${list.map(mq=>{
+        const k=cmpKey(src.year,mq.id), on=sel.has(k);
+        return `<div class="cmp-row ${on?'on':''}" onclick="cmpToggle('${which}','${k}')">
+          <span class="mg-chk ${on?'on':''}">${on?icon('check',13):''}</span>
+          <span class="cmp-n">${escapeHtml(mq.name)}</span>
+          <span class="cmp-d">${fmtMiqatDate(mq)}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('') || '<div class="fel-empty">لا نتائج</div>'}`;
+}
+function finCompareHTML(){
+  const a=[...cmpA].map(cmpData).filter(Boolean), b=[...cmpB].map(cmpData).filter(Boolean);
+  const ta=sumFin(a), tb=sumFin(b);
+  return `
+  <div class="mg-head">
+    <div class="mg-t">${icon('chart',18,'ico-btn')} مقارنة التقارير</div>
+    <div class="mg-s">قارن بين مواقيت السنة الحالية والأرشيف</div>
+  </div>
+  <div class="cmp-grp ga">
+    <div class="cmp-grp-h">◤ المجموعة الأولى ${cmpA.size?`<b>${cmpA.size}</b>`:''}</div>
+    ${cmpGroupHTML('a')}
+  </div>
+  <div class="cmp-vs">— مقابل —</div>
+  <div class="cmp-grp gb">
+    <div class="cmp-grp-h">◤ المجموعة الثانية ${cmpB.size?`<b>${cmpB.size}</b>`:''}</div>
+    ${cmpGroupHTML('b')}
+  </div>
+  ${(a.length&&b.length)?`
+  <div class="cmp-quick">
+    <div class="cq a"><div class="v">${finMoney(ta.income)}</div><div class="l">إيرادات الأولى</div></div>
+    <div class="cq b"><div class="v">${finMoney(tb.income)}</div><div class="l">إيرادات الثانية</div></div>
+  </div>
+  <button class="btn" style="width:100%;background:#8a5a9f;color:#fff;border:none" onclick="printCompareReport()">${icon('print',17,'ico-btn')} إصدار تقرير المقارنة PDF</button>
+  `:'<div class="fin-hint">اختر مواقيت في المجموعتين لبدء المقارنة</div>'}`;
+}
+function cmpSetQ(w,v){ cmpQ[w]=v; const host=$('#finBody'); if(host){ host.innerHTML=finCompareHTML(); const i=$('#cmpQ'+w); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } } }
+function cmpToggle(w,k){ const s=w==='a'?cmpA:cmpB; s.has(k)?s.delete(k):s.add(k); renderFinancePage('compare',{}); }
+
+function printCompareReport(){
+  const A=[...cmpA].map(cmpData).filter(Boolean), B=[...cmpB].map(cmpData).filter(Boolean);
+  if(!A.length||!B.length){ toast('اختر مواقيت في المجموعتين'); return; }
+  const ta=sumFin(A), tb=sumFin(B);
+  const rows=[['مساهمات الأعضاء','cash'],['النذور','vows'],['التبرعات','donations'],['التثويبات','thawab'],
+              ['إجمالي الإيرادات','income'],['إجمالي المصروفات','expTotal'],['الصافي','net']];
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير مقارنة مالية</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px 34px;color:#1a2620;line-height:1.8;font-size:13.5px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:175px;max-height:66px;}
+  .pdf-head{text-align:center;padding-bottom:12px;border-bottom:3px double #c19a3e;margin-bottom:15px;}
+  .doc-title{font-family:'Amiri',serif;font-size:21px;font-weight:700;color:#1c4536;margin:8px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:12.5px;}
+  .legend{display:flex;gap:10px;margin-bottom:16px;}
+  .lg{flex:1;border-radius:11px;padding:12px 14px;border:2px solid;}
+  .lg.a{background:#eaf4ee;border-color:#2f8f5b;} .lg.b{background:#f3ecf7;border-color:#8a5a9f;}
+  .lg .n{font-size:12.5px;font-weight:700;margin-bottom:5px;}
+  .lg.a .n{color:#2f8f5b;} .lg.b .n{color:#8a5a9f;}
+  .lg .i{font-size:11.5px;color:#5a5148;line-height:1.7;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;}
+  th,td{border:1px solid #e6ddcb;padding:8px 10px;text-align:right;}
+  th{background:#1c4536;color:#fff;font-size:12.5px;}
+  th.ca{background:#2f8f5b;} th.cb{background:#8a5a9f;}
+  td.ca{background:#f3faf6;font-weight:700;color:#2f8f5b;}
+  td.cb{background:#faf6fc;font-weight:700;color:#8a5a9f;}
+  .up{color:#2f8f5b;font-weight:700;} .down{color:#b85c5c;font-weight:700;}
+  .bar{display:flex;height:20px;border-radius:6px;overflow:hidden;margin:3px 0;}
+  .bar .pa{background:#2f8f5b;} .bar .pb{background:#8a5a9f;}
+  h2{font-size:14px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 17px;border-radius:0 15px 15px 0;margin:16px 0 9px;}
+  .foot{margin-top:24px;padding-top:11px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:20px;} .no-print{display:none;} tr{page-break-inside:avoid;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">تقرير مقارنة مالية</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
+
+  <div class="legend">
+    <div class="lg a"><div class="n">◤ المجموعة الأولى</div>
+      <div class="i">${A.map(d=>escapeHtml(d.name)).join(' · ')}<br><span style="opacity:.75">${[...new Set(A.map(d=>d.srcLabel))].join(' · ')}</span></div></div>
+    <div class="lg b"><div class="n">◤ المجموعة الثانية</div>
+      <div class="i">${B.map(d=>escapeHtml(d.name)).join(' · ')}<br><span style="opacity:.75">${[...new Set(B.map(d=>d.srcLabel))].join(' · ')}</span></div></div>
+  </div>
+
+  <h2>المقارنة التفصيلية</h2>
+  <table><tr><th>البند</th><th class="ca">المجموعة الأولى</th><th class="cb">المجموعة الثانية</th><th>الفرق</th><th>النسبة</th></tr>
+    ${rows.map(([lbl,k])=>{
+      const va=ta[k]||0, vb=tb[k]||0, d=va-vb;
+      const pct = vb ? Math.round(d/Math.abs(vb)*100) : (va?100:0);
+      const cls = d>=0?'up':'down';
+      const bold = (k==='income'||k==='expTotal'||k==='net') ? ' style="background:#f6f2ea;font-weight:800"' : '';
+      return `<tr${bold}><td>${lbl}</td><td class="ca">${finMoney(va)}</td><td class="cb">${finMoney(vb)}</td>
+        <td class="${cls}">${d>=0?'+':''}${finMoney(d)}</td><td class="${cls}">${pct>=0?'+':''}${pct}%</td></tr>`;
+    }).join('')}
+  </table>
+
+  <h2>التمثيل البصري</h2>
+  <table><tr><th style="width:30%">البند</th><th>المقارنة</th></tr>
+    ${rows.slice(0,5).map(([lbl,k])=>{
+      const va=Math.max(0,ta[k]||0), vb=Math.max(0,tb[k]||0), s=va+vb;
+      const pa=s?Math.round(va/s*100):50;
+      return `<tr><td>${lbl}</td><td>
+        <div class="bar"><div class="pa" style="width:${pa}%"></div><div class="pb" style="width:${100-pa}%"></div></div>
+        <span style="font-size:11px;color:#8a7c6b">${finMoney(va)} مقابل ${finMoney(vb)}</span></td></tr>`;
+    }).join('')}
+  </table>
+
+  <h2>تفصيل المواقيت</h2>
+  <table><tr><th>المجموعة</th><th>الميقات</th><th>المصدر</th><th>الإيرادات</th><th>المصروفات</th><th>الصافي</th></tr>
+    ${A.map(d=>`<tr><td class="ca">الأولى</td><td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.srcLabel||'')}</td><td>${finMoney(d.income)}</td><td>${finMoney(d.expTotal)}</td><td>${finMoney(d.net)}</td></tr>`).join('')}
+    ${B.map(d=>`<tr><td class="cb">الثانية</td><td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.srcLabel||'')}</td><td>${finMoney(d.income)}</td><td>${finMoney(d.expTotal)}</td><td>${finMoney(d.net)}</td></tr>`).join('')}
+  </table>
+
+  <div class="foot">هيئة محبي الحسين (ع) — تقرير مقارنة مالية</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
 
 /* ═══════════ إيرادات المواقيت: النذور والتبرعات ═══════════ */
 const REV_KINDS = { vow:{ label:'النذور', person:'اسم صاحب النذر', ico:'gift' },
