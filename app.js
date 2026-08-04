@@ -904,6 +904,11 @@ function renderLetterEditor(){
       <input id="ltSigner" type="text" value="${escapeHtml(l?(l.signer||'صادق الغسرة'):'صادق الغسرة')}" /></div>
     <div class="lt-fld"><label>الصفة</label>
       <input id="ltRole" type="text" value="${escapeHtml(l?(l.role||'أمين السر'):'أمين السر')}" /></div>
+    <div class="stats-sec-title">بيانات المتابعة <span style="font-weight:400;font-size:11.5px;color:var(--muted)">(تظهر يمين أسفل الرسالة)</span></div>
+    <div class="lt-fld"><label>اسم المسؤول / المتابع</label>
+      <input id="ltContact" type="text" placeholder="اسم من يُتواصل معه" value="${escapeHtml(l?(l.contact||''):'')}" /></div>
+    <div class="lt-fld"><label>رقم الهاتف</label>
+      <input id="ltPhone" type="tel" inputmode="tel" placeholder="+973…" value="${escapeHtml(l?(l.phone||''):'')}" /></div>
     <div class="lt-actions">
       <button class="btn btn-primary" onclick="saveLetter()">${icon('check',16,'ico-btn')} حفظ</button>
       <button class="btn btn-accent" onclick="printLetter()">${icon('print',16,'ico-btn')} طباعة</button>
@@ -919,7 +924,9 @@ function readLetterForm(){
     subject: ($('#ltSubject').value||'').trim(),
     body: ($('#ltBody').value||'').trim(),
     signer: ($('#ltSigner').value||'').trim()||'صادق الغسرة',
-    role: ($('#ltRole').value||'').trim()||'أمين السر'
+    role: ($('#ltRole').value||'').trim()||'أمين السر',
+    contact: ($('#ltContact').value||'').trim(),
+    phone: ($('#ltPhone').value||'').trim()
   };
 }
 async function saveLetter(){
@@ -979,6 +986,10 @@ function printLetter(){
   .sign-t{font-size:12px;color:#8a7c6b}
   .sign-n{font-size:14.5px;font-weight:700;color:#1c4536}
   .stamp-mid{grid-column:2;display:flex;justify-content:center;align-items:flex-end;padding-bottom:6px}
+  .contact-box{grid-column:1;text-align:right;padding-bottom:8px}
+  .cb-l{font-size:10.5px;color:#8a7c6b;margin-bottom:5px}
+  .cb-n{font-size:13px;font-weight:700;color:#1c4536}
+  .cb-p{font-size:12.5px;color:#5a5148;margin-top:3px;direction:ltr;unicode-bidi:isolate;font-variant-numeric:lining-nums}
   .ink-stamp{position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
     padding:15px 28px 13px;border:5px solid #123a6b;border-radius:9px;transform:rotate(-8deg);
     filter:url(#inkRough);opacity:.97;background:transparent}
@@ -989,9 +1000,13 @@ function printLetter(){
   .lf{margin-top:auto;padding-top:14px;border-top:1px solid #e6ddcb;text-align:center;font-size:10.5px;color:#b3a894}
   .no-print{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99}
   .no-print button{border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;color:#fff}
-  @media print{body{background:#fff;padding:0}.page{box-shadow:none;margin:0;width:100%;min-height:auto}
+  @page{ size:A4 portrait; margin:0; }
+  @media print{
+    html,body{background:#fff;padding:0;margin:0;width:210mm}
+    .page{box-shadow:none;margin:0;width:210mm;height:297mm;min-height:297mm;padding:20mm 18mm 15mm;page-break-after:avoid}
     .no-print{display:none}
-    .ink-stamp,.ink-stamp img,.ink-stamp .st-sub{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    .ink-stamp,.ink-stamp img,.ink-stamp .st-sub{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style></head><body>
   <svg width="0" height="0" style="position:absolute">
    <filter id="inkRough">
@@ -1023,6 +1038,11 @@ function printLetter(){
     <div class="salam">السلام عليكم ورحمة الله وبركاته، وبعد؛</div>
     <div class="body-txt">${escapeHtml(f.body)}</div>
     <div class="sign-area">
+      ${(f.contact||f.phone)?`<div class="contact-box">
+        <div class="cb-l">للتواصل والمتابعة</div>
+        ${f.contact?`<div class="cb-n">${escapeHtml(f.contact)}</div>`:''}
+        ${f.phone?`<div class="cb-p" dir="ltr">${escapeHtml(f.phone)}</div>`:''}
+      </div>`:'<div></div>'}
       <div class="stamp-mid">
         <div class="ink-stamp"><img src="${HAIAA_LOGO}" alt="" /><div class="st-sub">بني جمرة — البحرين</div></div>
       </div>
