@@ -1002,6 +1002,7 @@ async function closeYearWizard(){
     `• تُفرَّغ المحاضر والمصروفات والتقييمات والمشاريع وألبوم الصور\n`+
     `• تبقى مكتبة الصور (Google Drive) كما هي\n`+
     `• تبقى الأعضاء والمواقيت وحجوزاتها والرواديد\n`+
+    `• تُصفَّر المبالغ المستلمة (تبقى محفوظة في الأرشيف)\n`+
     `• ${activeCount} عضوية مفعّلة ستصير غير مفعّلة\n`+
     `• الرصيد ${finMoney(finance.total||0)} ينتقل كرصيد افتتاحي\n\n`+
     `⚠️ خذ نسخة احتياطية أولاً.\n\nهل تريد المتابعة؟`;
@@ -1039,7 +1040,16 @@ async function closeYearWizard(){
   paidThawab=[]; await savePaidThawab();
   photos=[]; await savePhotos();
   revenues=[]; await saveRevenues();   // ينتقل الألبوم للأرشيف · مكتبة Drive تبقى
-  finance={ ...finance, total:openingBalance, expenses:[] };
+  // تصفير المبالغ المستلمة في الحجوزات (الحجز نفسه يبقى — المال أُرشِف مع السنة)
+  miqats.forEach(mq=>{
+    (mq.bookings||[]).forEach(b=>{
+      delete b.received; delete b.receivedNote; delete b.receivedDate;
+      delete b.rcptItems; delete b.payments;
+    });
+    delete mq.closedOn;
+  });
+  await saveMiqats();
+  finance={ ...finance, total:openingBalance, expenses:[], closedMiqats:{} };
   await saveFinance();
   financeLog=[]; try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){}
 
@@ -5451,21 +5461,38 @@ function cmpData(key){
   if(d) d.srcLabel=src.label;
   return d;
 }
+/* السنة المفتوحة في كل مجموعة (لاختصار القائمة) */
+let cmpOpenSrc = { a:null, b:null };
 function cmpGroupHTML(which){
   const sel = which==='a'?cmpA:cmpB;
   const q=(cmpQ[which]||'').trim();
   const srcs=cmpSources();
+  if(cmpOpenSrc[which]===null && srcs.length) cmpOpenSrc[which]=srcs[0].year;
+  const openY = cmpOpenSrc[which];
+  const searching = q.length>0;
   return `
   <div class="cmp-search">
     ${icon('search',15,'ico-btn')}
-    <input type="text" id="cmpQ${which}" placeholder="ابحث…" value="${escapeHtml(q)}" oninput="cmpSetQ('${which}',this.value)" />
+    <input type="text" id="cmpQ${which}" placeholder="ابحث في كل السنوات…" value="${escapeHtml(q)}" oninput="cmpSetQ('${which}',this.value)" />
+    ${q?`<span class="cmp-clr" onclick="cmpSetQ('${which}','')">×</span>`:''}
   </div>
+
+  ${!searching?`<div class="cmp-years">
+    ${srcs.map(src=>{
+      const n=[...sel].filter(k=>k.startsWith(src.year+'|')).length;
+      return `<button class="cmp-y ${src.year===openY?'on':''}" onclick="cmpOpenYear('${which}',${src.year})">
+        ${src.year===0?`${settings.year||''} <small>(الحالية)</small>`:`${src.year} هـ`}${n?`<i>${n}</i>`:''}
+      </button>`;
+    }).join('')}
+  </div>`:''}
+
   ${srcs.map(src=>{
+    if(!searching && src.year!==openY) return '';
     const list=(src.miqats||[]).filter(mq=>!q||(mq.name||'').includes(q)).sort((a,b)=>a.month-b.month||a.day-b.day);
-    if(!list.length) return '';
+    if(!list.length) return searching?'':'<div class="fel-empty">لا مواقيت في هذه السنة</div>';
     const cnt=list.filter(mq=>sel.has(cmpKey(src.year,mq.id))).length;
     return `<div class="cmp-src">
-      <div class="cmp-src-h"><span>${escapeHtml(src.label)}</span>${cnt?`<b>${cnt} محدَّد</b>`:''}</div>
+      ${searching?`<div class="cmp-src-h"><span>${escapeHtml(src.label)}</span>${cnt?`<b>${cnt} محدَّد</b>`:''}</div>`:''}
       ${list.map(mq=>{
         const k=cmpKey(src.year,mq.id), on=sel.has(k);
         return `<div class="cmp-row ${on?'on':''}" onclick="cmpToggle('${which}','${k}')">
@@ -5475,8 +5502,16 @@ function cmpGroupHTML(which){
         </div>`;
       }).join('')}
     </div>`;
-  }).join('') || '<div class="fel-empty">لا نتائج</div>'}`;
+  }).join('') || '<div class="fel-empty">لا نتائج للبحث</div>'}
+
+  ${sel.size?`<div class="cmp-picked">
+    <span>المحدَّد:</span>
+    ${[...sel].map(k=>{ const d=cmpData(k); if(!d) return '';
+      return `<span class="cmp-tag" onclick="cmpToggle('${which}','${k}')">${escapeHtml(d.name)} <i>${d.srcLabel.replace('السنة الحالية','')}</i> ×</span>`;
+    }).join('')}
+  </div>`:''}`;
 }
+function cmpOpenYear(which, year){ cmpOpenSrc[which]=year; renderFinancePage('compare',{}); }
 function finCompareHTML(){
   const a=[...cmpA].map(cmpData).filter(Boolean), b=[...cmpB].map(cmpData).filter(Boolean);
   const ta=sumFin(a), tb=sumFin(b);
