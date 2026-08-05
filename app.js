@@ -217,7 +217,8 @@ function miqatReceived(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingRece
 function bookingReceived(b){ if(b && Array.isArray(b.payments)) return b.payments.reduce((s,p)=>s+(Number(p.amount)||0),0); return Number(b&&b.amount)||0; }
 /* المبلغ الفعّال للمساهمة: المستلَم إن سُجِّل، وإلا المتّفق عليه */
 function bookingHasReceipt(b){ return !!(b && ((Array.isArray(b.rcptItems)&&b.rcptItems.length) || (b.received!=null && b.received!=='')));}
-function bookingEffective(b){ return bookingHasReceipt(b) ? (Number(b.received)||0) : bookingAgreed(b); }
+/* المبلغ المعتمد للحجز: المسجّل فعلاً (بنود المساهمة أو الاستلام)، وإلا المتّفق عليه */
+function bookingEffective(b){ return bookingHasReceipt(b) ? bookingPaid(b) : bookingAgreed(b); }
 function miqatEffective(mq){ return (mq.bookings||[]).reduce((s,b)=>s+bookingEffective(b),0); }
 function miqatStatus(mq){
   const eff = miqatEffective(mq); const req = Number(mq.requiredAmount)||0;
