@@ -859,11 +859,14 @@ function printAnnualReport(){
 /* ═══════════ الرسائل الرسمية ═══════════ */
 let editingLetterId = null;
 
+function openLettersPage(){ openFullPage('letters'); renderLetters(); }
+function closeLettersPage(){ switchTab('meetings'); setTimeout(()=>openIdara('sec'),80); }
 function renderLetters(){
   const box=$('#lettersList'); if(!box) return;
   const list=[...letters].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const cnt=$('#lettersCount'); if(cnt) cnt.textContent = list.length?`${list.length} رسالة في الأرشيف`:'لا رسائل بعد';
   if(!list.length){ box.innerHTML='<div class="lt-empty">لا رسائل بعد — اضغط «رسالة جديدة» للبدء</div>'; return; }
-  box.innerHTML=`<div class="stats-sec-title">أرشيف الصادر (${list.length})</div>`+
+  box.innerHTML=''+
     list.map(l=>`<div class="lt-row" onclick="openLetterEditor('${l.id}')">
       <div style="flex:1;min-width:0">
         <div class="lt-subj">${escapeHtml(l.subject||'بلا موضوع')}</div>
@@ -878,10 +881,7 @@ function openLetterEditor(id){
   renderLetterEditor();
   openFullPage('letter');
 }
-function closeLetterEditor(){
-  switchTab('meetings');
-  setTimeout(()=>{ openIdara('sec'); const a=document.getElementById('lettersAcc'); if(a){ a.open=true; renderLetters(); } },80);
-}
+function closeLetterEditor(){ openLettersPage(); }
 function renderLetterEditor(){
   const l = editingLetterId ? letters.find(x=>x.id===editingLetterId) : null;
   const d = l ? l.date : today();
@@ -6160,6 +6160,8 @@ function finExpEntryHTML(opts){
       ${closed?'↺ إلغاء الإنهاء':icon('check',15,'ico-btn')+' انتهت المناسبة'}
     </button>
   </div>
+  ${closed?`<button class="btn btn-accent" style="width:100%;margin-bottom:12px;" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>
+    ${icon('print',17,'ico-btn')} تقرير المناسبة PDF</button>`:''}
 
   <div class="fin-add-exp">
     <div class="fin-field"><label>نوع المصروف</label>
@@ -7423,12 +7425,20 @@ function toggleDash(){
   if(caret) caret.classList.toggle('open', open);
 }
 function switchMeetingSubtab(which){
+  if(which==='assembly'){ openAssemblyPage(); return; }   // تبويب مستقل
   $$('.mtg-subtabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.mtab===which));
   $('#mtab-list').style.display = which==='list'?'block':'none';
   $('#mtab-followup').style.display = which==='followup'?'block':'none';
-  $('#mtab-assembly').style.display = which==='assembly'?'block':'none';
   if(which==='followup') renderFollowup();
-  if(which==='assembly') renderAssemblyTab();
+}
+/* الجمعية العمومية — صفحة مستقلة */
+function openAssemblyPage(){
+  openFullPage('assembly');
+  renderAssemblyTab();
+}
+function closeAssemblyPage(){
+  switchTab('meetings');
+  setTimeout(()=>{ openIdara('sec'); switchMeetingSubtab('list'); },80);
 }
 function meetingCardHTML(m){
   const ended=!!m.endedAt;

@@ -1814,6 +1814,108 @@
     <div id="notifList"></div>
   </section>
 
+  <!-- الجمعية العمومية -->
+  <section id="tab-assembly" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeAssemblyPage()">← رجوع لأمانة السر</button>
+    </div>
+
+        <div class="panel">
+          <div class="asm-head">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <label style="font-size:13px;color:var(--muted);font-weight:600;">الجمعية:</label>
+              <select id="asmYear" onchange="switchAssembly()"></select>
+              <button class="btn btn-ghost btn-sm" onclick="newAssembly()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> جمعية جديدة</button>
+            </div>
+          </div>
+          <div id="asmEmpty" class="empty" style="display:none"><div class="icon"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M13 10h6a1 1 0 0 1 1 1v10"/><path d="M2 21h20M7 9h2M7 13h2M7 17h2M16 14h1M16 18h1"/></svg></div><div class="txt">لا توجد جمعية عمومية بعد. اضغط «<svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> جمعية جديدة».</div></div>
+          <div id="asmBody" style="display:none">
+            <div class="asm-pills">
+              <button class="asm-pill active" data-apill="attend" onclick="switchAsmPill('attend')">الحضور</button>
+              <button class="asm-pill" data-apill="projects" onclick="switchAsmPill('projects')">المشاريع المنجزة</button>
+              <button class="asm-pill" data-apill="report" onclick="switchAsmPill('report')">التقرير الأدبي</button>
+            </div>
+
+            <!-- الحضور -->
+            <div id="apane-attend">
+              <div class="asm-dash">
+                <div class="asm-bignum"><div class="n" id="asmPresentCount">0</div><div class="l">الحاضرون في الجمعية</div></div>
+                <div class="asm-donut" id="asmDonut"></div>
+                <div class="asm-legend">
+                  <div class="lg"><span class="dot ok"></span> مفعّل العضوية: <b id="asmActiveN">0</b> <span id="asmActivePct" class="pct">0%</span></div>
+                  <div class="lg"><span class="dot no"></span> غير مفعّل: <b id="asmInactiveN">0</b> <span id="asmInactivePct" class="pct">0%</span></div>
+                  <div class="lg muted-line">من إجمالي <b id="asmTotalMembers">0</b> عضو في الهيئة</div>
+                </div>
+              </div>
+              <div class="search-box" style="margin-top:14px;">
+                <input id="asmSearch" placeholder="ابحث باسم العضو لتسجيل حضوره..." oninput="renderAsmSearch()" />
+                <span class="ico">⌕</span>
+              </div>
+              <div id="asmSearchResults" class="asm-results"></div>
+              <div class="section-label" style="margin-top:16px;">قائمة الحاضرين (<span id="asmAttendListCount">0</span>)</div>
+              <div id="asmAttendList" class="asm-attend-list"></div>
+            </div>
+
+            <!-- المشاريع -->
+            <div id="apane-projects" style="display:none">
+              <div class="asm-add-row">
+                <input id="projTitle" placeholder="اسم المشروع" />
+                <select id="projCommittee">
+                  <option value="أمانة السر">أمانة السر</option>
+                  <option value="اللجنة المالية">اللجنة المالية</option>
+                  <option value="اللجنة الإعلامية">اللجنة الإعلامية</option>
+                  <option value="أخرى">أخرى</option>
+                </select>
+                <input id="projCategory" placeholder="التصنيف (خدمي/ثقافي...)" />
+                <button class="btn btn-primary btn-sm" onclick="addProject()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
+              </div>
+              <div id="projectsList" class="projects-list"></div>
+            </div>
+
+            <!-- التقرير الأدبي -->
+            <div id="apane-report" style="display:none">
+              <div class="form-grid">
+                <div class="field full"><label>كلمة الإدارة</label><textarea id="rpAdminWord" rows="3" oninput="saveReportField()"></textarea></div>
+                <div class="field full"><label>خطة الهيئة لهذا العام</label><textarea id="rpPlan" rows="3" oninput="saveReportField()"></textarea></div>
+              </div>
+              <div class="section-label" style="margin-top:12px;">إحصائيات الموسم</div>
+              <div class="asm-season">
+                <div class="field"><label>المجالس</label><input id="rpMajalis" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
+                <div class="field"><label>الفعاليات</label><input id="rpEvents" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
+                <div class="field"><label>المواكب</label><input id="rpMawakib" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
+                <div class="field"><label>الإنجازات</label><input id="rpAchievements" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
+              </div>
+              <div class="asm-dec-card" id="asmDecCard"></div>
+              <div class="form-grid" style="margin-top:12px;">
+                <div class="field full"><label>أبرز المشاريع المنجزة</label><textarea id="rpTopProjects" rows="3" oninput="saveReportField()"></textarea></div>
+                <div class="field full"><label>التحديات التي واجهت الهيئة</label><textarea id="rpChallenges" rows="3" oninput="saveReportField()"></textarea></div>
+                <div class="field full"><label>التكريم الحسيني لخادم الإمام الحسين</label><textarea id="rpHonoring" rows="3" oninput="saveReportField()"></textarea></div>
+              </div>
+              <div class="actions-row" style="margin-top:14px;">
+                <button class="btn btn-primary" onclick="printAssemblyReport()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> طباعة التقرير الأدبي PDF</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      
+  </section>
+
+  <!-- قائمة الرسائل الرسمية -->
+  <section id="tab-letters" class="tab-content" style="display:none">
+    <div class="page-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeLettersPage()">← رجوع لأمانة السر</button>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><div><h2 class="panel-title">الرسائل الرسمية</h2>
+        <div class="panel-sub" id="lettersCount">أرشيف الصادر</div></div></div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:14px" onclick="openLetterEditor()">
+        <svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        رسالة جديدة</button>
+      <div id="lettersList"></div>
+    </div>
+  </section>
+
   <!-- محرّر الرسالة الرسمية -->
   <section id="tab-letter" class="tab-content" style="display:none">
     <div class="page-bar">
@@ -2145,16 +2247,13 @@
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
 
       <!-- الرسائل الرسمية -->
-      <details class="set-acc" id="lettersAcc" ontoggle="if(this.open) renderLetters()">
-        <summary class="set-sum"><span class="ss-ic"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7l9.5 6 9.5-6"/></svg></span>
-          <span class="ss-txt"><b>الرسائل الرسمية</b><small>كتابة وطباعة وأرشيف الصادر</small></span><span class="ss-arrow">›</span></summary>
-        <div class="set-body">
-          <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openLetterEditor()">
-            <svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            رسالة جديدة</button>
-          <div id="lettersList"></div>
-        </div>
-      </details>
+      <button class="idara-card" style="width:100%;margin-bottom:12px;text-align:right;display:flex;align-items:center;gap:12px;padding:15px 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);cursor:pointer;font-family:var(--font-sans);"
+        onclick="openLettersPage()">
+        <span style="color:var(--accent)"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7l9.5 6 9.5-6"/></svg></span>
+        <span style="flex:1"><b style="display:block;font-size:15.5px;color:var(--ink);font-weight:700;">الرسائل الرسمية</b>
+          <small style="font-size:11.5px;color:var(--muted);">كتابة وطباعة وأرشيف الصادر</small></span>
+        <span style="font-size:22px;color:var(--muted-2);">›</span>
+      </button>
 
       <!-- لوحة الإحصائيات -->
       <details class="set-acc" id="secStatsAcc" ontoggle="if(this.open) renderStats()">
@@ -2234,87 +2333,7 @@
         </div>
       </div>
 
-      <!-- ASSEMBLY (الجمعية العمومية) -->
-      <div id="mtab-assembly" style="display:none">
-        <div class="panel">
-          <div class="asm-head">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <label style="font-size:13px;color:var(--muted);font-weight:600;">الجمعية:</label>
-              <select id="asmYear" onchange="switchAssembly()"></select>
-              <button class="btn btn-ghost btn-sm" onclick="newAssembly()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> جمعية جديدة</button>
-            </div>
-          </div>
-          <div id="asmEmpty" class="empty" style="display:none"><div class="icon"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M13 10h6a1 1 0 0 1 1 1v10"/><path d="M2 21h20M7 9h2M7 13h2M7 17h2M16 14h1M16 18h1"/></svg></div><div class="txt">لا توجد جمعية عمومية بعد. اضغط «<svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> جمعية جديدة».</div></div>
-          <div id="asmBody" style="display:none">
-            <div class="asm-pills">
-              <button class="asm-pill active" data-apill="attend" onclick="switchAsmPill('attend')">الحضور</button>
-              <button class="asm-pill" data-apill="projects" onclick="switchAsmPill('projects')">المشاريع المنجزة</button>
-              <button class="asm-pill" data-apill="report" onclick="switchAsmPill('report')">التقرير الأدبي</button>
-            </div>
 
-            <!-- الحضور -->
-            <div id="apane-attend">
-              <div class="asm-dash">
-                <div class="asm-bignum"><div class="n" id="asmPresentCount">0</div><div class="l">الحاضرون في الجمعية</div></div>
-                <div class="asm-donut" id="asmDonut"></div>
-                <div class="asm-legend">
-                  <div class="lg"><span class="dot ok"></span> مفعّل العضوية: <b id="asmActiveN">0</b> <span id="asmActivePct" class="pct">0%</span></div>
-                  <div class="lg"><span class="dot no"></span> غير مفعّل: <b id="asmInactiveN">0</b> <span id="asmInactivePct" class="pct">0%</span></div>
-                  <div class="lg muted-line">من إجمالي <b id="asmTotalMembers">0</b> عضو في الهيئة</div>
-                </div>
-              </div>
-              <div class="search-box" style="margin-top:14px;">
-                <input id="asmSearch" placeholder="ابحث باسم العضو لتسجيل حضوره..." oninput="renderAsmSearch()" />
-                <span class="ico">⌕</span>
-              </div>
-              <div id="asmSearchResults" class="asm-results"></div>
-              <div class="section-label" style="margin-top:16px;">قائمة الحاضرين (<span id="asmAttendListCount">0</span>)</div>
-              <div id="asmAttendList" class="asm-attend-list"></div>
-            </div>
-
-            <!-- المشاريع -->
-            <div id="apane-projects" style="display:none">
-              <div class="asm-add-row">
-                <input id="projTitle" placeholder="اسم المشروع" />
-                <select id="projCommittee">
-                  <option value="أمانة السر">أمانة السر</option>
-                  <option value="اللجنة المالية">اللجنة المالية</option>
-                  <option value="اللجنة الإعلامية">اللجنة الإعلامية</option>
-                  <option value="أخرى">أخرى</option>
-                </select>
-                <input id="projCategory" placeholder="التصنيف (خدمي/ثقافي...)" />
-                <button class="btn btn-primary btn-sm" onclick="addProject()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
-              </div>
-              <div id="projectsList" class="projects-list"></div>
-            </div>
-
-            <!-- التقرير الأدبي -->
-            <div id="apane-report" style="display:none">
-              <div class="form-grid">
-                <div class="field full"><label>كلمة الإدارة</label><textarea id="rpAdminWord" rows="3" oninput="saveReportField()"></textarea></div>
-                <div class="field full"><label>خطة الهيئة لهذا العام</label><textarea id="rpPlan" rows="3" oninput="saveReportField()"></textarea></div>
-              </div>
-              <div class="section-label" style="margin-top:12px;">إحصائيات الموسم</div>
-              <div class="asm-season">
-                <div class="field"><label>المجالس</label><input id="rpMajalis" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
-                <div class="field"><label>الفعاليات</label><input id="rpEvents" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
-                <div class="field"><label>المواكب</label><input id="rpMawakib" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
-                <div class="field"><label>الإنجازات</label><input id="rpAchievements" type="number" inputmode="numeric" oninput="saveReportField()" /></div>
-              </div>
-              <div class="asm-dec-card" id="asmDecCard"></div>
-              <div class="form-grid" style="margin-top:12px;">
-                <div class="field full"><label>أبرز المشاريع المنجزة</label><textarea id="rpTopProjects" rows="3" oninput="saveReportField()"></textarea></div>
-                <div class="field full"><label>التحديات التي واجهت الهيئة</label><textarea id="rpChallenges" rows="3" oninput="saveReportField()"></textarea></div>
-                <div class="field full"><label>التكريم الحسيني لخادم الإمام الحسين</label><textarea id="rpHonoring" rows="3" oninput="saveReportField()"></textarea></div>
-              </div>
-              <div class="actions-row" style="margin-top:14px;">
-                <button class="btn btn-primary" onclick="printAssemblyReport()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg> طباعة التقرير الأدبي PDF</button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- FINANCE -->
