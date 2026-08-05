@@ -2052,7 +2052,7 @@ let receiptCtx=null;
 function openReceipt(miqatId, memberId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
-  receiptCtx={miqatId, memberId};
+  receiptCtx={miqatId, memberId}; rcEditIdx=null;
   renderReceiptPage();
   openFullPage('receipt');
 }
@@ -2093,7 +2093,27 @@ function renderReceiptPage(){
 
     <div class="rc-sec">
       <div class="rc-sec-h">${icon('doc',16,'ico-btn')} بنود المساهمة (${items.length})</div>
-      ${items.length?items.map((it,i)=>`
+      ${items.length?items.map((it,i)=>{
+        const ed = (rcEditIdx===i);
+        if(ed) return `
+        <div class="rc-item editing">
+          <div class="rc-edit">
+            <div class="rc-edit-h">${icon('edit',15,'ico-btn')} تعديل «${escapeHtml(it.kind||'')}»</div>
+            <div class="rc-edit-grid">
+              <select id="rcEKind">
+                ${RECEIPT_ITEMS.map(k=>`<option value="${k}" ${k===it.kind?'selected':''}>${k}</option>`).join('')}
+                ${RECEIPT_ITEMS.includes(it.kind)?'':`<option value="${escapeHtml(it.kind)}" selected>${escapeHtml(it.kind)}</option>`}
+              </select>
+              <input id="rcEValue" type="number" min="0" step="0.001" value="${Number(it.value)||0}" placeholder="المبلغ" />
+              <input id="rcENote" class="full" type="text" value="${escapeHtml(it.note||'')}" placeholder="ملاحظة" />
+            </div>
+            <div class="rc-edit-btns">
+              <button class="btn btn-primary btn-sm" onclick="saveReceiptItemEdit(${i})">${icon('check',15,'ico-btn')} حفظ</button>
+              <button class="btn btn-ghost btn-sm" onclick="cancelReceiptItemEdit()">إلغاء</button>
+            </div>
+          </div>
+        </div>`;
+        return `
         <div class="rc-item">
           <span class="rc-badge ${isCashItem(it.kind)?'cash':'kind'}">${isCashItem(it.kind)?'نقدي':'عيني'}</span>
           <div style="flex:1;min-width:0">
@@ -2101,8 +2121,10 @@ function renderReceiptPage(){
             ${it.note?`<div class="rc-inote">${escapeHtml(it.note)}</div>`:''}
           </div>
           <span class="rc-ival">${fmtMoney(Number(it.value)||0)}</span>
+          <button class="rc-ed" onclick="editReceiptItem(${i})" title="تعديل">${icon('edit',15)}</button>
           <button class="rc-del" onclick="removeReceiptItem(${i})" title="حذف">×</button>
-        </div>`).join(''):'<div class="fel-empty">لا بنود بعد — أضف أول بند</div>'}
+        </div>`;
+      }).join(''):'<div class="fel-empty">لا بنود بعد — أضف أول بند</div>'}
     </div>
 
     <div class="rc-totals">
@@ -2146,6 +2168,28 @@ async function addReceiptItem(){
   await saveMiqats();
   logAudit('إضافة','المواقيت',`مساهمة «${kind}» بقيمة ${fmtMoney(val)} — ${mq.name}`);
   toast('أُضيف البند');
+  renderReceiptPage(); renderMiqats(); renderDashboard();
+}
+let rcEditIdx = null;
+function editReceiptItem(i){ rcEditIdx=i; renderReceiptPage(); }
+function cancelReceiptItemEdit(){ rcEditIdx=null; renderReceiptPage(); }
+async function saveReceiptItemEdit(i){
+  if(!receiptCtx) return;
+  const {miqatId, memberId}=receiptCtx;
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===memberId); if(!b) return;
+  const it=(b.rcptItems||[])[i]; if(!it) return;
+  const kind=($('#rcEKind').value||'').trim();
+  const val=parseFloat($('#rcEValue').value);
+  if(!kind){ toast('اختر نوع البند'); return; }
+  if(isNaN(val)||val<0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  const oldTxt=`${it.kind} ${fmtMoney(Number(it.value)||0)}`;
+  it.kind=kind; it.value=val; it.note=($('#rcENote').value||'').trim();
+  it.editedAt=new Date().toISOString();
+  await saveMiqats();
+  logAudit('تعديل','المواقيت',`مساهمة: ${oldTxt} ← ${kind} ${fmtMoney(val)} — ${mq.name}`);
+  rcEditIdx=null;
+  toast('حُفظ التعديل');
   renderReceiptPage(); renderMiqats(); renderDashboard();
 }
 async function removeReceiptItem(idx){
