@@ -5369,7 +5369,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','merge','compare','revenue','revMiqat','revEntry','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
+const FIN_PAGES=['home','merge','compare','statement','revenue','revMiqat','revEntry','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -5394,6 +5394,7 @@ function renderFinancePage(page, opts){
   const host=$('#finBody'); if(!host) return;
   opts=opts||{};
   if(page==='home') host.innerHTML=finHomeHTML();
+  else if(page==='statement'){ host.innerHTML=finStatementHTML(); }
   else if(page==='merge'){ host.innerHTML=finMergeHTML(); }
   else if(page==='compare'){ host.innerHTML=finCompareHTML(); }
   else if(page==='revenue') host.innerHTML=finRevenueHTML();
@@ -5438,6 +5439,9 @@ function finHomeHTML(){
     <button class="fin-big exp" onclick="openFinancePage('expenses')">
       <span class="fb-ic">${icon('upload',17,'ico-btn')}</span><span class="fb-t">المصروفات</span></button>
   </div>
+  <button class="fin-reports-btn" style="background:#2f6f8f;margin-bottom:10px;" onclick="openFinancePage('statement')">
+    ${icon('doc',17,'ico-btn')} كشف الحساب (Statement)
+  </button>
   <button class="fin-reports-btn" style="background:#7a5c1e;" onclick="copyProjectLink()">
     ${icon('link',17,'ico-btn')} تقديم مشروع للهيئة (نسخ الرابط)
   </button>`;
@@ -5487,6 +5491,132 @@ async function editYearStart(){
 }
 
 
+
+
+/* ═══════════ كشف الحساب (Statement) ═══════════ */
+let stmtFilter = { q:'', miqat:'', from:'', to:'' };
+
+function finStatementHTML(){
+  let rows=[...(finance.expenses||[])];
+  const f=stmtFilter;
+  if(f.miqat) rows=rows.filter(e=>e.miqatId===f.miqat);
+  if(f.from) rows=rows.filter(e=>(e.date||'')>=f.from);
+  if(f.to) rows=rows.filter(e=>(e.date||'')<=f.to);
+  if(f.q){ const q=f.q.trim();
+    rows=rows.filter(e=>(e.type||'').includes(q)||(e.subType||'').includes(q)||(e.note||'').includes(q)
+      ||((miqats.find(m=>m.id===e.miqatId)||{}).name||'').includes(q)); }
+  rows.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.at||'').localeCompare(a.at||''));
+  const total=rows.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  const sorted=miqatsByNearest();
+  return `
+  <div class="mg-head">
+    <div class="mg-t">${icon('doc',18,'ico-btn')} كشف الحساب</div>
+    <div class="mg-s">مراجعة كل المصروفات المسجّلة</div>
+  </div>
+  <div class="stmt-filters">
+    <div class="mg-search">${icon('search',16,'ico-btn')}
+      <input type="text" id="stmtQ" placeholder="ابحث في البند أو الملاحظة أو الميقات…" value="${escapeHtml(f.q)}" oninput="stmtSet('q',this.value)" /></div>
+    <select onchange="stmtSet('miqat',this.value)">
+      <option value="">كل المواقيت</option>
+      ${sorted.map(mq=>`<option value="${mq.id}" ${f.miqat===mq.id?'selected':''}>${escapeHtml(mq.name)}</option>`).join('')}
+    </select>
+    <div class="stmt-dates">
+      <label>من <input type="date" value="${f.from}" onchange="stmtSet('from',this.value)" /></label>
+      <label>إلى <input type="date" value="${f.to}" onchange="stmtSet('to',this.value)" /></label>
+    </div>
+    ${(f.q||f.miqat||f.from||f.to)?`<button class="btn btn-ghost btn-sm" onclick="stmtReset()">مسح الفلاتر</button>`:''}
+  </div>
+  <div class="stmt-sum">
+    <div class="ss-l">${rows.length} عملية</div>
+    <div class="ss-v">${finMoney(total)}</div>
+  </div>
+  <div class="stmt-list">
+    ${rows.length?rows.map(e=>{
+      const mq=miqats.find(m=>m.id===e.miqatId);
+      return `<div class="stmt-row">
+        <div class="sr-body">
+          <div class="sr-t">${escapeHtml(e.type||'—')}${e.subType?' — '+escapeHtml(e.subType):''}</div>
+          <div class="sr-m">${mq?escapeHtml(mq.name)+' · ':''}${e.date?fmtDate(e.date):'—'}</div>
+          ${e.note?`<div class="sr-n">${escapeHtml(e.note)}</div>`:''}
+        </div>
+        <div class="sr-c">${finMoney(e.cost)}</div>
+      </div>`;
+    }).join(''):'<div class="fel-empty">لا مصروفات مطابقة</div>'}
+  </div>
+  ${rows.length?`<button class="btn btn-accent" style="width:100%;margin-top:12px" onclick="printStatement()">
+    ${icon('print',17,'ico-btn')} طباعة كشف الحساب</button>`:''}`;
+}
+function stmtSet(k,v){
+  stmtFilter[k]=v;
+  const host=$('#finBody'); if(!host) return;
+  host.innerHTML=finStatementHTML();
+  if(k==='q'){ const i=$('#stmtQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }
+}
+function stmtReset(){ stmtFilter={q:'',miqat:'',from:'',to:''}; renderFinancePage('statement',{}); }
+
+function printStatement(){
+  let rows=[...(finance.expenses||[])];
+  const f=stmtFilter;
+  if(f.miqat) rows=rows.filter(e=>e.miqatId===f.miqat);
+  if(f.from) rows=rows.filter(e=>(e.date||'')>=f.from);
+  if(f.to) rows=rows.filter(e=>(e.date||'')<=f.to);
+  if(f.q){ const q=f.q.trim();
+    rows=rows.filter(e=>(e.type||'').includes(q)||(e.subType||'').includes(q)||(e.note||'').includes(q)
+      ||((miqats.find(m=>m.id===e.miqatId)||{}).name||'').includes(q)); }
+  rows.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const total=rows.reduce((s,e)=>s+(Number(e.cost)||0),0);
+  const byType={}; rows.forEach(e=>{ byType[e.type]=(byType[e.type]||0)+(Number(e.cost)||0); });
+  const typeArr=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+  const mqName=f.miqat?((miqats.find(m=>m.id===f.miqat)||{}).name||''):'';
+  const scope=[ mqName?`الميقات: ${mqName}`:'كل المواقيت',
+                f.from?`من ${fmtDate(f.from)}`:'', f.to?`إلى ${fmtDate(f.to)}`:'',
+                f.q?`بحث: «${f.q}»`:'' ].filter(Boolean).join(' · ');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>كشف حساب المصروفات</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px 34px;color:#1a2620;line-height:1.8;font-size:13.5px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:175px;max-height:66px;}
+  .pdf-head{text-align:center;padding-bottom:12px;border-bottom:3px double #c19a3e;margin-bottom:14px;}
+  .doc-title{font-family:'Amiri',serif;font-size:21px;font-weight:700;color:#1c4536;margin:8px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:12.5px;}
+  .scope{background:#f6f2ea;border-radius:9px;padding:10px 14px;font-size:12.5px;color:#5a5148;margin-bottom:14px;text-align:center;}
+  .tot{background:#1c4536;color:#fff;border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;}
+  .tot .v{font-size:24px;font-weight:800;} .tot .l{font-size:12px;color:#c19a3e;margin-top:3px;}
+  h2{font-size:14px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 17px;border-radius:0 15px 15px 0;margin:16px 0 9px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:12px;}
+  th,td{border:1px solid #e6ddcb;padding:7px 9px;text-align:right;}
+  th{background:#1c4536;color:#fff;font-size:12px;}
+  tr:nth-child(even){background:#faf7f0;}
+  .sum-row td{background:#e6f0ea;font-weight:800;color:#1c4536;}
+  .foot{margin-top:24px;padding-top:11px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:20px;} .no-print{display:none;} tr{page-break-inside:avoid;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">كشف حساب المصروفات</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
+  <div class="scope">${escapeHtml(scope)}</div>
+  <div class="tot"><div class="v">${finMoney(total)}</div><div class="l">إجمالي المصروفات · ${rows.length} عملية</div></div>
+  ${typeArr.length?`<h2>حسب النوع</h2>
+  <table><tr><th>البند</th><th>المبلغ</th><th>النسبة</th></tr>
+    ${typeArr.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${total?Math.round(v/total*100):0}%</td></tr>`).join('')}
+    <tr class="sum-row"><td>الإجمالي</td><td>${finMoney(total)}</td><td>100%</td></tr>
+  </table>`:''}
+  <h2>التفصيل</h2>
+  <table><tr><th>#</th><th>التاريخ</th><th>الميقات</th><th>البند</th><th>ملاحظات</th><th>المبلغ</th></tr>
+    ${rows.map((e,i)=>{ const mq=miqats.find(m=>m.id===e.miqatId);
+      return `<tr><td>${i+1}</td><td>${e.date?fmtDate(e.date):'—'}</td><td>${mq?escapeHtml(mq.name):'—'}</td>
+        <td>${escapeHtml(e.type||'—')}${e.subType?' — '+escapeHtml(e.subType):''}</td>
+        <td>${e.note?escapeHtml(e.note):'—'}</td><td>${finMoney(e.cost)}</td></tr>`; }).join('')}
+    <tr class="sum-row"><td colspan="5">الإجمالي</td><td>${finMoney(total)}</td></tr>
+  </table>
+  <div class="foot">هيئة محبي الحسين (ع) — كشف حساب المصروفات</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
 
 /* ═══════════ تقارير مدموجة ═══════════ */
 let mergeSel = new Set();
@@ -5914,7 +6044,7 @@ const REV_KINDS = { vow:{ label:'النذور', person:'اسم صاحب النذ
 function finRevMiqatHTML(opts){
   const kind=opts.kind||'vow';
   const K=REV_KINDS[kind];
-  const sorted=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const sorted=miqatsByNearest();
   return `
   <div class="fin-ctx">${K.label} — اختر الميقات</div>
   <div class="fin-field">
@@ -6066,18 +6196,57 @@ function finExpensesHTML(){
   </div>`;
 }
 
+/* ترتيب المواقيت من الأقرب زمنياً */
+function miqatDaysAway(mq){
+  const t=new Date(); t.setHours(0,0,0,0);
+  const ty=miqatTargetHijriYear(mq);
+  const g=hijriToGregorian(mq.day,mq.month,ty);
+  if(!g) return 99999;
+  const gd=new Date(g); gd.setHours(0,0,0,0);
+  return Math.round((gd-t)/86400000);
+}
+function miqatsByNearest(){
+  return [...miqats].map(mq=>({mq,d:miqatDaysAway(mq)}))
+    .sort((a,b)=>{
+      const fa=a.d<0?1:0, fb=b.d<0?1:0;     // القادمة أولاً ثم الماضية
+      if(fa!==fb) return fa-fb;
+      return fa ? b.d-a.d : a.d-b.d;         // الماضية: الأحدث أولاً
+    }).map(x=>x.mq);
+}
+function miqatNearLabel(mq){
+  const d=miqatDaysAway(mq);
+  if(d===0) return 'اليوم';
+  if(d===1) return 'غداً';
+  if(d>0) return `بعد ${d} يوماً`;
+  return `مضى ${Math.abs(d)} يوماً`;
+}
+
 /* مصروفات المواقيت → فرح / حزن */
 function finExpMiqatHTML(){
+  const sorted=miqatsByNearest();
   return `
-  <div class="fin-grid">
-    <button class="fin-cell mood farah" onclick="openFinancePage('expMood',{mood:'farah'})">🎉 مناسبة فرح</button>
-    <button class="fin-cell mood hzn" onclick="openFinancePage('expHzn',{mood:'hzn'})">${icon('candle',17,'ico-btn')} مناسبة حزن</button>
-  </div>`;
+  <div class="fin-ctx">مصروفات المواقيت — اختر الميقات</div>
+  <div class="fin-field">
+    <label>الميقات</label>
+    <select id="finMiqatSel" onchange="finMiqatGoDirect()">
+      <option value="">— اختر ميقاتاً —</option>
+      ${sorted.map(mq=>{
+        const n=(finance.expenses||[]).filter(e=>e.miqatId===mq.id).length;
+        return `<option value="${mq.id}">${escapeHtml(mq.name)} — ${miqatNearLabel(mq)}${n?` (${n} مصروف)`:''}</option>`;
+      }).join('')}
+    </select>
+  </div>
+  <div class="fin-hint">${icon('info',15,'ico-btn')} المواقيت مرتّبة من الأقرب زمنياً</div>`;
+}
+/* الانتقال المباشر لصفحة المصروفات */
+function finMiqatGoDirect(){
+  const id=$('#finMiqatSel').value; if(!id) return;
+  openFinancePage('expEntry',{mood:'hzn',miqatId:id,kind:'hzn'});
 }
 
 /* مناسبة فرح: اختيار ميقات ثم مولد/احتفال */
 function finExpMoodHTML(opts){
-  const sorted=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const sorted=miqatsByNearest();
   return `
   <div class="fin-field">
     <label>اختر الميقات</label>
@@ -6104,7 +6273,7 @@ function finGoEntry(kind){
 
 /* مناسبة حزن: اختيار ميقات ثم مباشرة لتقسيم المصروفات (بلا مولد/احتفال) */
 function finExpHznHTML(opts){
-  const sorted=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const sorted=miqatsByNearest();
   return `
   <div class="fin-field">
     <label>اختر الميقات</label>
@@ -6155,13 +6324,7 @@ function finExpEntryHTML(opts){
   <div class="exp-period">
     ${period.first?`<span>${icon('calendar',15,'ico-btn')} بدأ التسجيل: <b>${fmtDate(period.first)}</b></span>`:'<span class="dim">لم يبدأ التسجيل بعد</span>'}
     ${closed?`<span>${icon('check',15,'ico-btn')} انتهت المناسبة: <b>${fmtDate(closed)}</b></span>`:''}
-    <button class="btn btn-sm ${closed?'btn-ghost':''}" style="${closed?'':'background:var(--warn);color:#fff;border:none;'}"
-      onclick='toggleMiqatClosed(${JSON.stringify(opts)})'>
-      ${closed?'↺ إلغاء الإنهاء':icon('check',15,'ico-btn')+' انتهت المناسبة'}
-    </button>
   </div>
-  ${closed?`<button class="btn btn-accent" style="width:100%;margin-bottom:12px;" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>
-    ${icon('print',17,'ico-btn')} تقرير المناسبة PDF</button>`:''}
 
   <div class="fin-add-exp">
     <div class="fin-field"><label>نوع المصروف</label>
@@ -6189,7 +6352,14 @@ function finExpEntryHTML(opts){
       <div class="fel-cost">${finMoney(e.cost)}<button class="fel-del" onclick="deleteExpense('${e.id}')">×</button></div>
     </div>`).join(''):'<div class="fel-empty">لا توجد مصروفات بعد</div>'}
   </div>
-  ${rows.length?`<button class="btn btn-accent" style="width:100%;margin-top:12px;" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>${icon('print',17,'ico-btn')} تقرير المناسبة PDF</button>`:''}`;
+  <div class="exp-foot">
+    <button class="btn btn-accent" style="width:100%;" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>
+      ${icon('print',17,'ico-btn')} تقرير المناسبة PDF</button>
+    <button class="btn ${closed?'btn-ghost':''}" style="width:100%;margin-top:9px;${closed?'':'background:var(--warn);color:#fff;border:none;'}"
+      onclick='toggleMiqatClosed(${JSON.stringify(opts)})'>
+      ${closed?'↺ إلغاء إنهاء المناسبة':icon('check',16,'ico-btn')+' انتهت المناسبة'}
+    </button>
+  </div>`;
 }
 function expTypeChange(){
   const t=$('#expType').value;
@@ -6936,7 +7106,7 @@ function printThawabCertificate(miqatId, memberRef, idx){
 /* ═══ التثويبات المدفوعة ═══ */
 let paidThawabNames=[];
 function finTathwibPaidHTML(){
-  const sorted=[...miqats].sort((a,b)=>a.month-b.month||a.day-b.day);
+  const sorted=miqatsByNearest();
   const recent=[...paidThawab].sort((a,b)=>(b.at||'').localeCompare(a.at||'')).slice(0,20);
   return `
   <div class="fin-ctx">تثويب مدفوع — لأي شخص (عضو أو غير عضو)</div>
