@@ -107,7 +107,6 @@ let financeLog = []; // سجل دخول اللجنة المالية: {id, email,
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
 let revenues = []; // إيرادات المواقيت: {id, kind:'vow'|'donation', miqatId, name, amount, note, date, at}
-let elections = []; // الدورات الانتخابية
 let letters = []; // الرسائل الرسمية الصادرة
 let archives = []; // أرشيف السنوات
 let radoodParts = []; // مشاركات مسجّلة يدوياً: {id, radoodId, miqatId, miqatName, note, at}
@@ -251,7 +250,6 @@ async function loadData(){
   try { const ar=await storage.get('archives'); if(ar) archives=JSON.parse(ar); } catch(e){ archives=[]; }
   try { const rv=await storage.get('revenues'); if(rv) revenues=JSON.parse(rv); } catch(e){ revenues=[]; }
   try { const lt=await storage.get('letters'); if(lt) letters=JSON.parse(lt); } catch(e){ letters=[]; }
-  try { const ec=await storage.get('elections'); if(ec) elections=JSON.parse(ec); } catch(e){ elections=[]; }
   try { const gi=await storage.get('gdIndexCache'); if(gi) gdIndex=JSON.parse(gi); } catch(e){}
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
@@ -270,7 +268,6 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
-async function saveElections(){ try{ await storage.set('elections',JSON.stringify(elections)); }catch(e){} cloudPush('elections',elections); }
 async function saveLetters(){ try{ await storage.set('letters',JSON.stringify(letters)); }catch(e){} cloudPush('letters',letters); }
 async function saveRevenues(){ try{ await storage.set('revenues',JSON.stringify(revenues)); }catch(e){} cloudPush('revenues',revenues); }
 async function saveArchives(){ try{ await storage.set('archives',JSON.stringify(archives)); }catch(e){} cloudPush('archives',archives); }
@@ -861,64 +858,39 @@ function printAnnualReport(){
 
 
 
-/* ═══════════ الانتخابات ═══════════ */
-let currentElection = null;      // الدورة المفتوحة محلياً
-let elecLiveTimer = null;
+
+/* ═══════════ انتخابات الجمعية العمومية ═══════════ */
+let elecLiveTimer=null, elecCandQ={}, elecView='setup';
 
 function electionPageURL(id){
   const base=location.origin + location.pathname.replace(/[^/]*$/, '');
   return base + 'vote.html?e=' + encodeURIComponent(id);
 }
-function qrImgURL(text, size){
+function qrImgURL(text,size){
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size||400}x${size||400}&margin=6&data=${encodeURIComponent(text)}`;
 }
+function asmElec(){ const a=getAssembly(); return a ? (a.election||null) : null; }
 
-function openElectionsPage(){ openFullPage('elections'); if(currentElection) renderElectionEditor(); else renderElectionsPage(); }
-function closeElectionsPage(){ stopElecLive(); switchTab('meetings'); setTimeout(()=>openIdara('sec'),80); }
-
-function renderElectionsPage(){
-  const host=$('#electionsBody');
-  const list=[...elections].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
-  host.innerHTML=`
-  <div class="el-head"><div class="t">${icon('check',18,'ico-btn')} انتخابات الهيئة</div>
-    <div class="s">ترشيح · تصويت · نتائج</div></div>
-  <button class="btn btn-primary" style="width:100%;margin-bottom:13px" onclick="newElection()">
-    ${icon('plus',17,'ico-btn')} دورة انتخابية جديدة</button>
-  ${list.length?list.map(e=>`
-    <div class="el-row" onclick="openElection('${e.id}')">
-      <div style="flex:1;min-width:0">
-        <div class="el-row-n">${escapeHtml(e.title||'')}</div>
-        <div class="el-row-m">${(e.committees||[]).length} لجنة · ${e.cloudId?(e.closed?'مُغلقة':'مفتوحة'):'لم تُفتح بعد'}</div>
-      </div>
-      <span style="font-size:20px;color:var(--muted-2)">›</span>
-    </div>`).join(''):'<div class="lt-empty">لا دورات انتخابية بعد</div>'}`;
-}
-async function newElection(){
-  const y=settings.year||parseInt(hijriParts().year,10)||1448;
-  const title=prompt('عنوان الدورة الانتخابية:', `انتخابات الهيئة ${y} هـ`);
-  if(title===null) return;
-  const e={ id:'el_'+Date.now(), title:title.trim()||`انتخابات ${y} هـ`, year:y,
-            committees:[], cloudId:'', closed:false, round:1, at:new Date().toISOString() };
-  elections.push(e); await saveElections();
-  logAudit('إضافة','الانتخابات',`دورة «${e.title}»`);
-  openElection(e.id);
-}
-function openElection(id){
-  currentElection = elections.find(x=>x.id===id) || null;
-  if(!currentElection) return;
-  renderElectionEditor();
-}
-function renderElectionEditor(){
-  const e=currentElection; if(!e) return;
-  const host=$('#electionsBody');
-  const asm=assemblies.find(a=>a.year===e.year) || assemblies[assemblies.length-1];
-  const present=(asm && asm.attendees)?asm.attendees.length:0;
+function renderAsmElection(){
+  const a=getAssembly(); if(!a) return;
+  const host=$('#asmElecBody'); if(!host) return;
+  if(!a.election){
+    host.innerHTML=`
+    <div class="el-head"><div class="t">${icon('check',18,'ico-btn')} انتخابات الجمعية ${a.year}</div>
+      <div class="s">${(a.attendees||[]).length} حاضراً سيحق لهم التصويت</div></div>
+    <div class="fin-hint" style="margin-bottom:12px">${icon('info',15,'ico-btn')}
+      الناخبون يُؤخذون تلقائياً من <b>حضور هذه الجمعية</b>. سجّل الحضور أولاً في قسم «الحضور».</div>
+    <button class="btn btn-primary" style="width:100%" onclick="createAsmElection()">
+      ${icon('plus',17,'ico-btn')} إنشاء الدورة الانتخابية</button>`;
+    return;
+  }
+  if(elecView==='results') return renderAsmResults();
+  const e=a.election;
   const url=e.cloudId?electionPageURL(e.cloudId):'';
+  const present=(a.attendees||[]).length;
   host.innerHTML=`
-  <div class="el-head"><div class="t">${escapeHtml(e.title)}</div>
-    <div class="s">${(e.committees||[]).length} لجنة · ${present} حاضراً في الجمعية</div></div>
-
-  <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:12px" onclick="renderElectionsPage()">← كل الدورات</button>
+  <div class="el-head"><div class="t">${icon('check',18,'ico-btn')} انتخابات الجمعية ${a.year}</div>
+    <div class="s">${(e.committees||[]).length} لجنة · ${present} حاضراً${Number(e.round||1)>1?` · الجولة ${e.round}`:''}</div></div>
 
   ${!e.cloudId?`<button class="btn btn-primary" style="width:100%;margin-bottom:13px" onclick="addElecComm()">
     ${icon('plus',16,'ico-btn')} إضافة لجنة</button>`:''}
@@ -930,17 +902,26 @@ function renderElectionEditor(){
       : `<span class="el-badge vote">انتخاب (${n})</span>`;
     return `<div class="el-comm">
       <div class="el-comm-h"><span class="el-comm-n">${escapeHtml(c.name)}</span>${badge}
-        ${!e.cloudId?`<button class="x" style="background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer" onclick="delElecComm('${c.id}')">×</button>`:''}</div>
+        ${!e.cloudId?`<button style="background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer" onclick="delElecComm('${c.id}')">×</button>`:''}</div>
       ${(c.candidates||[]).map(cd=>`<div class="el-cand">${icon('user',15,'ico-btn')} ${escapeHtml(cd.name)}
         ${!e.cloudId?`<button class="x" onclick="delElecCand('${c.id}','${cd.id}')">×</button>`:''}</div>`).join('')}
-      ${!e.cloudId?`<div class="el-add">
-        <select id="cand_${c.id}">
-          <option value="">— اختر عضواً للترشيح —</option>
-          ${[...members].sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar'))
-            .filter(m=>!(c.candidates||[]).some(x=>x.memberId===m.id))
-            .map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
-        </select>
-        <button class="btn btn-primary btn-sm" style="width:auto;padding:9px 14px" onclick="addElecCand('${c.id}')">${icon('plus',15)}</button>
+      ${!e.cloudId?`<div class="el-search">
+        <div class="el-search-in">${icon('search',15,'ico-btn')}
+          <input type="text" id="q_${c.id}" placeholder="ابحث عن عضو بالاسم…" value="${escapeHtml(elecCandQ[c.id]||'')}"
+                 oninput="elecSetCandQ('${c.id}',this.value)" autocomplete="off" /></div>
+        ${(()=>{
+          const q=(elecCandQ[c.id]||'').trim();
+          const avail=[...members].filter(m=>!(c.candidates||[]).some(x=>x.memberId===m.id))
+            .filter(m=>!q||(m.name||'').includes(q))
+            .sort((x,y)=>(x.name||'').localeCompare(y.name||'','ar'));
+          if(!q) return `<div class="el-search-hint">اكتب اسماً للبحث · ${avail.length} عضواً متاحاً</div>`;
+          if(!avail.length) return `<div class="el-search-hint">لا نتائج لـ «${escapeHtml(q)}»</div>`;
+          return `<div class="el-results">${avail.slice(0,8).map(m=>`
+            <div class="el-res" onclick="addElecCandById('${c.id}','${m.id}')">
+              ${icon('user',14,'ico-btn')} <span>${escapeHtml(m.name)}</span>
+              <span class="el-res-add">${icon('plus',15)}</span></div>`).join('')}
+            ${avail.length>8?`<div class="el-search-hint">و${avail.length-8} نتيجة أخرى — ضيّق البحث</div>`:''}</div>`;
+        })()}
       </div>`:''}
     </div>`;
   }).join('')}
@@ -952,12 +933,12 @@ function renderElectionEditor(){
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" style="flex:1" onclick="copyElecLink()">${icon('link',15,'ico-btn')} نسخ الرابط</button>
         <a class="btn btn-sm" style="flex:1;background:#25d366;color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px"
-           href="https://wa.me/?text=${encodeURIComponent(elecWhatsappText(e,url))}" target="_blank">${icon('mail',15,'ico-btn')} واتساب</a>
+           href="https://wa.me/?text=${encodeURIComponent(elecWhatsappText(a,url))}" target="_blank">${icon('mail',15,'ico-btn')} واتساب</a>
       </div>
     </div>
     <div class="el-live" id="elecLive"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <button class="btn btn-accent btn-sm" style="flex:1" onclick="openResultsPage()">${icon('chart',15,'ico-btn')} شاشة النتائج</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-accent btn-sm" style="flex:1" onclick="showAsmResults()">${icon('chart',15,'ico-btn')} النتائج</button>
       <button class="btn btn-sm" style="flex:1;${e.closed?'background:var(--ok);':'background:var(--danger);'}color:#fff;border:none" onclick="toggleElecClosed()">
         ${e.closed?icon('check',15,'ico-btn')+' فتح التصويت':icon('lock',15,'ico-btn')+' إغلاق التصويت'}</button>
     </div>
@@ -966,74 +947,92 @@ function renderElectionEditor(){
       ${icon('link',17,'ico-btn')} فتح التصويت وتوليد الرابط</button>
     <div class="fin-hint">${icon('info',15,'ico-btn')} بعد الفتح لا يمكن تعديل اللجان أو المرشّحين.</div>
   `}
-  <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--danger);margin-top:10px" onclick="delElection('${e.id}')">
-    ${icon('trash',15,'ico-btn')} حذف الدورة</button>`;
+  <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--danger);margin-top:10px" onclick="delAsmElection()">
+    ${icon('trash',15,'ico-btn')} حذف الدورة الانتخابية</button>`;
   if(e.cloudId && !e.closed) startElecLive(); else { stopElecLive(); refreshElecLive(); }
 }
-function elecWhatsappText(e,url){
-  return `🗳️ *انتخابات هيئة محبي الحسين (ع)*\n\n${e.title}\n\nنرجو من الحضور الكرام التصويت عبر الرابط:\n${url}\n\nلكل عضو صوت واحد فقط.\nجزاكم الله خير الجزاء.`;
+function elecWhatsappText(a,url){
+  return `🗳️ *انتخابات هيئة محبي الحسين (ع)*\n\nالجمعية العمومية ${a.year}\n\nنرجو من الحضور الكرام التصويت عبر الرابط:\n${url}\n\nلكل عضو صوت واحد فقط.\nجزاكم الله خير الجزاء.`;
+}
+async function createAsmElection(){
+  const a=getAssembly(); if(!a) return;
+  a.election={ committees:[], cloudId:'', closed:false, round:1, revoteComms:[], at:new Date().toISOString() };
+  await saveAssemblies();
+  logAudit('إضافة','الانتخابات',`دورة انتخابية للجمعية ${a.year}`);
+  renderAsmElection();
+}
+async function delAsmElection(){
+  const a=getAssembly(); if(!a||!a.election) return;
+  if(!confirm('حذف الدورة الانتخابية وكل أصواتها؟')) return;
+  if(a.election.cloudId){ try{ await CloudSync.deleteElection(a.election.cloudId); }catch(e){} }
+  delete a.election;
+  await saveAssemblies();
+  logAudit('حذف','الانتخابات',`دورة الجمعية ${a.year}`);
+  elecView='setup'; renderAsmElection();
 }
 async function addElecComm(){
-  const e=currentElection; if(!e) return;
-  const name=prompt('اسم اللجنة:');
-  if(!name || !name.trim()) return;
+  const e=asmElec(); if(!e) return;
+  const name=prompt('اسم اللجنة:'); if(!name||!name.trim()) return;
   e.committees=e.committees||[];
   e.committees.push({ id:'c_'+Date.now(), name:name.trim(), candidates:[] });
-  await saveElections(); renderElectionEditor();
+  await saveAssemblies(); renderAsmElection();
 }
 async function delElecComm(cid){
-  const e=currentElection; if(!e) return;
+  const e=asmElec(); if(!e) return;
   const c=(e.committees||[]).find(x=>x.id===cid); if(!c) return;
   if(!confirm(`حذف «${c.name}»؟`)) return;
   e.committees=e.committees.filter(x=>x.id!==cid);
-  await saveElections(); renderElectionEditor();
+  await saveAssemblies(); renderAsmElection();
 }
-async function addElecCand(cid){
-  const e=currentElection; if(!e) return;
+function elecSetCandQ(cid,v){
+  elecCandQ[cid]=v; renderAsmElection();
+  const i=$('#q_'+cid); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); }
+}
+async function addElecCandById(cid,mid){
+  const e=asmElec(); if(!e) return;
   const c=(e.committees||[]).find(x=>x.id===cid); if(!c) return;
-  const mid=$('#cand_'+cid).value; if(!mid){ toast('اختر عضواً'); return; }
   const m=members.find(x=>x.id===mid); if(!m) return;
   c.candidates=c.candidates||[];
   c.candidates.push({ id:'cd_'+Date.now(), memberId:m.id, name:m.name, code:memberCode(m) });
-  await saveElections(); renderElectionEditor();
+  elecCandQ[cid]='';
+  await saveAssemblies();
+  logAudit('إضافة','الانتخابات',`ترشيح «${m.name}» للجنة «${c.name}»`);
+  renderAsmElection();
 }
 async function delElecCand(cid,cdid){
-  const e=currentElection; if(!e) return;
+  const e=asmElec(); if(!e) return;
   const c=(e.committees||[]).find(x=>x.id===cid); if(!c) return;
   c.candidates=(c.candidates||[]).filter(x=>x.id!==cdid);
-  await saveElections(); renderElectionEditor();
+  await saveAssemblies(); renderAsmElection();
 }
-/* فتح التصويت: يرفع الدورة + قائمة الحاضرين والمؤهّلين */
+/* فتح التصويت — الناخبون من حضور هذه الجمعية */
 async function openElecVoting(){
-  const e=currentElection; if(!e) return;
+  const a=getAssembly(); const e=a?a.election:null; if(!a||!e) return;
   if(!(e.committees||[]).length){ toast('أضف لجنة واحدة على الأقل'); return; }
   const empty=(e.committees||[]).filter(c=>!(c.candidates||[]).length);
   if(empty.length){ toast(`لجان بلا مرشّحين: ${empty.map(c=>c.name).join('، ')}`); return; }
-  const asm=assemblies.find(a=>a.year===e.year) || assemblies[assemblies.length-1];
-  const attend=(asm && asm.attendees)?asm.attendees:[];
-  if(!attend.length){ toast('لا يوجد حضور مسجّل في الجمعية العمومية'); return; }
+  const attend=(a.attendees||[]);
+  if(!attend.length){ toast('سجّل الحضور أولاً في قسم «الحضور»'); return; }
   const voters=[], eligible=[];
   attend.forEach(id=>{
     const m=members.find(x=>x.id===id); if(!m) return;
-    const code=memberCode(m);
-    voters.push(code);
+    const code=memberCode(m); voters.push(code);
     if(isActive(m)) eligible.push(code);
   });
   if(!confirm(`فتح التصويت؟\n\n• ${voters.length} من حضور الجمعية يمكنهم التصويت\n• ${eligible.length} منهم عضويتهم مفعّلة (أصواتهم صحيحة)\n\n⚠️ بعد الفتح لا يمكن تعديل اللجان.`)) return;
   try{
     const id=await CloudSync.createElection({
-      title:e.title, year:e.year, committees:e.committees,
+      title:`الجمعية العمومية ${a.year}`, year:a.year, committees:e.committees,
       voters, eligible, logo:(typeof HAIAA_LOGO!=='undefined'?HAIAA_LOGO:''), revoteComms:[]
     });
     e.cloudId=id; e.closed=false; e.round=1;
-    await saveElections();
-    logAudit('فتح','الانتخابات',`التصويت لدورة «${e.title}»`);
-    toast('فُتح التصويت');
-    renderElectionEditor();
+    await saveAssemblies();
+    logAudit('فتح','الانتخابات',`التصويت للجمعية ${a.year}`);
+    toast('فُتح التصويت'); renderAsmElection();
   }catch(err){ console.error(err); toast('تعذّر فتح التصويت'); }
 }
 function copyElecLink(){
-  const e=currentElection; if(!e||!e.cloudId) return;
+  const e=asmElec(); if(!e||!e.cloudId) return;
   const url=electionPageURL(e.cloudId);
   const done=()=>toast('نُسخ رابط التصويت');
   navigator.clipboard?.writeText(url).then(done).catch(()=>{
@@ -1042,73 +1041,59 @@ function copyElecLink(){
   });
 }
 async function toggleElecClosed(){
-  const e=currentElection; if(!e||!e.cloudId) return;
+  const a=getAssembly(); const e=a?a.election:null; if(!e||!e.cloudId) return;
   const next=!e.closed;
   if(!confirm(next?'إغلاق باب التصويت؟':'إعادة فتح التصويت؟')) return;
   try{
     await CloudSync.updateElection(e.cloudId,{ closed:next });
-    e.closed=next; await saveElections();
-    logAudit(next?'إغلاق':'فتح','الانتخابات',`دورة «${e.title}»`);
+    e.closed=next; await saveAssemblies();
+    logAudit(next?'إغلاق':'فتح','الانتخابات',`الجمعية ${a.year}`);
     toast(next?'أُغلق التصويت':'أُعيد فتح التصويت');
-    renderElectionEditor();
+    renderAsmElection();
   }catch(err){ console.error(err); toast('تعذّر التنفيذ'); }
 }
-async function delElection(id){
-  const e=elections.find(x=>x.id===id); if(!e) return;
-  if(!confirm(`حذف دورة «${e.title}» نهائياً؟`)) return;
-  if(e.cloudId){ try{ await CloudSync.deleteElection(e.cloudId); }catch(err){} }
-  elections=elections.filter(x=>x.id!==id);
-  await saveElections();
-  logAudit('حذف','الانتخابات',`دورة «${e.title}»`);
-  currentElection=null; renderElectionsPage();
-}
-
-/* ═══ العدّادات الحيّة ═══ */
-function startElecLive(){ stopElecLive(); refreshElecLive(); elecLiveTimer=setInterval(refreshElecLive, 6000); }
+/* العدّادات الحيّة */
+function startElecLive(){ stopElecLive(); refreshElecLive(); elecLiveTimer=setInterval(refreshElecLive,6000); }
 function stopElecLive(){ if(elecLiveTimer){ clearInterval(elecLiveTimer); elecLiveTimer=null; } }
 async function refreshElecLive(){
-  const e=currentElection; const box=$('#elecLive');
+  const e=asmElec(); const box=$('#elecLive');
   if(!e||!e.cloudId||!box) return;
   try{
     const ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1);
-    const valid=ballots.filter(b=>b.valid).length;
-    const invalid=ballots.length-valid;
+    const valid=ballots.filter(b=>b.valid).length, invalid=ballots.length-valid;
     box.innerHTML=`
       <div class="elv ok"><div class="v">${valid}</div><div class="l">صوت صحيح</div></div>
       <div class="elv void"><div class="v">${invalid}</div><div class="l">صوت ملغى</div></div>
       <div class="elv"><div class="v">${ballots.length}</div><div class="l">إجمالي المصوّتين</div></div>`;
-    window.__lastBallots=ballots;
   }catch(err){ box.innerHTML='<div class="elv" style="grid-column:1/-1"><div class="l">تعذّر جلب الأصوات</div></div>'; }
 }
-
-/* ═══ النتائج ═══ */
+/* النتائج */
 function computeResults(e, ballots){
   const valid=ballots.filter(b=>b.valid);
-  const only=(e.round>1 && (e.revoteComms||[]).length) ? e.revoteComms : null;
+  const only=(Number(e.round||1)>1 && (e.revoteComms||[]).length) ? e.revoteComms : null;
   return (e.committees||[]).map(c=>{
     const cands=c.candidates||[];
-    if(cands.length===1) return { comm:c, acclaim:cands[0], rows:[], tie:false };
+    if(cands.length===1) return { comm:c, acclaim:cands[0], rows:[], tie:false, skipped: only?!only.includes(c.id):false };
     const counts={}; cands.forEach(cd=>counts[cd.id]=0);
     valid.forEach(b=>{ const p=(b.picks||{})[c.id]; if(p!=null && counts[p]!=null) counts[p]++; });
-    const rows=cands.map(cd=>({ id:cd.id, name:cd.name, votes:counts[cd.id]||0 })).sort((a,b)=>b.votes-a.votes);
+    const rows=cands.map(cd=>({ id:cd.id, name:cd.name, votes:counts[cd.id]||0 })).sort((x,y)=>y.votes-x.votes);
     const mx=rows.length?rows[0].votes:0;
-    const tie = rows.filter(r=>r.votes===mx).length>1 && mx>0;
-    return { comm:c, acclaim:null, rows, tie, max:mx, skipped: only ? !only.includes(c.id) : false };
+    const tie=rows.filter(r=>r.votes===mx).length>1 && mx>0;
+    return { comm:c, acclaim:null, rows, tie, max:mx, skipped: only?!only.includes(c.id):false };
   });
 }
-function openResultsPage(){ openFullPage('elecresults'); renderResultsPage(); startResultsLive(); }
-function closeResultsPage(){ stopElecLive(); switchTab('meetings'); setTimeout(()=>{ openElectionsPage(); if(currentElection) renderElectionEditor(); },80); }
-function startResultsLive(){ stopElecLive(); renderResultsPage(); elecLiveTimer=setInterval(renderResultsPage, 6000); }
-async function renderResultsPage(){
-  const e=currentElection; const host=$('#elecResultsBody');
-  if(!e||!e.cloudId||!host) return;
-  let ballots=[];
-  try{ ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1); }catch(err){}
+function showAsmResults(){ elecView='results'; renderAsmResults(); }
+function backToElecSetup(){ elecView='setup'; stopElecLive(); renderAsmElection(); }
+async function renderAsmResults(){
+  const a=getAssembly(); const e=a?a.election:null;
+  const host=$('#asmElecBody'); if(!e||!e.cloudId||!host) return;
+  let ballots=[]; try{ ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1); }catch(err){}
   const valid=ballots.filter(b=>b.valid).length, invalid=ballots.length-valid;
   const res=computeResults(e, ballots);
   const ties=res.filter(r=>r.tie && !r.skipped);
   host.innerHTML=`
-  <div class="el-head"><div class="t">نتائج ${escapeHtml(e.title)}</div>
+  <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:11px" onclick="backToElecSetup()">← رجوع لإدارة الانتخابات</button>
+  <div class="el-head"><div class="t">النتائج</div>
     <div class="s">${e.closed?'التصويت مُغلق':'مباشر · يتحدّث تلقائياً'}${Number(e.round||1)>1?` · الجولة ${e.round}`:''}</div></div>
   <div class="el-live">
     <div class="elv ok"><div class="v">${valid}</div><div class="l">صوت صحيح</div></div>
@@ -1117,10 +1102,10 @@ async function renderResultsPage(){
   </div>
   ${res.filter(r=>!r.skipped).map(r=>{
     if(r.acclaim) return `<div class="res-comm"><div class="res-comm-n">${escapeHtml(r.comm.name)}</div>
-      <div class="acc-row" style="border-radius:10px;background:var(--ok-soft);padding:12px">
-        <span class="acc-ic" style="width:26px;height:26px;border-radius:50%;background:var(--ok);color:#fff;display:inline-flex;align-items:center;justify-content:center;margin-left:9px">✓</span>
-        <span style="font-weight:700;color:var(--ok)">${escapeHtml(r.acclaim.name)}</span>
-        <span style="font-size:11px;color:var(--muted);margin-right:8px">فوز بالتزكية</span></div></div>`;
+      <div style="background:var(--ok-soft);border-radius:10px;padding:12px;display:flex;align-items:center;gap:9px">
+        <span style="width:26px;height:26px;border-radius:50%;background:var(--ok);color:#fff;display:inline-flex;align-items:center;justify-content:center">✓</span>
+        <b style="color:var(--ok)">${escapeHtml(r.acclaim.name)}</b>
+        <span style="font-size:11px;color:var(--muted)">فوز بالتزكية</span></div></div>`;
     const mx=r.max||1;
     return `<div class="res-comm"><div class="res-comm-n">${escapeHtml(r.comm.name)}</div>
       ${r.rows.map(x=>`<div class="bar-row ${(x.votes===r.max && !r.tie && r.max>0)?'win':''}">
@@ -1131,45 +1116,40 @@ async function renderResultsPage(){
   }).join('')}
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
     ${(e.closed && ties.length)?`<button class="btn" style="flex:1;background:var(--warn);color:#fff;border:none" onclick="startRevote()">
-      ${icon('chevron',15,'ico-btn')} إعادة التصويت (${ties.length} ${ties.length===1?'لجنة':'لجان'})</button>`:''}
+      ${icon('chevron',15,'ico-btn')} إعادة التصويت (${ties.length})</button>`:''}
     <button class="btn btn-accent" style="flex:1" onclick="printElectionResults()">${icon('print',15,'ico-btn')} محضر النتائج PDF</button>
   </div>
-  ${invalid>0?`<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:9px" onclick="showVoidVoters()">
+  ${voidVotersList().length?`<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:9px" onclick="showVoidVoters()">
     ${icon('users',15,'ico-btn')} قائمة غير المفعّلين (${voidVotersList().length})</button>`:''}`;
-  window.__lastBallots=ballots;
+  if(!e.closed){ stopElecLive(); elecLiveTimer=setInterval(renderAsmResults,7000); }
 }
-/* قائمة الحاضرين غير المفعّلين — لك فقط */
 function voidVotersList(){
-  const e=currentElection; if(!e) return [];
-  const asm=assemblies.find(a=>a.year===e.year) || assemblies[assemblies.length-1];
-  const attend=(asm && asm.attendees)?asm.attendees:[];
-  return attend.map(id=>members.find(m=>m.id===id)).filter(m=>m && !isActive(m));
+  const a=getAssembly(); if(!a) return [];
+  return (a.attendees||[]).map(id=>members.find(m=>m.id===id)).filter(m=>m && !isActive(m));
 }
 function showVoidVoters(){
-  const list=voidVotersList();
-  if(!list.length){ toast('لا يوجد'); return; }
+  const list=voidVotersList(); if(!list.length){ toast('لا يوجد'); return; }
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>غير المفعّلين</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
   <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:24px;color:#1a2620}
   h1{font-size:18px;color:#1c4536;margin-bottom:6px}p{font-size:12.5px;color:#8a7c6b;margin-bottom:16px}
   table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{border:1px solid #e6ddcb;padding:9px 11px;text-align:right}
-  th{background:#1c4536;color:#fff}tr:nth-child(even){background:#faf7f0}
-  a{color:#25d366;text-decoration:none;font-weight:600}
+  th{background:#1c4536;color:#fff}tr:nth-child(even){background:#faf7f0}a{color:#25d366;text-decoration:none;font-weight:600}
   @media print{.np{display:none}}</style></head><body>
-  <div class="np" style="margin-bottom:14px"><button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-family:inherit;cursor:pointer">🖨️ طباعة</button></div>
+  <div class="np" style="margin-bottom:14px"><button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-family:inherit;cursor:pointer">🖨️ طباعة</button>
+  <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-family:inherit;cursor:pointer;margin-right:6px">↩︎ عودة</button></div>
   <h1>الحاضرون غير المفعّلة عضويتهم</h1>
-  <p>حضروا الجمعية ولم تُحتسب أصواتهم — للتواصل معهم بشأن تفعيل العضوية</p>
+  <p>حضروا الجمعية ولم تُحتسب أصواتهم — للتواصل بشأن تفعيل العضوية</p>
   <table><tr><th>#</th><th>الاسم</th><th>رقم العضوية</th><th>الهاتف</th><th>واتساب</th></tr>
   ${list.map((m,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(m.name)}</td><td>${memberCode(m)}</td>
     <td dir="ltr">${escapeHtml(m.phone||'—')}</td>
-    <td>${m.phone?`<a href="${whatsappLink(m.phone,`السلام عليكم، نشكر لكم حضوركم الجمعية العمومية. نودّ تذكيركم بتفعيل العضوية لهذا العام.`)}" target="_blank">مراسلة</a>`:'—'}</td></tr>`).join('')}
+    <td>${m.phone?`<a href="${whatsappLink(m.phone,'السلام عليكم، نشكر لكم حضوركم الجمعية العمومية. نودّ تذكيركم بتفعيل العضوية لهذا العام.')}" target="_blank">مراسلة</a>`:'—'}</td></tr>`).join('')}
   </table></body></html>`);
   w.document.close();
 }
-/* بدء جولة الإعادة */
 async function startRevote(){
-  const e=currentElection; if(!e||!e.cloudId) return;
+  const a=getAssembly(); const e=a?a.election:null; if(!e||!e.cloudId) return;
   let ballots=[]; try{ ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1); }catch(err){}
   const res=computeResults(e, ballots);
   const ties=res.filter(r=>r.tie && !r.skipped).map(r=>r.comm.id);
@@ -1180,15 +1160,13 @@ async function startRevote(){
   try{
     await CloudSync.updateElection(e.cloudId,{ round:nextRound, revoteComms:ties, closed:false });
     e.round=nextRound; e.revoteComms=ties; e.closed=false;
-    await saveElections();
+    await saveAssemblies();
     logAudit('إعادة تصويت','الانتخابات',`الجولة ${nextRound} — ${names}`);
-    toast(`بدأت الجولة ${nextRound}`);
-    renderResultsPage();
+    toast(`بدأت الجولة ${nextRound}`); renderAsmResults();
   }catch(err){ console.error(err); toast('تعذّر بدء الإعادة'); }
 }
-/* محضر النتائج PDF */
 async function printElectionResults(){
-  const e=currentElection; if(!e||!e.cloudId) return;
+  const a=getAssembly(); const e=a?a.election:null; if(!e||!e.cloudId) return;
   let ballots=[]; try{ ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1); }catch(err){}
   const valid=ballots.filter(b=>b.valid).length, invalid=ballots.length-valid;
   const res=computeResults(e, ballots);
@@ -1228,7 +1206,7 @@ async function printElectionResults(){
   </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
     <div class="doc-title">محضر نتائج الانتخابات</div>
-    <div class="doc-sub">هيئة محبي الحسين (ع) · ${escapeHtml(e.title)} · ${hijriToday()}${Number(e.round||1)>1?` · الجولة ${e.round}`:''}</div></div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · الجمعية العمومية ${a.year} · ${hijriToday()}${Number(e.round||1)>1?` · الجولة ${e.round}`:''}</div></div>
   <div class="sum3">
     <div class="s3 ok"><div class="v">${valid}</div><div class="l">صوت صحيح</div></div>
     <div class="s3 void"><div class="v">${invalid}</div><div class="l">صوت ملغى</div></div>
@@ -4359,7 +4337,7 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters, elections
+    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -4402,11 +4380,10 @@ async function backupImport(e){
     if(Array.isArray(backup.archives)) archives=backup.archives;
     if(Array.isArray(backup.revenues)) revenues=backup.revenues;
     if(Array.isArray(backup.letters)) letters=backup.letters;
-    if(Array.isArray(backup.elections)) elections=backup.elections;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
-    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters(); await saveElections();
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
@@ -8049,7 +8026,6 @@ function closeFollowupPage(){ switchTab('meetings'); setTimeout(()=>openIdara('s
 /* عدّادات البطاقات */
 function updateSecCards(){
   const m=$('#secMtgCount'); if(m) m.textContent = meetings.length?`${meetings.length} اجتماعاً`:'لا اجتماعات';
-  const el=$('#secElecCount'); if(el) el.textContent = elections.length?`${elections.length} دورة`:'لا دورات';
   const t=$('#secTaskCount');
   if(t){ const open=meetings.reduce((s,x)=>s+((x.tasks||[]).filter(k=>!k.done).length),0);
     t.textContent = open?`${open} مهمة مفتوحة`:'لا مهام معلّقة'; }
@@ -8639,18 +8615,49 @@ function printBlankMemberForm(){
 /* ═══════════════════════ الجمعية العمومية ═══════════════════════ */
 let currentAssemblyId=null, asmSaveTimer=null;
 
+/* قائمة الجمعيات */
 function renderAssemblyTab(){
-  const sel=$('#asmYear');
-  if(!assemblies.length){ $('#asmEmpty').style.display='block'; $('#asmBody').style.display='none'; sel.innerHTML=''; return; }
+  currentAssemblyId=null;
+  const lp=$('#asmListPanel'), dp=$('#asmDetailPanel');
+  if(lp) lp.style.display='block';
+  if(dp) dp.style.display='none';
+  const box=$('#asmList'); if(!box) return;
   const sorted=[...assemblies].sort((a,b)=>b.year-a.year);
-  if(!currentAssemblyId || !assemblies.find(a=>a.id===currentAssemblyId)) currentAssemblyId=sorted[0].id;
-  sel.innerHTML=sorted.map(a=>`<option value="${a.id}" ${a.id===currentAssemblyId?'selected':''}>الجمعية العمومية ${a.year}</option>`).join('');
+  const sub=$('#asmListSub'); if(sub) sub.textContent = sorted.length?`${sorted.length} جمعية مسجّلة`:'لا جمعيات بعد';
+  box.innerHTML = sorted.length ? sorted.map(a=>`
+    <div class="asm-row" onclick="openAssembly('${a.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="asm-row-n">الجمعية العمومية ${a.year}</div>
+        <div class="asm-row-m">${(a.attendees||[]).length} حاضراً · ${(a.projects||[]).length} مشروعاً${a.election?' · انتخابات':''}</div>
+      </div>
+      <button class="del" onclick="event.stopPropagation();delAssembly('${a.id}')">×</button>
+      <span style="font-size:20px;color:var(--muted-2)">›</span>
+    </div>`).join('')
+    : '<div class="lt-empty">لا جمعيات بعد — اضغط «جمعية عمومية جديدة»</div>';
+}
+function openAssembly(id){
+  const a=assemblies.find(x=>x.id===id); if(!a) return;
+  currentAssemblyId=id;
+  $('#asmListPanel').style.display='none';
+  $('#asmDetailPanel').style.display='block';
+  const t=$('#asmTitle'); if(t) t.textContent=`الجمعية العمومية ${a.year}`;
   $('#asmEmpty').style.display='none'; $('#asmBody').style.display='block';
   loadReportFields(); renderAsmAttendance(); renderAsmProjects(); renderAsmDecCard();
-  $('#asmSearch').value=''; $('#asmSearchResults').innerHTML='';
+  const q=$('#asmSearch'); if(q) q.value='';
+  const r=$('#asmSearchResults'); if(r) r.innerHTML='';
   switchAsmPill('attend');
 }
-function switchAssembly(){ currentAssemblyId=$('#asmYear').value; renderAssemblyTab(); }
+function backToAsmList(){ stopElecLive(); renderAssemblyTab(); }
+async function delAssembly(id){
+  const a=assemblies.find(x=>x.id===id); if(!a) return;
+  if(!confirm(`حذف الجمعية العمومية ${a.year} وكل بياناتها؟`)) return;
+  if(a.election && a.election.cloudId){ try{ await CloudSync.deleteElection(a.election.cloudId); }catch(e){} }
+  assemblies=assemblies.filter(x=>x.id!==id);
+  await saveAssemblies();
+  logAudit('حذف','الجمعية العمومية',`جمعية ${a.year}`);
+  renderAssemblyTab();
+}
+function switchAssembly(){ }
 function getAssembly(){ return assemblies.find(a=>a.id===currentAssemblyId)||null; }
 function newAssembly(){
   const y=prompt('سنة الجمعية العمومية:', String(new Date().getFullYear()));
@@ -8659,13 +8666,15 @@ function newAssembly(){
   if(ex){ currentAssemblyId=ex.id; toast('الجمعية موجودة'); renderAssemblyTab(); return; }
   const a={ id:uid('asm'), year, attendees:[], projects:[],
     report:{adminWord:'',plan:'',majalis:'',events:'',mawakib:'',achievements:'',topProjects:'',challenges:'',honoring:''} };
-  assemblies.push(a); currentAssemblyId=a.id; saveAssemblies(); renderAssemblyTab(); toast('تم إنشاء الجمعية العمومية '+year);
+  assemblies.push(a); saveAssemblies(); toast('تم إنشاء الجمعية العمومية '+year); openAssembly(a.id);
 }
 function switchAsmPill(which){
   $$('.asm-pills .asm-pill').forEach(p=>p.classList.toggle('active', p.dataset.apill===which));
   $('#apane-attend').style.display = which==='attend'?'block':'none';
   $('#apane-projects').style.display = which==='projects'?'block':'none';
   $('#apane-report').style.display = which==='report'?'block':'none';
+  const el=$('#apane-elec'); if(el) el.style.display = which==='elec'?'block':'none';
+  if(which==='elec') renderAsmElection(); else stopElecLive();
 }
 
 /* الحضور + الداشبورد */
