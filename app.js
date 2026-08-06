@@ -4171,7 +4171,7 @@ function renderIdaraHub(){
   const el=document.getElementById('idaraAdminsCount'); if(el) el.textContent=`${n} إداري`;
 }
 function openIdara(which){
-  if(which==='sec'){ idaraShow('sec'); renderMeetings(); fillAnnualYears(); }
+  if(which==='sec'){ idaraShow('sec'); updateSecCards(); fillAnnualYears(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); renderGdCats(); buildGdIndex(); }
@@ -7639,12 +7639,22 @@ function toggleDash(){
   body.style.display = open?'block':'none';
   if(caret) caret.classList.toggle('open', open);
 }
+/* أقسام أمانة السر — كل واحد صفحة مستقلة */
 function switchMeetingSubtab(which){
-  if(which==='assembly'){ openAssemblyPage(); return; }   // تبويب مستقل
-  $$('.mtg-subtabs .tab').forEach(t=>t.classList.toggle('active', t.dataset.mtab===which));
-  $('#mtab-list').style.display = which==='list'?'block':'none';
-  $('#mtab-followup').style.display = which==='followup'?'block':'none';
-  if(which==='followup') renderFollowup();
+  if(which==='assembly') return openAssemblyPage();
+  if(which==='followup') return openFollowupPage();
+  return openMeetingsPage();
+}
+function openMeetingsPage(){ openFullPage('meetingslist'); renderMeetings(); }
+function closeMeetingsPage(){ switchTab('meetings'); setTimeout(()=>openIdara('sec'),80); }
+function openFollowupPage(){ openFullPage('followup'); renderFollowup(); }
+function closeFollowupPage(){ switchTab('meetings'); setTimeout(()=>openIdara('sec'),80); }
+/* عدّادات البطاقات */
+function updateSecCards(){
+  const m=$('#secMtgCount'); if(m) m.textContent = meetings.length?`${meetings.length} اجتماعاً`:'لا اجتماعات';
+  const t=$('#secTaskCount');
+  if(t){ const open=meetings.reduce((s,x)=>s+((x.tasks||[]).filter(k=>!k.done).length),0);
+    t.textContent = open?`${open} مهمة مفتوحة`:'لا مهام معلّقة'; }
 }
 /* الجمعية العمومية — صفحة مستقلة */
 function openAssemblyPage(){

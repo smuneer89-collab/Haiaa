@@ -440,6 +440,16 @@
     font-family:var(--font-sans); font-size:13px; background:var(--surface); color:var(--ink); width:100%; box-sizing:border-box; }
   .rc-edit-btns { display:flex; gap:8px; }
   .rc-edit-btns .btn { flex:1; }
+  /* بطاقات أمانة السر */
+  .sec-cards { display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:14px; }
+  .sec-card { background:var(--surface); border:1px solid var(--line); border-radius:15px; padding:18px 12px;
+    display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer;
+    font-family:var(--font-sans); position:relative; overflow:hidden; }
+  .sec-card::before { content:''; position:absolute; top:0; right:0; width:3px; height:100%; background:var(--gold); }
+  .sec-card:active { transform:scale(.98); }
+  .sec-card .sc-ic { color:var(--accent); display:flex; }
+  .sec-card .sc-t { font-size:14px; font-weight:700; color:var(--ink); }
+  .sec-card .sc-s { font-size:11px; color:var(--muted); min-height:14px; }
   .rc-totals { display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; padding:14px 16px; }
   .rc-t { text-align:center; border-radius:11px; padding:12px 8px; }
   .rc-t .v { font-size:16px; font-weight:800; }
@@ -1841,6 +1851,52 @@
     <div id="notifList"></div>
   </section>
 
+  <!-- قائمة الاجتماعات -->
+  <section id="tab-meetingslist" class="tab-content" style="display:none">
+    <div class="page-bar"><button class="btn btn-ghost btn-sm" onclick="closeMeetingsPage()">← رجوع لأمانة السر</button></div>
+    <div id="mtab-list">
+        <div class="panel">
+          <div class="search-box">
+            <input id="mtgSearch" placeholder="ابحث برقم الاجتماع / اللجنة / المحضر..." oninput="renderMeetingsList()" />
+            <span class="ico">⌕</span>
+          </div>
+          <div class="toolbar">
+            <select id="mtgFilterYear" onchange="renderMeetingsList()"><option value="">كل السنوات</option></select>
+            <select id="mtgFilterMonth" onchange="renderMeetingsList()"><option value="">كل الشهور</option></select>
+            <select id="mtgFilterCommittee" onchange="renderMeetingsList()"><option value="">كل اللجان</option></select>
+          </div>
+          <div id="meetingsList" class="meetings-list"></div>
+        </div>
+      </div>
+  </section>
+
+  <!-- لوحة المتابعة -->
+  <section id="tab-followup" class="tab-content" style="display:none">
+    <div class="page-bar"><button class="btn btn-ghost btn-sm" onclick="closeFollowupPage()">← رجوع لأمانة السر</button></div>
+    <div id="mtab-followup">
+        <div class="panel">
+          <div class="panel-header">
+            <div><h2 class="panel-title">📌 لوحة المتابعة</h2>
+              <div class="panel-sub">قرارات ومهام كل الاجتماعات في مكان واحد — مع المسؤول والموعد النهائي</div></div>
+          </div>
+          <div class="toolbar">
+            <select id="followType" onchange="renderFollowup()">
+              <option value="">القرارات والمهام</option>
+              <option value="decision">القرارات فقط</option>
+              <option value="task">المهام فقط</option>
+            </select>
+            <select id="followStatus" onchange="renderFollowup()">
+              <option value="">كل الحالات</option>
+              <option value="open">غير منجز</option>
+              <option value="done">منجز</option>
+              <option value="overdue">متأخر</option>
+            </select>
+          </div>
+          <div id="followupList" class="followup-list"></div>
+        </div>
+      </div>
+  </section>
+
   <!-- الجمعية العمومية -->
   <section id="tab-assembly" class="tab-content" style="display:none">
     <div class="page-bar">
@@ -2313,52 +2369,28 @@
         <button class="btn btn-accent" onclick="openInviteModal()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7l9.5 6 9.5-6"/></svg> دعوة اجتماع</button>
       </div>
 
-      <!-- sub-tabs -->
-      <div class="tabs mtg-subtabs">
-        <button class="tab active" data-mtab="list" onclick="switchMeetingSubtab('list')">قائمة الاجتماعات</button>
-        <button class="tab" data-mtab="followup" onclick="switchMeetingSubtab('followup')">📌 لوحة المتابعة</button>
-        <button class="tab" data-mtab="assembly" onclick="switchMeetingSubtab('assembly')"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M13 10h6a1 1 0 0 1 1 1v10"/><path d="M2 21h20M7 9h2M7 13h2M7 17h2M16 14h1M16 18h1"/></svg> الجمعية العمومية</button>
+      <!-- بطاقات أمانة السر -->
+      <div class="sec-cards">
+        <button class="sec-card" onclick="openMeetingsPage()">
+          <span class="sc-ic"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+          <span class="sc-t">قائمة الاجتماعات</span>
+          <span class="sc-s" id="secMtgCount"></span></button>
+        <button class="sec-card" onclick="openFollowupPage()">
+          <span class="sc-ic"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="sc-t">لوحة المتابعة</span>
+          <span class="sc-s" id="secTaskCount"></span></button>
+        <button class="sec-card" onclick="openAssemblyPage()">
+          <span class="sc-ic"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M13 10h6a1 1 0 0 1 1 1v10"/><path d="M2 21h20M7 9h2M7 13h2M7 17h2M16 14h1M16 18h1"/></svg></span>
+          <span class="sc-t">الجمعية العمومية</span>
+          <span class="sc-s"></span></button>
       </div>
+
 
       <!-- LIST -->
-      <div id="mtab-list">
-        <div class="panel">
-          <div class="search-box">
-            <input id="mtgSearch" placeholder="ابحث برقم الاجتماع / اللجنة / المحضر..." oninput="renderMeetingsList()" />
-            <span class="ico">⌕</span>
-          </div>
-          <div class="toolbar">
-            <select id="mtgFilterYear" onchange="renderMeetingsList()"><option value="">كل السنوات</option></select>
-            <select id="mtgFilterMonth" onchange="renderMeetingsList()"><option value="">كل الشهور</option></select>
-            <select id="mtgFilterCommittee" onchange="renderMeetingsList()"><option value="">كل اللجان</option></select>
-          </div>
-          <div id="meetingsList" class="meetings-list"></div>
-        </div>
-      </div>
+      
 
       <!-- FOLLOWUP -->
-      <div id="mtab-followup" style="display:none">
-        <div class="panel">
-          <div class="panel-header">
-            <div><h2 class="panel-title">📌 لوحة المتابعة</h2>
-              <div class="panel-sub">قرارات ومهام كل الاجتماعات في مكان واحد — مع المسؤول والموعد النهائي</div></div>
-          </div>
-          <div class="toolbar">
-            <select id="followType" onchange="renderFollowup()">
-              <option value="">القرارات والمهام</option>
-              <option value="decision">القرارات فقط</option>
-              <option value="task">المهام فقط</option>
-            </select>
-            <select id="followStatus" onchange="renderFollowup()">
-              <option value="">كل الحالات</option>
-              <option value="open">غير منجز</option>
-              <option value="done">منجز</option>
-              <option value="overdue">متأخر</option>
-            </select>
-          </div>
-          <div id="followupList" class="followup-list"></div>
-        </div>
-      </div>
+      
 
 
     </div>
