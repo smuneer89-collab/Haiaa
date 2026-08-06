@@ -859,6 +859,253 @@ function printAnnualReport(){
 
 
 
+
+/* ═══════════ اقتراحات الأعضاء ═══════════ */
+function renderAsmSuggestions(){
+  const a=getAssembly(); if(!a) return;
+  const host=$('#asmSuggBody'); if(!host) return;
+  const list=a.suggestions||[];
+  host.innerHTML=`
+  <div class="sg-add">
+    <div class="fl-h">${icon('plus',16,'ico-btn')} تسجيل اقتراح أو استفسار</div>
+    <div class="sg-fld"><label>اسم العضو</label>
+      <input id="sgName" type="text" placeholder="اسم مقدّم الاقتراح" /></div>
+    <div class="sg-fld"><label>الاقتراح أو الاستفسار</label>
+      <textarea id="sgText" rows="3" placeholder="نصّ الاقتراح…"></textarea></div>
+    <div class="sg-fld"><label>ردّ الإدارة <span style="font-weight:400;color:var(--muted)">(اختياري)</span></label>
+      <textarea id="sgReply" rows="2" placeholder="الردّ أو التوجيه…"></textarea></div>
+    <button class="btn btn-primary" style="width:100%" onclick="addSuggestion()">${icon('check',16,'ico-btn')} حفظ</button>
+  </div>
+  <div class="stats-sec-title">المسجّلة (${list.length})</div>
+  ${list.length?list.map((s,i)=>`
+    <div class="sg-item">
+      <div class="sg-h"><span class="sg-who">${icon('user',14,'ico-btn')} ${escapeHtml(s.name||'—')}</span>
+        <span style="font-size:11px;color:var(--muted)">${s.at?new Date(s.at).toLocaleDateString('ar'):''}</span></div>
+      <div class="sg-txt">${escapeHtml(s.text||'')}</div>
+      ${s.reply?`<div class="sg-reply"><b>ردّ الإدارة:</b> ${escapeHtml(s.reply)}</div>`:''}
+      <div class="sg-acts">
+        <button class="btn btn-ghost btn-sm" onclick="editSuggestion(${i})">${icon('edit',14,'ico-btn')} تعديل</button>
+        <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none" onclick="delSuggestion(${i})">${icon('trash',14,'ico-btn')} حذف</button>
+      </div>
+    </div>`).join(''):'<div class="lt-empty">لا اقتراحات مسجّلة بعد</div>'}`;
+}
+async function addSuggestion(){
+  const a=getAssembly(); if(!a) return;
+  const name=($('#sgName').value||'').trim();
+  const text=($('#sgText').value||'').trim();
+  if(!text){ toast('اكتب نصّ الاقتراح'); return; }
+  a.suggestions=a.suggestions||[];
+  a.suggestions.push({ id:'sg_'+Date.now(), name:name||'عضو', text, reply:($('#sgReply').value||'').trim(), at:new Date().toISOString() });
+  await saveAssemblies();
+  logAudit('إضافة','الجمعية العمومية',`اقتراح من «${name||'عضو'}»`);
+  toast('حُفظ الاقتراح'); renderAsmSuggestions();
+}
+async function editSuggestion(i){
+  const a=getAssembly(); if(!a) return;
+  const s=(a.suggestions||[])[i]; if(!s) return;
+  const t=prompt('نصّ الاقتراح:', s.text); if(t===null) return;
+  const r=prompt('ردّ الإدارة:', s.reply||''); if(r===null) return;
+  s.text=t.trim(); s.reply=r.trim();
+  await saveAssemblies(); toast('عُدّل'); renderAsmSuggestions();
+}
+async function delSuggestion(i){
+  const a=getAssembly(); if(!a) return;
+  const s=(a.suggestions||[])[i]; if(!s) return;
+  if(!confirm('حذف هذا الاقتراح؟')) return;
+  a.suggestions.splice(i,1);
+  await saveAssemblies(); renderAsmSuggestions();
+}
+
+/* ═══════════ الملف الشامل ═══════════ */
+function renderAsmFull(){
+  const a=getAssembly(); if(!a) return;
+  const host=$('#asmFullBody'); if(!host) return;
+  const f=a.full||{};
+  const imgs=a.photos||[];
+  host.innerHTML=`
+  <div class="fl-sec">
+    <div class="fl-h">${icon('doc',16,'ico-btn')} كلمات الجمعية</div>
+    <div class="fl-fld"><label>كلمة سماحة الشيخ</label>
+      <textarea id="flSheikh" rows="5" placeholder="نصّ كلمة الشيخ…" oninput="saveFullField()">${escapeHtml(f.sheikhWord||'')}</textarea></div>
+    <div class="fl-fld"><label>اسم الشيخ</label>
+      <input id="flSheikhName" type="text" placeholder="سماحة الشيخ …" value="${escapeHtml(f.sheikhName||'')}" oninput="saveFullField()" /></div>
+    <div class="fl-fld"><label>كلمة الإدارة</label>
+      <textarea id="flAdmin" rows="5" placeholder="نصّ كلمة الإدارة…" oninput="saveFullField()">${escapeHtml(f.adminWord||'')}</textarea></div>
+  </div>
+
+  <div class="fl-sec">
+    <div class="fl-h">${icon('money',16,'ico-btn')} التقرير المالي</div>
+    <div class="fl-fld"><label>نصّ التقرير المالي</label>
+      <textarea id="flFinance" rows="7" placeholder="اكتب التقرير المالي للسنة…" oninput="saveFullField()">${escapeHtml(f.financeReport||'')}</textarea></div>
+  </div>
+
+  <div class="fl-sec">
+    <div class="fl-h">${icon('image',16,'ico-btn')} صور الجمعية (${imgs.length})</div>
+    <button class="btn btn-ghost" style="width:100%" onclick="document.getElementById('asmPhotoInput').click()">
+      ${icon('plus',16,'ico-btn')} إضافة صور</button>
+    <input type="file" id="asmPhotoInput" accept="image/*" multiple style="display:none" onchange="addAsmPhotos(event)" />
+    ${imgs.length?`<div class="fl-imgs">${imgs.map((p,i)=>`
+      <div><div class="fl-img"><img src="${p.data}" alt="" onclick="window.open('${p.data}','_blank')" />
+        <button class="x" onclick="delAsmPhoto(${i})">×</button></div>
+        <input class="fl-cap" type="text" placeholder="تعليق…" value="${escapeHtml(p.caption||'')}" oninput="setAsmPhotoCaption(${i},this.value)" /></div>`).join('')}</div>`:''}
+  </div>
+
+  <button class="btn btn-accent" style="width:100%" onclick="printAssemblyFull()">
+    ${icon('print',17,'ico-btn')} طباعة الملف الشامل PDF</button>`;
+}
+let asmFullTimer=null;
+function saveFullField(){
+  const a=getAssembly(); if(!a) return;
+  a.full={
+    sheikhWord:$('#flSheikh').value, sheikhName:$('#flSheikhName').value,
+    adminWord:$('#flAdmin').value, financeReport:$('#flFinance').value
+  };
+  clearTimeout(asmFullTimer); asmFullTimer=setTimeout(saveAssemblies,600);
+}
+async function addAsmPhotos(ev){
+  const a=getAssembly(); if(!a) return;
+  const files=[...(ev.target.files||[])]; if(!files.length) return;
+  a.photos=a.photos||[];
+  for(const fl of files){
+    try{ const data=await processPhoto(fl, 1100, .82);
+      a.photos.push({ id:'ap_'+Date.now()+Math.random().toString(36).slice(2,5), data, caption:'' });
+    }catch(e){ console.error(e); }
+  }
+  ev.target.value='';
+  await saveAssemblies();
+  toast(`أُضيفت ${files.length} صورة`); renderAsmFull();
+}
+function setAsmPhotoCaption(i,v){
+  const a=getAssembly(); if(!a||!a.photos||!a.photos[i]) return;
+  a.photos[i].caption=v;
+  clearTimeout(asmFullTimer); asmFullTimer=setTimeout(saveAssemblies,600);
+}
+async function delAsmPhoto(i){
+  const a=getAssembly(); if(!a||!a.photos) return;
+  if(!confirm('حذف هذه الصورة؟')) return;
+  a.photos.splice(i,1);
+  await saveAssemblies(); renderAsmFull();
+}
+
+/* الملف الشامل PDF */
+async function printAssemblyFull(){
+  const a=getAssembly(); if(!a) return;
+  const f=a.full||{}, r=a.report||{};
+  const e=a.election;
+  let ballots=[], res=[];
+  if(e && e.cloudId){
+    try{ ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1); res=computeResults(e, ballots); }catch(err){}
+  }
+  const valid=ballots.filter(b=>b.valid).length, invalid=ballots.length-valid;
+  const present=(a.attendees||[]).map(id=>members.find(m=>m.id===id)).filter(Boolean);
+  const activeN=present.filter(isActive).length;
+  const sec=(t,v)=> v && String(v).trim() ? `<h2>${t}</h2><div class="txt">${escapeHtml(v)}</div>` : '';
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>الملف الشامل — الجمعية العمومية ${a.year}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:32px 36px;color:#1a2620;line-height:1.9;font-size:14px;}
+  .cover{text-align:center;padding:44px 0 32px;border-bottom:4px double #c19a3e;margin-bottom:26px;}
+  .cover img{max-width:230px;max-height:86px;margin-bottom:18px;}
+  .cv-title{font-family:'Amiri',serif;font-size:32px;font-weight:700;color:#1c4536;margin-bottom:6px;}
+  .cv-year{font-size:21px;color:#c19a3e;font-weight:700;}
+  .cv-sub{font-size:13px;color:#8a7c6b;margin-top:10px;}
+  h2{font-size:16px;color:#fff;background:#1c4536;display:inline-block;padding:6px 16px 6px 20px;border-radius:0 18px 18px 0;margin:24px 0 11px;}
+  .txt{white-space:pre-wrap;background:#fbf9f5;border:1px solid #ece3d4;border-right:4px solid #c19a3e;border-radius:10px;padding:16px 20px;font-size:14px;line-height:2;color:#33201d;}
+  .kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;}
+  .kpi{flex:1;min-width:110px;text-align:center;border:1px solid #e6ddcb;border-radius:12px;padding:14px 8px;background:#faf7f0;}
+  .kpi .v{font-size:20px;font-weight:800;color:#1c4536;} .kpi .l{font-size:11.5px;color:#8a7c6b;margin-top:3px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 14px;}
+  th,td{border:1px solid #e6ddcb;padding:8px 11px;text-align:right;}
+  th{background:#1c4536;color:#fff;font-size:12.5px;}
+  tr:nth-child(even){background:#faf7f0;}
+  .win td{background:#e9f4ed;font-weight:800;color:#2f8f5b;}
+  .acc-box{background:#e9f4ed;border:1px solid #2f8f5b;border-radius:10px;padding:11px 15px;margin-bottom:9px;}
+  .acc-box b{color:#2f8f5b;} .acc-box span{font-size:12px;color:#5a7a68;margin-right:8px;}
+  .sg{border:1px solid #e6ddcb;border-right:4px solid #c19a3e;border-radius:10px;padding:12px 15px;margin-bottom:9px;background:#fdfbf7;}
+  .sg-w{font-weight:700;color:#1c4536;font-size:13.5px;margin-bottom:4px;}
+  .sg-t{font-size:13.5px;line-height:1.9;}
+  .sg-r{background:#eef3ef;border-radius:8px;padding:9px 12px;margin-top:8px;font-size:12.5px;}
+  .sg-r b{color:#1c4536;}
+  .imgs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;}
+  .fig{margin:0;border:1px solid #ece3d4;border-radius:12px;padding:10px;background:#fdfbf7;page-break-inside:avoid;}
+  .fig img{width:100%;max-height:280px;object-fit:contain;border-radius:8px;display:block;}
+  .fig figcaption{margin-top:8px;font-size:12.5px;color:#5a4d42;text-align:center;line-height:1.7;}
+  .sig{margin-top:46px;text-align:left;padding-left:20px;}
+  .sig img{max-width:150px;display:block;margin-bottom:2px;}
+  .sig-line{width:190px;border-bottom:1px solid #8a7c6b;margin-bottom:6px;}
+  .sig-t{font-size:12px;color:#8a7c6b;} .sig-n{font-weight:700;color:#1c4536;}
+  .foot{margin-top:30px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:22px;} .no-print{display:none;} h2{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    tr,.fig,.sg{page-break-inside:avoid;} *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+
+  <div class="cover"><img src="${HAIAA_LOGO}" alt="" />
+    <div class="cv-title">محضر الجمعية العمومية</div>
+    <div class="cv-year">${a.year}</div>
+    <div class="cv-sub">هيئة محبي الحسين (ع) — بني جمرة · صدر بتاريخ ${hijriToday()}</div></div>
+
+  <h2>👥 الحضور</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v">${present.length}</div><div class="l">إجمالي الحاضرين</div></div>
+    <div class="kpi"><div class="v">${activeN}</div><div class="l">مفعّلو العضوية</div></div>
+    <div class="kpi"><div class="v">${present.length-activeN}</div><div class="l">غير مفعّلين</div></div>
+    <div class="kpi"><div class="v">${members.length}</div><div class="l">إجمالي الأعضاء</div></div>
+  </div>
+
+  ${sec(`🕌 كلمة ${f.sheikhName?escapeHtml(f.sheikhName):'سماحة الشيخ'}`, f.sheikhWord)}
+  ${sec('🗣️ كلمة الإدارة', f.adminWord || r.adminWord)}
+
+  ${(()=>{ const t=[
+      ['الخطة السنوية', r.plan],['المجالس', r.majalis],['الفعاليات', r.events],
+      ['المواكب', r.mawakib],['أبرز الإنجازات', r.achievements],['أبرز المشاريع', r.topProjects],
+      ['التحديات', r.challenges],['التكريم الحسيني', r.honoring]
+    ].filter(x=>x[1] && String(x[1]).trim());
+    return t.length?`<h2>📖 التقرير الأدبي</h2>`+t.map(x=>`<div style="margin-bottom:12px"><b style="color:#1c4536;font-size:14px">${x[0]}</b><div class="txt" style="margin-top:6px">${escapeHtml(x[1])}</div></div>`).join(''):''; })()}
+
+  ${sec('💰 التقرير المالي', f.financeReport)}
+
+  ${(a.projects||[]).length?`<h2>📋 المشاريع المنجزة</h2>
+    <table><tr><th>#</th><th>المشروع</th><th>اللجنة</th></tr>
+    ${a.projects.map((p,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(p.title||'')}</td><td>${escapeHtml(p.committee||'—')}</td></tr>`).join('')}
+    </table>`:''}
+
+  ${(a.suggestions||[]).length?`<h2>💡 اقتراحات واستفسارات الأعضاء</h2>
+    ${a.suggestions.map(s=>`<div class="sg"><div class="sg-w">${escapeHtml(s.name||'عضو')}</div>
+      <div class="sg-t">${escapeHtml(s.text||'')}</div>
+      ${s.reply?`<div class="sg-r"><b>ردّ الإدارة:</b> ${escapeHtml(s.reply)}</div>`:''}</div>`).join('')}`:''}
+
+  ${(e && e.cloudId && res.length)?`<h2>🗳️ نتائج الانتخابات</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${valid}</div><div class="l">صوت صحيح</div></div>
+      <div class="kpi"><div class="v">${invalid}</div><div class="l">صوت ملغى</div></div>
+      <div class="kpi"><div class="v">${ballots.length}</div><div class="l">إجمالي المصوّتين</div></div>
+    </div>
+    ${res.filter(x=>!x.skipped).map(x=>{
+      if(x.acclaim) return `<div style="margin-bottom:12px"><b style="color:#1c4536;font-size:14px">${escapeHtml(x.comm.name)}</b>
+        <div class="acc-box"><b>${escapeHtml(x.acclaim.name)}</b><span>فوز بالتزكية</span></div></div>`;
+      return `<div style="margin-bottom:12px"><b style="color:#1c4536;font-size:14px">${escapeHtml(x.comm.name)}</b>
+        <table><tr><th>المرشّح</th><th>الأصوات</th><th>النتيجة</th></tr>
+        ${x.rows.map(y=>`<tr class="${(y.votes===x.max&&!x.tie&&x.max>0)?'win':''}">
+          <td>${escapeHtml(y.name)}</td><td>${y.votes}</td>
+          <td>${(y.votes===x.max&&!x.tie&&x.max>0)?'فائز':'—'}</td></tr>`).join('')}
+        </table></div>`;
+    }).join('')}`:''}
+
+  ${(a.photos||[]).length?`<h2>📷 صور الجمعية</h2>
+    <div class="imgs">${a.photos.map(p=>`<figure class="fig"><img src="${p.data}" alt="" />
+      ${p.caption?`<figcaption>${escapeHtml(p.caption)}</figcaption>`:''}</figure>`).join('')}</div>`:''}
+
+  <div class="sig"><img src="${HAIAA_SIGNATURE}" alt="" /><div class="sig-line"></div>
+    <div class="sig-t">أمين السر</div><div class="sig-n">صادق الغسرة</div></div>
+  <div class="foot">هيئة محبي الحسين (ع) — بني جمرة · محضر الجمعية العمومية ${a.year}</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
+
 /* ═══════════ انتخابات الجمعية العمومية ═══════════ */
 let elecLiveTimer=null, elecCandQ={}, elecView='setup';
 
@@ -8674,7 +8921,11 @@ function switchAsmPill(which){
   $('#apane-projects').style.display = which==='projects'?'block':'none';
   $('#apane-report').style.display = which==='report'?'block':'none';
   const el=$('#apane-elec'); if(el) el.style.display = which==='elec'?'block':'none';
+  const sg=$('#apane-sugg'); if(sg) sg.style.display = which==='sugg'?'block':'none';
+  const fl=$('#apane-full'); if(fl) fl.style.display = which==='full'?'block':'none';
   if(which==='elec') renderAsmElection(); else stopElecLive();
+  if(which==='sugg') renderAsmSuggestions();
+  if(which==='full') renderAsmFull();
 }
 
 /* الحضور + الداشبورد */
