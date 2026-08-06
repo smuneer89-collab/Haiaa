@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex,nofollow">
+<title>انتخابات هيئة محبي الحسين</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800&family=Amiri:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4efe6;--surface:#fffdf8;--ink:#1a2620;--muted:#8a7c6b;--muted-2:#b3a894;--line:#e6ddcb;--accent:#1c4536;--accent-deep:#123028;--accent-soft:#e6f0ea;--gold:#c19a3e;--ok:#2f8f5b;--ok-soft:#e6f3ea;--danger:#b85c5c;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:20px;}
+.wrap{max-width:460px;margin:0 auto;}
+.vh{background:linear-gradient(150deg,var(--accent-deep),var(--accent));padding:24px 18px;color:#fff;text-align:center;position:relative;overflow:hidden;}
+.vh::after{content:'';position:absolute;inset:0;opacity:.12;background-image:repeating-linear-gradient(45deg,transparent 0 13px,#c19a3e 13px 14px),repeating-linear-gradient(-45deg,transparent 0 13px,#c19a3e 13px 14px);mask-image:linear-gradient(#000,transparent 75%);}
+.vh img{max-width:150px;max-height:56px;margin-bottom:10px;position:relative;}
+.vh .t{font-size:20px;font-weight:800;position:relative;}
+.vh .s{font-size:12px;color:var(--gold);margin-top:5px;position:relative;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:16px;margin:13px;}
+.fld label{display:block;font-size:13px;font-weight:600;margin-bottom:7px;color:var(--accent);}
+.fld input{width:100%;padding:13px 15px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:16px;background:var(--bg);text-align:center;letter-spacing:1px;color:var(--ink);}
+.btn{width:100%;padding:15px;border:none;border-radius:13px;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;}
+.btn:disabled{opacity:.45;}
+.hint{font-size:12px;color:var(--muted);line-height:1.7;margin-top:11px;text-align:center;}
+.err{background:#f9ecec;border:1px solid var(--danger);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--danger);margin-top:12px;text-align:center;}
+.comm{background:var(--surface);border:1px solid var(--line);border-radius:15px;margin:0 13px 12px;overflow:hidden;}
+.comm-h{background:var(--accent-soft);padding:12px 15px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.comm-n{font-size:15px;font-weight:700;color:var(--accent);}
+.comm-b{font-size:10.5px;padding:3px 10px;border-radius:20px;font-weight:700;white-space:nowrap;}
+.comm-b.vote{background:var(--accent);color:#fff;}
+.comm-b.acc{background:var(--ok-soft);color:var(--ok);border:1px solid var(--ok);}
+.cand{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--line);cursor:pointer;}
+.cand:last-child{border-bottom:none;}
+.cand.on{background:var(--accent-soft);}
+.radio{width:22px;height:22px;border:2px solid var(--line);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface);}
+.cand.on .radio{border-color:var(--accent);}
+.radio i{width:11px;height:11px;border-radius:50%;background:var(--accent);display:none;}
+.cand.on .radio i{display:block;}
+.cand-n{flex:1;font-size:14.5px;font-weight:600;}
+.acc-row{padding:14px 15px;display:flex;align-items:center;gap:11px;background:#f7fbf8;}
+.acc-ic{width:26px;height:26px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.acc-n{font-size:14.5px;font-weight:700;color:var(--ok);}
+.acc-s{font-size:11px;color:var(--muted);margin-top:2px;}
+.prog{position:sticky;bottom:0;background:rgba(255,253,248,.97);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 13px calc(16px + env(safe-area-inset-bottom,0px));margin-top:8px;}
+.prog-t{font-size:12px;color:var(--muted);text-align:center;margin-bottom:9px;}
+.prog-t b{color:var(--accent);}
+.state{text-align:center;padding:60px 24px;}
+.state .ic{font-size:56px;margin-bottom:16px;}
+.state h2{font-size:21px;color:var(--accent);margin-bottom:10px;}
+.state p{font-size:14px;color:var(--ink);line-height:1.9;}
+.loading{text-align:center;padding:80px 20px;color:var(--muted);}
+.spin{width:40px;height:40px;border:4px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 16px;animation:sp 1s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.round-tag{display:inline-block;background:rgba(255,255,255,.15);padding:4px 14px;border-radius:20px;font-size:11.5px;margin-top:8px;position:relative;}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="loading"><div class="spin"></div>جارٍ التحميل…</div></div>
+
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBlAxijaUz0OHwCsq5NnvQ90OVOCsr1vKY",authDomain:"haiaa-banijamrah.firebaseapp.com",projectId:"haiaa-banijamrah",storageBucket:"haiaa-banijamrah.firebasestorage.app",messagingSenderId:"499603171369",appId:"1:499603171369:web:19c71e92ca2690cfe61438"};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const q=new URLSearchParams(location.search);
+const ELECTION_ID=q.get('e')||'';
+let db=null, el=null, voterCode='', picks={}, LOGO='';
+
+async function init(){
+  if(!ELECTION_ID){ show('⚠️','رابط غير صالح','تأكد من فتح الرابط الصحيح.'); return; }
+  try{
+    firebase.initializeApp(FB_CONFIG); db=firebase.firestore();
+    const d=await db.collection('elections').doc(ELECTION_ID).get();
+    if(!d.exists){ show('⚠️','غير موجودة','لم يُعثر على هذه الانتخابات.'); return; }
+    el=Object.assign({_id:d.id}, d.data());
+    LOGO=el.logo||'';
+    if(el.closed){ show('🔒','انتهى التصويت','أُغلق باب التصويت. شكراً لمشاركتكم.'); return; }
+    renderLogin();
+  }catch(e){ console.error(e); show('⚠️','تعذّر الاتصال','حاول مرة أخرى بعد قليل.'); }
+}
+function show(ic,t,m){ document.getElementById('app').innerHTML=`<div class="state"><div class="ic">${ic}</div><h2>${esc(t)}</h2><p>${m}</p></div>`; }
+function head(sub){
+  return `<div class="vh">${LOGO?`<img src="${LOGO}" alt=""/>`:''}
+    <div class="t">انتخابات الهيئة</div>
+    <div class="s">${esc(el.title||'')}</div>
+    ${Number(el.round||1)>1?`<div class="round-tag">الجولة ${el.round}</div>`:''}
+    ${sub?`<div class="s" style="margin-top:6px">${esc(sub)}</div>`:''}</div>`;
+}
+function renderLogin(err){
+  document.getElementById('app').innerHTML=head('')+`
+  <div class="card">
+    <div class="fld"><label>رقم العضوية</label>
+      <input id="code" type="text" placeholder="أدخل رقم عضويتك" autocomplete="off" value="${esc(voterCode)}"/></div>
+    <button class="btn" style="margin-top:14px" onclick="doLogin()">متابعة ←</button>
+    ${err?`<div class="err">${esc(err)}</div>`:''}
+    <div class="hint">أدخل رقم عضويتك للبدء بالتصويت.<br>لكل عضو صوت واحد فقط.</div>
+  </div>`;
+  setTimeout(()=>{ const i=document.getElementById('code'); if(i) i.focus(); },200);
+}
+function doLogin(){
+  const v=(document.getElementById('code').value||'').trim();
+  if(!v){ renderLogin('أدخل رقم العضوية'); return; }
+  voterCode=v;
+  // تحقّق الحضور فقط (حالة التفعيل لا تُكشف للناخب)
+  const list=(el.voters||[]).map(x=>String(x).trim());
+  if(!list.includes(v)){ renderLogin('رقم العضوية غير مسجّل في حضور الجمعية.'); return; }
+  const key='voted_'+ELECTION_ID+'_r'+(el.round||1)+'_'+v;
+  if(localStorage.getItem(key)){ show('✅','سبق أن صوّت','تم تسجيل صوتك مسبقاً في هذه الجولة.'); return; }
+  picks={}; renderBallot();
+}
+function activeComms(){
+  const r=Number(el.round||1);
+  const only=(el.revoteComms||[]);
+  return (el.committees||[]).filter(c=> r===1 || only.includes(c.id));
+}
+function renderBallot(){
+  const comms=activeComms();
+  const need=comms.filter(c=>(c.candidates||[]).length>1);
+  document.getElementById('app').innerHTML=head('اختر مرشّحاً واحداً لكل لجنة')+
+  comms.map(c=>{
+    const cands=c.candidates||[];
+    if(cands.length===1) return `<div class="comm"><div class="comm-h"><span class="comm-n">${esc(c.name)}</span>
+      <span class="comm-b acc">فوز بالتزكية</span></div>
+      <div class="acc-row"><span class="acc-ic">✓</span><div>
+        <div class="acc-n">${esc(cands[0].name)}</div><div class="acc-s">المرشّح الوحيد</div></div></div></div>`;
+    if(!cands.length) return '';
+    return `<div class="comm"><div class="comm-h"><span class="comm-n">${esc(c.name)}</span>
+      <span class="comm-b vote">اختر مرشّحاً</span></div>
+      ${cands.map(cd=>`<div class="cand ${picks[c.id]===cd.id?'on':''}" onclick="pick('${c.id}','${cd.id}')">
+        <span class="radio"><i></i></span><span class="cand-n">${esc(cd.name)}</span></div>`).join('')}</div>`;
+  }).join('')+
+  `<div class="prog">
+    <div class="prog-t">اخترت <b>${Object.keys(picks).length}</b> من <b>${need.length}</b> ${need.length===1?'لجنة':'لجان'}</div>
+    <button class="btn" ${Object.keys(picks).length<need.length?'disabled':''} onclick="submitVote()">تثبيت التصويت</button>
+  </div>`;
+}
+function pick(commId, candId){ picks[commId]=candId; renderBallot(); }
+async function submitVote(){
+  const comms=activeComms();
+  const need=comms.filter(c=>(c.candidates||[]).length>1);
+  if(Object.keys(picks).length<need.length) return;
+  const btns=document.querySelectorAll('.prog .btn');
+  btns.forEach(b=>{ b.disabled=true; b.textContent='جارٍ الإرسال…'; });
+  try{
+    // الصوت سرّي: لا يُخزَّن رقم العضوية مع الاختيارات
+    await db.collection('ballots').add({
+      electionId: ELECTION_ID,
+      round: Number(el.round||1),
+      picks: picks,
+      valid: (el.eligible||[]).map(x=>String(x).trim()).includes(voterCode),
+      at: new Date().toISOString()
+    });
+    localStorage.setItem('voted_'+ELECTION_ID+'_r'+(el.round||1)+'_'+voterCode,'1');
+    show('✅','شكراً لك','تم تسجيل صوتك بنجاح.<br>جزاكم الله خير الجزاء.');
+  }catch(e){
+    console.error(e);
+    btns.forEach(b=>{ b.disabled=false; b.textContent='تثبيت التصويت'; });
+    alert('تعذّر إرسال الصوت. تأكد من الاتصال وحاول مجدداً.');
+  }
+}
+init();
+</script>
+</body>
+</html>

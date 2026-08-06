@@ -107,6 +107,7 @@ let financeLog = []; // سجل دخول اللجنة المالية: {id, email,
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
 let revenues = []; // إيرادات المواقيت: {id, kind:'vow'|'donation', miqatId, name, amount, note, date, at}
+let elections = []; // الدورات الانتخابية
 let letters = []; // الرسائل الرسمية الصادرة
 let archives = []; // أرشيف السنوات
 let radoodParts = []; // مشاركات مسجّلة يدوياً: {id, radoodId, miqatId, miqatName, note, at}
@@ -250,6 +251,7 @@ async function loadData(){
   try { const ar=await storage.get('archives'); if(ar) archives=JSON.parse(ar); } catch(e){ archives=[]; }
   try { const rv=await storage.get('revenues'); if(rv) revenues=JSON.parse(rv); } catch(e){ revenues=[]; }
   try { const lt=await storage.get('letters'); if(lt) letters=JSON.parse(lt); } catch(e){ letters=[]; }
+  try { const ec=await storage.get('elections'); if(ec) elections=JSON.parse(ec); } catch(e){ elections=[]; }
   try { const gi=await storage.get('gdIndexCache'); if(gi) gdIndex=JSON.parse(gi); } catch(e){}
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
@@ -268,6 +270,7 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveElections(){ try{ await storage.set('elections',JSON.stringify(elections)); }catch(e){} cloudPush('elections',elections); }
 async function saveLetters(){ try{ await storage.set('letters',JSON.stringify(letters)); }catch(e){} cloudPush('letters',letters); }
 async function saveRevenues(){ try{ await storage.set('revenues',JSON.stringify(revenues)); }catch(e){} cloudPush('revenues',revenues); }
 async function saveArchives(){ try{ await storage.set('archives',JSON.stringify(archives)); }catch(e){} cloudPush('archives',archives); }
@@ -856,6 +859,399 @@ function printAnnualReport(){
 }
 
 
+
+
+/* ═══════════ الانتخابات ═══════════ */
+let currentElection = null;      // الدورة المفتوحة محلياً
+let elecLiveTimer = null;
+
+function electionPageURL(id){
+  const base=location.origin + location.pathname.replace(/[^/]*$/, '');
+  return base + 'vote.html?e=' + encodeURIComponent(id);
+}
+function qrImgURL(text, size){
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size||400}x${size||400}&margin=6&data=${encodeURIComponent(text)}`;
+}
+
+function openElectionsPage(){ openFullPage('elections'); if(currentElection) renderElectionEditor(); else renderElectionsPage(); }
+function closeElectionsPage(){ stopElecLive(); switchTab('meetings'); setTimeout(()=>openIdara('sec'),80); }
+
+function renderElectionsPage(){
+  const host=$('#electionsBody');
+  const list=[...elections].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  host.innerHTML=`
+  <div class="el-head"><div class="t">${icon('check',18,'ico-btn')} انتخابات الهيئة</div>
+    <div class="s">ترشيح · تصويت · نتائج</div></div>
+  <button class="btn btn-primary" style="width:100%;margin-bottom:13px" onclick="newElection()">
+    ${icon('plus',17,'ico-btn')} دورة انتخابية جديدة</button>
+  ${list.length?list.map(e=>`
+    <div class="el-row" onclick="openElection('${e.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="el-row-n">${escapeHtml(e.title||'')}</div>
+        <div class="el-row-m">${(e.committees||[]).length} لجنة · ${e.cloudId?(e.closed?'مُغلقة':'مفتوحة'):'لم تُفتح بعد'}</div>
+      </div>
+      <span style="font-size:20px;color:var(--muted-2)">›</span>
+    </div>`).join(''):'<div class="lt-empty">لا دورات انتخابية بعد</div>'}`;
+}
+async function newElection(){
+  const y=settings.year||parseInt(hijriParts().year,10)||1448;
+  const title=prompt('عنوان الدورة الانتخابية:', `انتخابات الهيئة ${y} هـ`);
+  if(title===null) return;
+  const e={ id:'el_'+Date.now(), title:title.trim()||`انتخابات ${y} هـ`, year:y,
+            committees:[], cloudId:'', closed:false, round:1, at:new Date().toISOString() };
+  elections.push(e); await saveElections();
+  logAudit('إضافة','الانتخابات',`دورة «${e.title}»`);
+  openElection(e.id);
+}
+function openElection(id){
+  currentElection = elections.find(x=>x.id===id) || null;
+  if(!currentElection) return;
+  renderElectionEditor();
+}
+function renderElectionEditor(){
+  const e=currentElection; if(!e) return;
+  const host=$('#electionsBody');
+  const asm=assemblies.find(a=>a.year===e.year) || assemblies[assemblies.length-1];
+  const present=(asm && asm.attendees)?asm.attendees.length:0;
+  const url=e.cloudId?electionPageURL(e.cloudId):'';
+  host.innerHTML=`
+  <div class="el-head"><div class="t">${escapeHtml(e.title)}</div>
+    <div class="s">${(e.committees||[]).length} لجنة · ${present} حاضراً في الجمعية</div></div>
+
+  <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:12px" onclick="renderElectionsPage()">← كل الدورات</button>
+
+  ${!e.cloudId?`<button class="btn btn-primary" style="width:100%;margin-bottom:13px" onclick="addElecComm()">
+    ${icon('plus',16,'ico-btn')} إضافة لجنة</button>`:''}
+
+  ${(e.committees||[]).map(c=>{
+    const n=(c.candidates||[]).length;
+    const badge = n===0?'<span class="el-badge empty">بلا مرشّحين</span>'
+      : n===1?'<span class="el-badge acc">فوز بالتزكية</span>'
+      : `<span class="el-badge vote">انتخاب (${n})</span>`;
+    return `<div class="el-comm">
+      <div class="el-comm-h"><span class="el-comm-n">${escapeHtml(c.name)}</span>${badge}
+        ${!e.cloudId?`<button class="x" style="background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer" onclick="delElecComm('${c.id}')">×</button>`:''}</div>
+      ${(c.candidates||[]).map(cd=>`<div class="el-cand">${icon('user',15,'ico-btn')} ${escapeHtml(cd.name)}
+        ${!e.cloudId?`<button class="x" onclick="delElecCand('${c.id}','${cd.id}')">×</button>`:''}</div>`).join('')}
+      ${!e.cloudId?`<div class="el-add">
+        <select id="cand_${c.id}">
+          <option value="">— اختر عضواً للترشيح —</option>
+          ${[...members].sort((a,b)=>(a.name||'').localeCompare(b.name||'','ar'))
+            .filter(m=>!(c.candidates||[]).some(x=>x.memberId===m.id))
+            .map(m=>`<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary btn-sm" style="width:auto;padding:9px 14px" onclick="addElecCand('${c.id}')">${icon('plus',15)}</button>
+      </div>`:''}
+    </div>`;
+  }).join('')}
+
+  ${e.cloudId?`
+    <div class="el-link">
+      <div class="el-qr"><img src="${qrImgURL(url,400)}" alt="QR" /></div>
+      <div class="el-url">${escapeHtml(url)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="copyElecLink()">${icon('link',15,'ico-btn')} نسخ الرابط</button>
+        <a class="btn btn-sm" style="flex:1;background:#25d366;color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px"
+           href="https://wa.me/?text=${encodeURIComponent(elecWhatsappText(e,url))}" target="_blank">${icon('mail',15,'ico-btn')} واتساب</a>
+      </div>
+    </div>
+    <div class="el-live" id="elecLive"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn btn-accent btn-sm" style="flex:1" onclick="openResultsPage()">${icon('chart',15,'ico-btn')} شاشة النتائج</button>
+      <button class="btn btn-sm" style="flex:1;${e.closed?'background:var(--ok);':'background:var(--danger);'}color:#fff;border:none" onclick="toggleElecClosed()">
+        ${e.closed?icon('check',15,'ico-btn')+' فتح التصويت':icon('lock',15,'ico-btn')+' إغلاق التصويت'}</button>
+    </div>
+  `:`
+    <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openElecVoting()">
+      ${icon('link',17,'ico-btn')} فتح التصويت وتوليد الرابط</button>
+    <div class="fin-hint">${icon('info',15,'ico-btn')} بعد الفتح لا يمكن تعديل اللجان أو المرشّحين.</div>
+  `}
+  <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--danger);margin-top:10px" onclick="delElection('${e.id}')">
+    ${icon('trash',15,'ico-btn')} حذف الدورة</button>`;
+  if(e.cloudId && !e.closed) startElecLive(); else { stopElecLive(); refreshElecLive(); }
+}
+function elecWhatsappText(e,url){
+  return `🗳️ *انتخابات هيئة محبي الحسين (ع)*\n\n${e.title}\n\nنرجو من الحضور الكرام التصويت عبر الرابط:\n${url}\n\nلكل عضو صوت واحد فقط.\nجزاكم الله خير الجزاء.`;
+}
+async function addElecComm(){
+  const e=currentElection; if(!e) return;
+  const name=prompt('اسم اللجنة:');
+  if(!name || !name.trim()) return;
+  e.committees=e.committees||[];
+  e.committees.push({ id:'c_'+Date.now(), name:name.trim(), candidates:[] });
+  await saveElections(); renderElectionEditor();
+}
+async function delElecComm(cid){
+  const e=currentElection; if(!e) return;
+  const c=(e.committees||[]).find(x=>x.id===cid); if(!c) return;
+  if(!confirm(`حذف «${c.name}»؟`)) return;
+  e.committees=e.committees.filter(x=>x.id!==cid);
+  await saveElections(); renderElectionEditor();
+}
+async function addElecCand(cid){
+  const e=currentElection; if(!e) return;
+  const c=(e.committees||[]).find(x=>x.id===cid); if(!c) return;
+  const mid=$('#cand_'+cid).value; if(!mid){ toast('اختر عضواً'); return; }
+  const m=members.find(x=>x.id===mid); if(!m) return;
+  c.candidates=c.candidates||[];
+  c.candidates.push({ id:'cd_'+Date.now(), memberId:m.id, name:m.name, code:memberCode(m) });
+  await saveElections(); renderElectionEditor();
+}
+async function delElecCand(cid,cdid){
+  const e=currentElection; if(!e) return;
+  const c=(e.committees||[]).find(x=>x.id===cid); if(!c) return;
+  c.candidates=(c.candidates||[]).filter(x=>x.id!==cdid);
+  await saveElections(); renderElectionEditor();
+}
+/* فتح التصويت: يرفع الدورة + قائمة الحاضرين والمؤهّلين */
+async function openElecVoting(){
+  const e=currentElection; if(!e) return;
+  if(!(e.committees||[]).length){ toast('أضف لجنة واحدة على الأقل'); return; }
+  const empty=(e.committees||[]).filter(c=>!(c.candidates||[]).length);
+  if(empty.length){ toast(`لجان بلا مرشّحين: ${empty.map(c=>c.name).join('، ')}`); return; }
+  const asm=assemblies.find(a=>a.year===e.year) || assemblies[assemblies.length-1];
+  const attend=(asm && asm.attendees)?asm.attendees:[];
+  if(!attend.length){ toast('لا يوجد حضور مسجّل في الجمعية العمومية'); return; }
+  const voters=[], eligible=[];
+  attend.forEach(id=>{
+    const m=members.find(x=>x.id===id); if(!m) return;
+    const code=memberCode(m);
+    voters.push(code);
+    if(isActive(m)) eligible.push(code);
+  });
+  if(!confirm(`فتح التصويت؟\n\n• ${voters.length} من حضور الجمعية يمكنهم التصويت\n• ${eligible.length} منهم عضويتهم مفعّلة (أصواتهم صحيحة)\n\n⚠️ بعد الفتح لا يمكن تعديل اللجان.`)) return;
+  try{
+    const id=await CloudSync.createElection({
+      title:e.title, year:e.year, committees:e.committees,
+      voters, eligible, logo:(typeof HAIAA_LOGO!=='undefined'?HAIAA_LOGO:''), revoteComms:[]
+    });
+    e.cloudId=id; e.closed=false; e.round=1;
+    await saveElections();
+    logAudit('فتح','الانتخابات',`التصويت لدورة «${e.title}»`);
+    toast('فُتح التصويت');
+    renderElectionEditor();
+  }catch(err){ console.error(err); toast('تعذّر فتح التصويت'); }
+}
+function copyElecLink(){
+  const e=currentElection; if(!e||!e.cloudId) return;
+  const url=electionPageURL(e.cloudId);
+  const done=()=>toast('نُسخ رابط التصويت');
+  navigator.clipboard?.writeText(url).then(done).catch(()=>{
+    const t=document.createElement('textarea'); t.value=url; document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); done(); }catch(_){} document.body.removeChild(t);
+  });
+}
+async function toggleElecClosed(){
+  const e=currentElection; if(!e||!e.cloudId) return;
+  const next=!e.closed;
+  if(!confirm(next?'إغلاق باب التصويت؟':'إعادة فتح التصويت؟')) return;
+  try{
+    await CloudSync.updateElection(e.cloudId,{ closed:next });
+    e.closed=next; await saveElections();
+    logAudit(next?'إغلاق':'فتح','الانتخابات',`دورة «${e.title}»`);
+    toast(next?'أُغلق التصويت':'أُعيد فتح التصويت');
+    renderElectionEditor();
+  }catch(err){ console.error(err); toast('تعذّر التنفيذ'); }
+}
+async function delElection(id){
+  const e=elections.find(x=>x.id===id); if(!e) return;
+  if(!confirm(`حذف دورة «${e.title}» نهائياً؟`)) return;
+  if(e.cloudId){ try{ await CloudSync.deleteElection(e.cloudId); }catch(err){} }
+  elections=elections.filter(x=>x.id!==id);
+  await saveElections();
+  logAudit('حذف','الانتخابات',`دورة «${e.title}»`);
+  currentElection=null; renderElectionsPage();
+}
+
+/* ═══ العدّادات الحيّة ═══ */
+function startElecLive(){ stopElecLive(); refreshElecLive(); elecLiveTimer=setInterval(refreshElecLive, 6000); }
+function stopElecLive(){ if(elecLiveTimer){ clearInterval(elecLiveTimer); elecLiveTimer=null; } }
+async function refreshElecLive(){
+  const e=currentElection; const box=$('#elecLive');
+  if(!e||!e.cloudId||!box) return;
+  try{
+    const ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1);
+    const valid=ballots.filter(b=>b.valid).length;
+    const invalid=ballots.length-valid;
+    box.innerHTML=`
+      <div class="elv ok"><div class="v">${valid}</div><div class="l">صوت صحيح</div></div>
+      <div class="elv void"><div class="v">${invalid}</div><div class="l">صوت ملغى</div></div>
+      <div class="elv"><div class="v">${ballots.length}</div><div class="l">إجمالي المصوّتين</div></div>`;
+    window.__lastBallots=ballots;
+  }catch(err){ box.innerHTML='<div class="elv" style="grid-column:1/-1"><div class="l">تعذّر جلب الأصوات</div></div>'; }
+}
+
+/* ═══ النتائج ═══ */
+function computeResults(e, ballots){
+  const valid=ballots.filter(b=>b.valid);
+  const only=(e.round>1 && (e.revoteComms||[]).length) ? e.revoteComms : null;
+  return (e.committees||[]).map(c=>{
+    const cands=c.candidates||[];
+    if(cands.length===1) return { comm:c, acclaim:cands[0], rows:[], tie:false };
+    const counts={}; cands.forEach(cd=>counts[cd.id]=0);
+    valid.forEach(b=>{ const p=(b.picks||{})[c.id]; if(p!=null && counts[p]!=null) counts[p]++; });
+    const rows=cands.map(cd=>({ id:cd.id, name:cd.name, votes:counts[cd.id]||0 })).sort((a,b)=>b.votes-a.votes);
+    const mx=rows.length?rows[0].votes:0;
+    const tie = rows.filter(r=>r.votes===mx).length>1 && mx>0;
+    return { comm:c, acclaim:null, rows, tie, max:mx, skipped: only ? !only.includes(c.id) : false };
+  });
+}
+function openResultsPage(){ openFullPage('elecresults'); renderResultsPage(); startResultsLive(); }
+function closeResultsPage(){ stopElecLive(); switchTab('meetings'); setTimeout(()=>{ openElectionsPage(); if(currentElection) renderElectionEditor(); },80); }
+function startResultsLive(){ stopElecLive(); renderResultsPage(); elecLiveTimer=setInterval(renderResultsPage, 6000); }
+async function renderResultsPage(){
+  const e=currentElection; const host=$('#elecResultsBody');
+  if(!e||!e.cloudId||!host) return;
+  let ballots=[];
+  try{ ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1); }catch(err){}
+  const valid=ballots.filter(b=>b.valid).length, invalid=ballots.length-valid;
+  const res=computeResults(e, ballots);
+  const ties=res.filter(r=>r.tie && !r.skipped);
+  host.innerHTML=`
+  <div class="el-head"><div class="t">نتائج ${escapeHtml(e.title)}</div>
+    <div class="s">${e.closed?'التصويت مُغلق':'مباشر · يتحدّث تلقائياً'}${Number(e.round||1)>1?` · الجولة ${e.round}`:''}</div></div>
+  <div class="el-live">
+    <div class="elv ok"><div class="v">${valid}</div><div class="l">صوت صحيح</div></div>
+    <div class="elv void"><div class="v">${invalid}</div><div class="l">صوت ملغى</div></div>
+    <div class="elv"><div class="v">${ballots.length}</div><div class="l">إجمالي المصوّتين</div></div>
+  </div>
+  ${res.filter(r=>!r.skipped).map(r=>{
+    if(r.acclaim) return `<div class="res-comm"><div class="res-comm-n">${escapeHtml(r.comm.name)}</div>
+      <div class="acc-row" style="border-radius:10px;background:var(--ok-soft);padding:12px">
+        <span class="acc-ic" style="width:26px;height:26px;border-radius:50%;background:var(--ok);color:#fff;display:inline-flex;align-items:center;justify-content:center;margin-left:9px">✓</span>
+        <span style="font-weight:700;color:var(--ok)">${escapeHtml(r.acclaim.name)}</span>
+        <span style="font-size:11px;color:var(--muted);margin-right:8px">فوز بالتزكية</span></div></div>`;
+    const mx=r.max||1;
+    return `<div class="res-comm"><div class="res-comm-n">${escapeHtml(r.comm.name)}</div>
+      ${r.rows.map(x=>`<div class="bar-row ${(x.votes===r.max && !r.tie && r.max>0)?'win':''}">
+        <div class="bar-top"><span>${escapeHtml(x.name)}${(x.votes===r.max && !r.tie && r.max>0)?'<span class="win-tag">فائز</span>':''}</span><b>${x.votes}</b></div>
+        <div class="bar"><i style="width:${mx?Math.round(x.votes/mx*100):0}%"></i></div></div>`).join('')}
+      ${r.tie?'<div class="tie-note">⚠️ تعادل — يلزم إعادة التصويت لهذه اللجنة</div>':''}
+    </div>`;
+  }).join('')}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+    ${(e.closed && ties.length)?`<button class="btn" style="flex:1;background:var(--warn);color:#fff;border:none" onclick="startRevote()">
+      ${icon('chevron',15,'ico-btn')} إعادة التصويت (${ties.length} ${ties.length===1?'لجنة':'لجان'})</button>`:''}
+    <button class="btn btn-accent" style="flex:1" onclick="printElectionResults()">${icon('print',15,'ico-btn')} محضر النتائج PDF</button>
+  </div>
+  ${invalid>0?`<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:9px" onclick="showVoidVoters()">
+    ${icon('users',15,'ico-btn')} قائمة غير المفعّلين (${voidVotersList().length})</button>`:''}`;
+  window.__lastBallots=ballots;
+}
+/* قائمة الحاضرين غير المفعّلين — لك فقط */
+function voidVotersList(){
+  const e=currentElection; if(!e) return [];
+  const asm=assemblies.find(a=>a.year===e.year) || assemblies[assemblies.length-1];
+  const attend=(asm && asm.attendees)?asm.attendees:[];
+  return attend.map(id=>members.find(m=>m.id===id)).filter(m=>m && !isActive(m));
+}
+function showVoidVoters(){
+  const list=voidVotersList();
+  if(!list.length){ toast('لا يوجد'); return; }
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>غير المفعّلين</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:24px;color:#1a2620}
+  h1{font-size:18px;color:#1c4536;margin-bottom:6px}p{font-size:12.5px;color:#8a7c6b;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{border:1px solid #e6ddcb;padding:9px 11px;text-align:right}
+  th{background:#1c4536;color:#fff}tr:nth-child(even){background:#faf7f0}
+  a{color:#25d366;text-decoration:none;font-weight:600}
+  @media print{.np{display:none}}</style></head><body>
+  <div class="np" style="margin-bottom:14px"><button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:9px 16px;border-radius:8px;font-family:inherit;cursor:pointer">🖨️ طباعة</button></div>
+  <h1>الحاضرون غير المفعّلة عضويتهم</h1>
+  <p>حضروا الجمعية ولم تُحتسب أصواتهم — للتواصل معهم بشأن تفعيل العضوية</p>
+  <table><tr><th>#</th><th>الاسم</th><th>رقم العضوية</th><th>الهاتف</th><th>واتساب</th></tr>
+  ${list.map((m,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(m.name)}</td><td>${memberCode(m)}</td>
+    <td dir="ltr">${escapeHtml(m.phone||'—')}</td>
+    <td>${m.phone?`<a href="${whatsappLink(m.phone,`السلام عليكم، نشكر لكم حضوركم الجمعية العمومية. نودّ تذكيركم بتفعيل العضوية لهذا العام.`)}" target="_blank">مراسلة</a>`:'—'}</td></tr>`).join('')}
+  </table></body></html>`);
+  w.document.close();
+}
+/* بدء جولة الإعادة */
+async function startRevote(){
+  const e=currentElection; if(!e||!e.cloudId) return;
+  let ballots=[]; try{ ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1); }catch(err){}
+  const res=computeResults(e, ballots);
+  const ties=res.filter(r=>r.tie && !r.skipped).map(r=>r.comm.id);
+  if(!ties.length){ toast('لا توجد لجان متعادلة'); return; }
+  const names=res.filter(r=>ties.includes(r.comm.id)).map(r=>r.comm.name).join('، ');
+  if(!confirm(`بدء جولة إعادة للجان:\n${names}\n\nسيُفتح التصويت على نفس الرابط، وتظهر هذه اللجان فقط.`)) return;
+  const nextRound=Number(e.round||1)+1;
+  try{
+    await CloudSync.updateElection(e.cloudId,{ round:nextRound, revoteComms:ties, closed:false });
+    e.round=nextRound; e.revoteComms=ties; e.closed=false;
+    await saveElections();
+    logAudit('إعادة تصويت','الانتخابات',`الجولة ${nextRound} — ${names}`);
+    toast(`بدأت الجولة ${nextRound}`);
+    renderResultsPage();
+  }catch(err){ console.error(err); toast('تعذّر بدء الإعادة'); }
+}
+/* محضر النتائج PDF */
+async function printElectionResults(){
+  const e=currentElection; if(!e||!e.cloudId) return;
+  let ballots=[]; try{ ballots=await CloudSync.fetchBallots(e.cloudId, e.round||1); }catch(err){}
+  const valid=ballots.filter(b=>b.valid).length, invalid=ballots.length-valid;
+  const res=computeResults(e, ballots);
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>محضر نتائج الانتخابات</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:30px 34px;color:#1a2620;line-height:1.8;font-size:13.5px;}
+  .pdf-logo{display:block;margin:0 auto 8px;max-width:175px;max-height:66px;}
+  .pdf-head{text-align:center;padding-bottom:12px;border-bottom:3px double #c19a3e;margin-bottom:15px;}
+  .doc-title{font-family:'Amiri',serif;font-size:22px;font-weight:700;color:#1c4536;margin:8px 0 2px;}
+  .doc-sub{color:#8a7c6b;font-size:12.5px;}
+  .sum3{display:flex;gap:11px;margin-bottom:18px;}
+  .s3{flex:1;text-align:center;border-radius:13px;padding:16px 10px;border:1px solid #e6ddcb;}
+  .s3 .v{font-size:20px;font-weight:800;} .s3 .l{font-size:11.5px;color:#8a7c6b;margin-top:4px;}
+  .s3.ok{background:#e9f4ed;} .s3.ok .v{color:#2f8f5b;}
+  .s3.void{background:#f9ecec;} .s3.void .v{color:#b85c5c;}
+  .s3.all{background:#f6f2ea;} .s3.all .v{color:#1c4536;}
+  h2{font-size:14.5px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 18px;border-radius:0 16px 16px 0;margin:18px 0 9px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;}
+  th,td{border:1px solid #e6ddcb;padding:8px 11px;text-align:right;}
+  th{background:#1c4536;color:#fff;font-size:12.5px;}
+  tr:nth-child(even){background:#faf7f0;}
+  .win td{background:#e9f4ed;font-weight:800;color:#2f8f5b;}
+  .acc-box{background:#e9f4ed;border:1px solid #2f8f5b;border-radius:10px;padding:12px 15px;margin-bottom:10px;}
+  .acc-box b{color:#2f8f5b;font-size:15px;} .acc-box span{font-size:12px;color:#5a7a68;margin-right:8px;}
+  .tie-box{background:#fbf1e4;border:1px solid #e0b088;border-radius:10px;padding:11px 14px;font-size:12.5px;color:#8a5a2a;font-weight:600;margin-bottom:10px;}
+  .sig{margin-top:40px;text-align:left;padding-left:20px;}
+  .sig img{max-width:150px;display:block;margin-bottom:2px;}
+  .sig-line{width:190px;border-bottom:1px solid #8a7c6b;margin-bottom:6px;}
+  .sig-t{font-size:12px;color:#8a7c6b;} .sig-n{font-weight:700;color:#1c4536;}
+  .foot{margin-top:26px;padding-top:11px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  @media print{body{padding:20px;} .no-print{display:none;} tr{page-break-inside:avoid;}}
+  </style></head><body>
+  <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
+    <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
+    <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
+  </div>
+  <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
+    <div class="doc-title">محضر نتائج الانتخابات</div>
+    <div class="doc-sub">هيئة محبي الحسين (ع) · ${escapeHtml(e.title)} · ${hijriToday()}${Number(e.round||1)>1?` · الجولة ${e.round}`:''}</div></div>
+  <div class="sum3">
+    <div class="s3 ok"><div class="v">${valid}</div><div class="l">صوت صحيح</div></div>
+    <div class="s3 void"><div class="v">${invalid}</div><div class="l">صوت ملغى</div></div>
+    <div class="s3 all"><div class="v">${ballots.length}</div><div class="l">إجمالي المصوّتين</div></div>
+  </div>
+  ${res.filter(r=>!r.skipped).map(r=>{
+    if(r.acclaim) return `<h2>${escapeHtml(r.comm.name)}</h2>
+      <div class="acc-box"><b>${escapeHtml(r.acclaim.name)}</b><span>فوز بالتزكية — المرشّح الوحيد</span></div>`;
+    return `<h2>${escapeHtml(r.comm.name)}</h2>
+      ${r.tie?'<div class="tie-box">⚠️ تعادل — يلزم إعادة التصويت لهذه اللجنة</div>':''}
+      <table><tr><th>#</th><th>المرشّح</th><th>الأصوات</th><th>النسبة</th><th>النتيجة</th></tr>
+      ${r.rows.map((x,i)=>`<tr class="${(x.votes===r.max && !r.tie && r.max>0)?'win':''}">
+        <td>${i+1}</td><td>${escapeHtml(x.name)}</td><td>${x.votes}</td>
+        <td>${valid?Math.round(x.votes/valid*100):0}%</td>
+        <td>${(x.votes===r.max && !r.tie && r.max>0)?'فائز':'—'}</td></tr>`).join('')}
+      </table>`;
+  }).join('')}
+  <div class="sig"><img src="${HAIAA_SIGNATURE}" alt="" /><div class="sig-line"></div>
+    <div class="sig-t">أمين السر</div><div class="sig-n">صادق الغسرة</div></div>
+  <div class="foot">هيئة محبي الحسين (ع) — محضر رسمي لنتائج الانتخابات</div>
+  </body></html>`);
+  w.document.close(); w.focus();
+}
 
 /* ═══════════ الرسائل الرسمية ═══════════ */
 let editingLetterId = null;
@@ -3963,7 +4359,7 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters
+    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters, elections
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -4006,10 +4402,11 @@ async function backupImport(e){
     if(Array.isArray(backup.archives)) archives=backup.archives;
     if(Array.isArray(backup.revenues)) revenues=backup.revenues;
     if(Array.isArray(backup.letters)) letters=backup.letters;
+    if(Array.isArray(backup.elections)) elections=backup.elections;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
-    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters();
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters(); await saveElections();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
@@ -7652,6 +8049,7 @@ function closeFollowupPage(){ switchTab('meetings'); setTimeout(()=>openIdara('s
 /* عدّادات البطاقات */
 function updateSecCards(){
   const m=$('#secMtgCount'); if(m) m.textContent = meetings.length?`${meetings.length} اجتماعاً`:'لا اجتماعات';
+  const el=$('#secElecCount'); if(el) el.textContent = elections.length?`${elections.length} دورة`:'لا دورات';
   const t=$('#secTaskCount');
   if(t){ const open=meetings.reduce((s,x)=>s+((x.tasks||[]).filter(k=>!k.done).length),0);
     t.textContent = open?`${open} مهمة مفتوحة`:'لا مهام معلّقة'; }

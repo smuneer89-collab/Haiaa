@@ -31,6 +31,7 @@ const CLOUD_COLLECTIONS = {
   archives:   () => archives,
   revenues:   () => revenues,
   letters:    () => letters,
+  elections:  () => elections,
   radoods:    () => radoods,
   radoodEvals:() => radoodEvals
 };
@@ -218,6 +219,7 @@ const CloudSync = (() => {
         case 'archives':    archives=arr;    storage.set('archives',JSON.stringify(arr)); break;
         case 'revenues':    revenues=arr;    storage.set('revenues',JSON.stringify(arr)); break;
         case 'letters':     letters=arr;     storage.set('letters',JSON.stringify(arr)); break;
+        case 'elections':   elections=arr;   storage.set('elections',JSON.stringify(arr)); break;
         case 'radoods':     radoods=arr;     storage.set('radoods',JSON.stringify(arr)); break;
         case 'radoodEvals': radoodEvals=arr; storage.set('radoodEvals',JSON.stringify(arr)); break;
       }
@@ -428,6 +430,38 @@ const CloudSync = (() => {
     await batch.commit();
   }
 
+  // ═══ الانتخابات ═══
+  async function createElection(payload){
+    if(!db) throw new Error('cloud not ready');
+    const ref = await db.collection('elections').add(Object.assign({ closed:false, round:1, at:new Date().toISOString() }, payload));
+    return ref.id;
+  }
+  async function updateElection(id, patch){
+    if(!db) throw new Error('cloud not ready');
+    await db.collection('elections').doc(id).update(patch);
+  }
+  async function fetchElection(id){
+    if(!db) throw new Error('cloud not ready');
+    const d = await db.collection('elections').doc(id).get();
+    return d.exists ? Object.assign({ _id:d.id }, d.data()) : null;
+  }
+  async function fetchBallots(electionId, round){
+    if(!db) throw new Error('cloud not ready');
+    let q = db.collection('ballots').where('electionId','==',electionId);
+    const snap = await q.get();
+    let arr = snap.docs.map(d=>Object.assign({ _id:d.id }, d.data()));
+    if(round!=null) arr = arr.filter(b=>Number(b.round||1)===Number(round));
+    return arr;
+  }
+  async function deleteElection(id){
+    if(!db) throw new Error('cloud not ready');
+    const snap = await db.collection('ballots').where('electionId','==',id).get();
+    const batch = db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    batch.delete(db.collection('elections').doc(id));
+    await batch.commit();
+  }
+
   // ═══ تقديم المشاريع عبر الرابط ═══
   async function submitPublicProject(payload){
     if(!db) throw new Error('cloud not ready');
@@ -450,6 +484,7 @@ const CloudSync = (() => {
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
+           createElection, updateElection, fetchElection, fetchBallots, deleteElection,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };
 })();

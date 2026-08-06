@@ -450,6 +450,45 @@
   .sec-card .sc-ic { color:var(--accent); display:flex; }
   .sec-card .sc-t { font-size:14px; font-weight:700; color:var(--ink); }
   .sec-card .sc-s { font-size:11px; color:var(--muted); min-height:14px; }
+  /* الانتخابات */
+  .el-head { background:linear-gradient(150deg,var(--accent-deep),var(--accent)); padding:18px; color:#fff; border-radius:14px; text-align:center; margin-bottom:13px; }
+  .el-head .t { font-size:17px; font-weight:800; }
+  .el-head .s { font-size:11.5px; color:var(--gold); margin-top:4px; }
+  .el-comm { background:var(--surface); border:1px solid var(--line); border-radius:14px; margin-bottom:11px; overflow:hidden; }
+  .el-comm-h { background:var(--accent-soft); padding:11px 14px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .el-comm-n { font-size:14.5px; font-weight:700; color:var(--accent); }
+  .el-badge { font-size:10px; padding:3px 9px; border-radius:20px; font-weight:700; white-space:nowrap; }
+  .el-badge.acc { background:var(--ok-soft); color:var(--ok); }
+  .el-badge.vote { background:var(--accent); color:#fff; }
+  .el-badge.empty { background:#f9ecec; color:var(--danger); }
+  .el-cand { display:flex; align-items:center; gap:9px; padding:10px 14px; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .el-cand:last-child { border-bottom:none; }
+  .el-cand .x { margin-right:auto; background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer; }
+  .el-add { padding:10px 14px; display:flex; gap:7px; }
+  .el-add select { flex:1; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font-family:var(--font-sans); font-size:13px; background:var(--bg); color:var(--ink); min-width:0; }
+  .el-link { background:var(--surface); border:1px solid var(--gold); border-radius:14px; padding:15px; margin-bottom:12px; text-align:center; }
+  .el-qr { width:190px; height:190px; margin:0 auto 12px; background:#fff; padding:9px; border-radius:11px; border:1px solid var(--line); }
+  .el-qr img { width:100%; height:100%; display:block; }
+  .el-url { font-size:11px; color:var(--muted); word-break:break-all; background:var(--bg); padding:9px 11px; border-radius:9px; margin-bottom:10px; direction:ltr; text-align:center; }
+  .el-live { display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; margin-bottom:12px; }
+  .elv { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:13px 6px; text-align:center; }
+  .elv .v { font-size:20px; font-weight:800; color:var(--accent); }
+  .elv .l { font-size:10px; color:var(--muted); margin-top:3px; }
+  .elv.ok .v { color:var(--ok); } .elv.void .v { color:var(--danger); }
+  .res-comm { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:11px; }
+  .res-comm-n { font-size:14px; font-weight:700; color:var(--accent); margin-bottom:11px; }
+  .bar-row { margin-bottom:11px; }
+  .bar-row:last-child { margin-bottom:0; }
+  .bar-top { display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:5px; gap:8px; }
+  .bar-top b { color:var(--accent); }
+  .bar { height:22px; background:var(--bg); border-radius:7px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),#2d6b52); border-radius:7px; transition:width .4s; }
+  .bar-row.win .bar i { background:linear-gradient(90deg,var(--ok),#3aa76b); }
+  .win-tag { font-size:10px; background:var(--ok-soft); color:var(--ok); padding:2px 8px; border-radius:10px; font-weight:700; margin-right:6px; }
+  .tie-note { background:var(--warn-soft); border:1px solid #e0b088; border-radius:9px; padding:9px 12px; font-size:12px; color:#8a5a2a; font-weight:600; margin-top:8px; }
+  .el-row { display:flex; align-items:center; gap:11px; background:var(--surface); border:1px solid var(--line); border-right:3px solid var(--gold); border-radius:11px; padding:12px 14px; margin-bottom:8px; cursor:pointer; }
+  .el-row-n { font-size:14px; font-weight:600; }
+  .el-row-m { font-size:11.5px; color:var(--muted); margin-top:3px; }
   .rc-totals { display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; padding:14px 16px; }
   .rc-t { text-align:center; border-radius:11px; padding:12px 8px; }
   .rc-t .v { font-size:16px; font-weight:800; }
@@ -1897,6 +1936,18 @@
       </div>
   </section>
 
+  <!-- إدارة الانتخابات -->
+  <section id="tab-elections" class="tab-content" style="display:none">
+    <div class="page-bar"><button class="btn btn-ghost btn-sm" onclick="closeElectionsPage()">← رجوع لأمانة السر</button></div>
+    <div id="electionsBody"></div>
+  </section>
+
+  <!-- نتائج الانتخابات -->
+  <section id="tab-elecresults" class="tab-content" style="display:none">
+    <div class="page-bar"><button class="btn btn-ghost btn-sm" onclick="closeResultsPage()">← رجوع</button></div>
+    <div id="elecResultsBody"></div>
+  </section>
+
   <!-- الجمعية العمومية -->
   <section id="tab-assembly" class="tab-content" style="display:none">
     <div class="page-bar">
@@ -2379,6 +2430,10 @@
           <span class="sc-ic"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
           <span class="sc-t">لوحة المتابعة</span>
           <span class="sc-s" id="secTaskCount"></span></button>
+        <button class="sec-card" onclick="openElectionsPage()">
+          <span class="sc-ic"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="2.5"/></svg></span>
+          <span class="sc-t">الانتخابات</span>
+          <span class="sc-s" id="secElecCount"></span></button>
         <button class="sec-card" onclick="openAssemblyPage()">
           <span class="sc-ic"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15"/><path d="M13 10h6a1 1 0 0 1 1 1v10"/><path d="M2 21h20M7 9h2M7 13h2M7 17h2M16 14h1M16 18h1"/></svg></span>
           <span class="sc-t">الجمعية العمومية</span>
