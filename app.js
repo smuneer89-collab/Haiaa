@@ -1132,6 +1132,7 @@ function renderAsmElection(){
     return;
   }
   if(elecView==='results') return renderAsmResults();
+  if(elecView==='send') return renderSendList();
   const e=a.election;
   const url=e.cloudId?electionPageURL(e.cloudId):'';
   const present=(a.attendees||[]).length;
@@ -1179,8 +1180,8 @@ function renderAsmElection(){
       <div class="el-url">${escapeHtml(url)}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" style="flex:1" onclick="copyElecLink()">${icon('link',15,'ico-btn')} نسخ الرابط</button>
-        <a class="btn btn-sm" style="flex:1;background:#25d366;color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px"
-           href="https://wa.me/?text=${encodeURIComponent(elecWhatsappText(a,url))}" target="_blank">${icon('mail',15,'ico-btn')} واتساب</a>
+        <button class="btn btn-sm" style="flex:1;background:#25d366;color:#fff;border:none" onclick="openSendList()">
+          ${icon('mail',15,'ico-btn')} إرسال للحاضرين</button>
       </div>
     </div>
     <div class="el-live" id="elecLive"></div>
@@ -1197,6 +1198,73 @@ function renderAsmElection(){
   <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--danger);margin-top:10px" onclick="delAsmElection()">
     ${icon('trash',15,'ico-btn')} حذف الدورة الانتخابية</button>`;
   if(e.cloudId && !e.closed) startElecLive(); else { stopElecLive(); refreshElecLive(); }
+}
+/* رسالة مخصّصة لكل عضو فيها اسمه ورقم عضويته */
+function elecPersonalText(a, m, url){
+  return `🗳️ *انتخابات هيئة محبي الحسين (ع)*
+الجمعية العمومية ${a.year}
+
+السلام عليكم أخي الكريم *${m.name}*
+
+نرجو التكرّم بالتصويت عبر الرابط أدناه:
+${url}
+
+🔑 *رقم عضويتك:* ${memberCode(m)}
+(أدخله عند فتح الرابط)
+
+لكل عضو صوت واحد فقط.
+جزاكم الله خير الجزاء.`;
+}
+let sendListQ='';
+function openSendList(){ sendListQ=''; elecView='send'; renderSendList(); }
+function renderSendList(){
+  const a=getAssembly(); const e=a?a.election:null;
+  const host=$('#asmElecBody'); if(!a||!e||!e.cloudId||!host) return;
+  const url=electionPageURL(e.cloudId);
+  const q=sendListQ.trim();
+  const list=(a.attendees||[]).map(id=>members.find(m=>m.id===id)).filter(Boolean)
+    .filter(m=>!q||(m.name||'').includes(q)||memberCode(m).includes(q))
+    .sort((x,y)=>(x.name||'').localeCompare(y.name||'','ar'));
+  const sent=e.sentTo||[];
+  host.innerHTML=`
+  <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:11px" onclick="backToElecSetup()">← رجوع لإدارة الانتخابات</button>
+  <div class="el-head"><div class="t">${icon('mail',18,'ico-btn')} إرسال روابط التصويت</div>
+    <div class="s">رسالة مخصّصة لكل عضو فيها اسمه ورقم عضويته</div></div>
+  <div class="mg-search">${icon('search',16,'ico-btn')}
+    <input type="text" id="sendQ" placeholder="ابحث بالاسم أو رقم العضوية…" value="${escapeHtml(sendListQ)}"
+           oninput="sendSetQ(this.value)" autocomplete="off" /></div>
+  <div class="mg-selbar"><span>أُرسل: <b>${sent.length}</b> من <b>${(a.attendees||[]).length}</b></span>
+    ${sent.length?`<span class="mg-links"><a onclick="resetSent()">تصفير</a></span>`:''}</div>
+  ${list.length?list.map(m=>{
+    const done=sent.includes(m.id);
+    const noPhone=!m.phone;
+    return `<div class="send-row ${done?'done':''}">
+      <div class="send-body">
+        <div class="send-n">${escapeHtml(m.name)}</div>
+        <div class="send-m">${memberCode(m)}${m.phone?` · <span dir="ltr">${escapeHtml(m.phone)}</span>`:' · بلا رقم'}
+          ${isActive(m)?'':' · <span style="color:var(--warn)">غير مفعّل</span>'}</div>
+      </div>
+      ${noPhone?'<span class="send-no">لا رقم</span>':
+        `<a class="send-btn ${done?'done':''}" target="_blank"
+            href="${whatsappLink(m.phone, elecPersonalText(a,m,url))}"
+            onclick="markSent('${m.id}')">${done?icon('check',15):icon('mail',15)}</a>`}
+    </div>`;
+  }).join(''):'<div class="lt-empty">لا نتائج</div>'}`;
+}
+function sendSetQ(v){
+  sendListQ=v; renderSendList();
+  const i=$('#sendQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); }
+}
+async function markSent(mid){
+  const a=getAssembly(); const e=a?a.election:null; if(!e) return;
+  e.sentTo=e.sentTo||[];
+  if(!e.sentTo.includes(mid)){ e.sentTo.push(mid); await saveAssemblies(); }
+  setTimeout(renderSendList, 400);
+}
+async function resetSent(){
+  const a=getAssembly(); const e=a?a.election:null; if(!e) return;
+  if(!confirm('تصفير قائمة المُرسَل إليهم؟')) return;
+  e.sentTo=[]; await saveAssemblies(); renderSendList();
 }
 function elecWhatsappText(a,url){
   return `🗳️ *انتخابات هيئة محبي الحسين (ع)*\n\nالجمعية العمومية ${a.year}\n\nنرجو من الحضور الكرام التصويت عبر الرابط:\n${url}\n\nلكل عضو صوت واحد فقط.\nجزاكم الله خير الجزاء.`;
@@ -2135,6 +2203,27 @@ function renderStats(){
 function computeNotifications(){
   const list=[]; const h=hijriParts(); const curM=h.month; const curD=h.day; const curY=parseInt(h.year,10)||1448;
   const todayG=new Date(); todayG.setHours(0,0,0,0);
+
+  // 0-ج) تذكير بشهادات الشكر — بعد يوم من انتهاء الميقات
+  miqats.forEach(mq=>{
+    // احسب أقرب حدوث ماضٍ للميقات (السنة الحالية أو التي قبلها)
+    let daysPassed=null;
+    for(const y of [curY, curY-1]){
+      const g=hijriToGregorian(mq.day,mq.month,y); if(!g) continue;
+      const gd=new Date(g); gd.setHours(0,0,0,0);
+      const d=Math.round((todayG-gd)/86400000);
+      if(d>=1 && (daysPassed===null || d<daysPassed)) daysPassed=d;
+    }
+    if(daysPassed===null || daysPassed>30) return;     // من اليوم التالي وحتى شهر
+    const n=(mq.bookings||[]).length; if(!n) return;    // لا مساهمين
+    list.push({
+      cat:'شهادات الشكر', type:'info', ic:'📜',
+      title:`أرسل شهادات الشكر — ${mq.name}`,
+      desc:`انتهت المناسبة${daysPassed===1?' أمس':` قبل ${daysPassed} يوماً`}، ولديها ${n} ${n===1?'مساهم':'مساهمين'}.`,
+      meta:'اضغط لفتح الميقات وإرسال الشهادات',
+      action:()=>{ switchTab('miqats'); setTimeout(()=>showMiqatDetail(mq.id),120); }
+    });
+  });
 
   // 0-ب) تقييمات/استبيانات جديدة وصلت عبر الروابط
   const seenEv = Number(window.__seenEvalCount||0), curEv = Number(window.__newEvalCount||0);
