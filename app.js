@@ -1635,21 +1635,31 @@ function renderMediaArchive(){
   ${list.length?`<div class="med-grid">${list.map(m=>{
     const th=medThumb(m), src=m.source||medSourceOf(m.url);
     const st=m.status||'chk';
-    return `<div class="med-item" onclick="openMediaForm('${m.id}')">
-      <div class="med-thumb">
+    return `<div class="med-item">
+      <div class="med-thumb" onclick="openMediaSource('${m.id}')">
         ${th?`<img src="${th}" alt="" loading="lazy" onerror="this.style.display='none'" />`:''}
         ${!th?`<span class="ph">${icon(medIconFor(m.type),34)}</span>`:''}
+        <span class="play">${icon('link',20)}</span>
         <span class="src">${escapeHtml(src)}</span>
         ${m.duration?`<span class="dur">${escapeHtml(m.duration)}</span>`:''}
       </div>
       <div class="med-b">
-        <div class="med-t"><span class="med-st ${st}" title="${MED_STATUS[st]||''}"></span>${escapeHtml(m.title||'—')}</div>
-        <div class="med-m">${escapeHtml(m.type||'')}${m.occasion?' · '+escapeHtml(m.occasion):''}
-          ${m.hijri?`<br>${escapeHtml(m.hijri)}`:(m.date?`<br>${fmtDate(m.date)}`:'')}</div>
-        ${(m.keywords||[]).length?`<div class="med-tags">${m.keywords.slice(0,3).map(k=>`<span class="med-tag">${escapeHtml(k)}</span>`).join('')}</div>`:''}
+        <div onclick="openMediaSource('${m.id}')">
+          <div class="med-t"><span class="med-st ${st}" title="${MED_STATUS[st]||''}"></span>${escapeHtml(m.title||'—')}</div>
+          <div class="med-m">${escapeHtml(m.type||'')}${m.occasion?' · '+escapeHtml(m.occasion):''}
+            ${m.hijri?`<br>${escapeHtml(m.hijri)}`:(m.date?`<br>${fmtDate(m.date)}`:'')}</div>
+          ${(m.keywords||[]).length?`<div class="med-tags">${m.keywords.slice(0,3).map(k=>`<span class="med-tag">${escapeHtml(k)}</span>`).join('')}</div>`:''}
+        </div>
+        <button class="med-edit" onclick="event.stopPropagation();openMediaForm('${m.id}')">
+          ${icon('edit',13,'ico-btn')} تعديل البيانات</button>
       </div>
     </div>`;
   }).join('')}</div>`:`<div class="lt-empty">${f.q||f.type||f.src||f.year?'لا نتائج مطابقة':'لا مواد بعد — اضغط «إضافة مادة إعلامية»'}</div>`}`;
+}
+function openMediaSource(id){
+  const m=mediaItems.find(x=>x.id===id); if(!m) return;
+  if(!m.url){ toast('لا يوجد رابط'); return; }
+  window.open(m.url, '_blank');
 }
 function medSet(k,v){
   medFilter[k]=v; renderMediaArchive();
