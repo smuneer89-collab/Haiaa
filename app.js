@@ -3610,11 +3610,15 @@ async function saveMemberThawab(){
 /* هل انتهى تاريخ الميقات؟ */
 function isMiqatPassed(miqatId){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return false;
-  const ty=miqatTargetHijriYear(mq);
-  const g=hijriToGregorian(mq.day,mq.month,ty); if(!g) return false;
-  const gd=new Date(g); gd.setHours(0,0,0,0);
   const t=new Date(); t.setHours(0,0,0,0);
-  return gd < t;
+  const curY=parseInt(hijriParts().year,10)||1448;
+  // تحقّق من أقرب حدوث للميقات (السنة الحالية أو التي قبلها)
+  for(const y of [curY, curY-1]){
+    const g=hijriToGregorian(mq.day,mq.month,y); if(!g) continue;
+    const gd=new Date(g); gd.setHours(0,0,0,0);
+    if(gd < t) return true;
+  }
+  return false;
 }
 /* إرسال شهادة الشكر من ملف العضو (نفس شهادة تثويبات المساهمين) */
 function sendMemberThankYou(memberId, miqatId){
@@ -3622,6 +3626,88 @@ function sendMemberThankYou(memberId, miqatId){
   const idx=(mq.bookings||[]).findIndex(b=>b.memberId===memberId);
   if(idx<0){ toast('لا يوجد حجز'); return; }
   printThawabCertificate(miqatId, memberId, idx);
+}
+
+/* ═══════════ تثويبات المرحومين للعوائل ═══════════ */
+let fThawabMiqatId='', fThawabKey='', fThawabNames=[];
+function famBooking(){
+  const mq=miqats.find(x=>x.id===fThawabMiqatId); if(!mq) return null;
+  return (mq.bookings||[]).find(b=>b.memberId===fThawabKey) || null;
+}
+function openFamilyThawab(miqatId, bookingKey){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[]).find(x=>x.memberId===bookingKey); if(!b) return;
+  fThawabMiqatId=miqatId; fThawabKey=bookingKey;
+  fThawabNames = (b.deceased && b.deceased.length) ? [...b.deceased] : [''];
+  $('#mThawabMemberName').textContent = b.familyName || 'العائلة';
+  renderFamThawabBody();
+  $('#memberThawabModal').classList.add('open');
+}
+function renderFamThawabBody(){
+  const mq=miqats.find(x=>x.id===fThawabMiqatId); const b=famBooking();
+  if(!mq||!b) return;
+  $('#mThawabBody').innerHTML=`
+    <div class="fin-ctx">${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div>
+    ${b.repName?`<div class="fin-hint" style="margin-bottom:11px">${icon('user',15,'ico-btn')} الممثّل: <b>${escapeHtml(b.repName)}</b>${b.phone?` · <span dir="ltr">${escapeHtml(b.phone)}</span>`:''}</div>`:''}
+    <div class="field full"><label>أسماء المرحومين (إهداء ثواب هذا الميقات)</label>
+      <div id="fThawabNames"></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="fThawabAddName()">${icon('plus',17,'ico-btn')} إضافة اسم متوفى</button>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" onclick="saveFamilyThawab()">${icon('download',17,'ico-btn')} حفظ التثويبات</button>
+      ${isMiqatPassed(fThawabMiqatId)?`<button class="btn btn-accent" onclick="sendFamilyThankYou()">📜 شهادة الشكر PDF</button>`:''}
+    </div>
+    ${(b.phone && isMiqatPassed(fThawabMiqatId))?`
+      <button class="btn btn-sm" style="width:100%;margin-top:9px;background:#25d366;color:#fff;border:none" onclick="sendFamilyThawabWA()">
+        ${icon('mail',16,'ico-btn')} إرسال رسالة الشكر للممثّل عبر واتساب</button>`:''}`;
+  renderFamThawabNames();
+}
+function renderFamThawabNames(){
+  const box=$('#fThawabNames'); if(!box) return;
+  if(!fThawabNames.length) fThawabNames=[''];
+  box.innerHTML=fThawabNames.map((nm,i)=>`
+    <div class="thawab-name-row">
+      <input type="text" placeholder="اسم المرحوم/ة" value="${(nm||'').replace(/"/g,'&quot;')}" oninput="fThawabNames[${i}]=this.value" />
+      <button type="button" class="contrib-del" onclick="fThawabRemoveName(${i})">×</button>
+    </div>`).join('');
+}
+function fThawabAddName(){ fThawabNames.push(''); renderFamThawabNames(); }
+function fThawabRemoveName(i){ fThawabNames.splice(i,1); if(!fThawabNames.length) fThawabNames=['']; renderFamThawabNames(); }
+async function saveFamilyThawab(){
+  const b=famBooking(); if(!b) return;
+  const names=fThawabNames.map(x=>(x||'').trim()).filter(Boolean);
+  b.deceased=names;
+  await saveMiqats();
+  const mq=miqats.find(x=>x.id===fThawabMiqatId);
+  logAudit('تعديل','المواقيت',`تثويبات ${b.familyName||'عائلة'} — ${names.length} اسماً في «${mq?mq.name:''}»`);
+  toast(names.length?`حُفظت ${names.length} ${names.length===1?'تثويبة':'تثويبات'}`:'حُفظ');
+  renderFamThawabBody(); if(typeof renderFamilyList==="function") renderFamilyList(); renderMiqats();
+}
+function sendFamilyThankYou(){
+  const mq=miqats.find(x=>x.id===fThawabMiqatId); if(!mq) return;
+  const idx=(mq.bookings||[]).findIndex(b=>b.memberId===fThawabKey);
+  if(idx<0){ toast('لا يوجد حجز'); return; }
+  printThawabCertificate(fThawabMiqatId, fThawabKey, idx);
+}
+/* رسالة شكر لممثّل العائلة مع أسماء المرحومين */
+function sendFamilyThawabWA(){
+  const mq=miqats.find(x=>x.id===fThawabMiqatId); const b=famBooking();
+  if(!mq||!b||!b.phone) return;
+  const names=(b.deceased||[]).filter(Boolean);
+  const hijri=fmtMiqatDate(mq);
+  let msg=`🌹 *السلام عليكم ورحمة الله وبركاته*\n\n`;
+  msg+=`الأخ الكريم ${b.repName||''} حفظكم الله\n`;
+  msg+=`ممثّل *${b.familyName||'العائلة'}*\n\n`;
+  msg+=`نتقدّم إليكم بجزيل الشكر والتقدير على مساهمتكم الكريمة في إحياء مجلس:\n`;
+  msg+=`*${mq.name}*\n${hijri}\n\n`;
+  if(names.length){
+    msg+=`🕯️ *وقد أُهدي ثواب هذا المجلس إلى أرواح:*\n`;
+    names.forEach(n=>{ msg+=`• المرحوم/ة ${n}\n`; });
+    msg+=`\nتغمّدهم الله بواسع رحمته، وأسكنهم فسيح جنّاته.\n\n`;
+  }
+  msg+=`نسأل الله أن يتقبّل منكم، ويجعله في ميزان حسناتكم، ويرزقكم شفاعة سيد الشهداء (ع).\n\n`;
+  msg+=`جزاكم الله خير الجزاء\n*هيئة محبي الحسين (ع)*`;
+  window.open(whatsappLink(b.phone, msg), '_blank');
 }
 
 /* ═══════════ تعديل ملف العضو ═══════════ */
@@ -4384,6 +4470,7 @@ function renderFamilyList(){
           <button class="fb-wa" onclick="sendFamilyMiqatReminder('${mq.id}','${b.memberId}')">${icon('mail',17,'ico-btn')} تذكير</button>
           <button class="fb-del" onclick="deleteFamilyBooking('${mq.id}','${b.memberId}')">🗑 حذف</button>
         </div>
+        <button class="fb-thawab" onclick="openFamilyThawab('${mq.id}','${b.memberId}')">${icon('candle',17,'ico-btn')} تثويبات المرحومين${(b.deceased&&b.deceased.length)?` (${b.deceased.length})`:''}</button>
         <button class="fb-pdf" onclick="printOneFamilyReport('${mq.id}','${b.memberId}')">${icon('doc',17,'ico-btn')} تقرير هذه العائلة (PDF)</button>
       </div>
     </div>`;

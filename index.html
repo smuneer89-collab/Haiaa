@@ -483,6 +483,21 @@
   .asm-row-m { font-size:11.5px; color:var(--muted); margin-top:3px; }
   .asm-row .del { background:none; border:none; color:var(--danger); font-size:19px; cursor:pointer; padding:0 4px; }
   .asm-head { display:flex; align-items:center; gap:11px; margin-bottom:13px; flex-wrap:wrap; }
+  /* قائمة إرسال الروابط */
+  .send-row { display:flex; align-items:center; gap:11px; background:var(--surface); border:1px solid var(--line);
+    border-radius:11px; padding:11px 13px; margin-bottom:7px; }
+  .send-row.done { background:var(--ok-soft); border-color:var(--ok); }
+  .send-body { flex:1; min-width:0; }
+  .send-n { font-size:14px; font-weight:600; color:var(--ink); }
+  .send-m { font-size:11px; color:var(--muted); margin-top:3px; }
+  .send-btn { width:38px; height:38px; border-radius:11px; background:#25d366; color:#fff;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; text-decoration:none; }
+  .send-btn.done { background:var(--ok); }
+  .send-no { font-size:11px; color:var(--muted-2); padding:0 6px; }
+  .fb-thawab { width:100%; margin-top:8px; padding:10px; border:1px solid var(--line); border-radius:10px;
+    background:var(--surface); color:var(--accent); font-family:var(--font-sans); font-size:13px; font-weight:600;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; }
+  .fb-thawab:active { background:var(--accent-soft); }
   /* الاقتراحات */
   .sg-add { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; }
   .sg-fld { margin-bottom:10px; }
