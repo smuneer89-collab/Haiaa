@@ -498,6 +498,52 @@
     background:var(--surface); color:var(--accent); font-family:var(--font-sans); font-size:13px; font-weight:600;
     cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; }
   .fb-thawab:active { background:var(--accent-soft); }
+  /* الأرشيف الإعلامي */
+  .med-card { width:100%; display:flex; align-items:center; gap:12px; padding:15px 16px; margin-bottom:13px;
+    border:1px solid var(--line); border-radius:14px; background:var(--surface); cursor:pointer;
+    font-family:var(--font-sans); text-align:right; position:relative; overflow:hidden; }
+  .med-card::before { content:''; position:absolute; top:0; right:0; width:3px; height:100%; background:var(--gold); }
+  .med-card .mc-ic { color:var(--accent); display:flex; }
+  .med-card .mc-t { flex:1; min-width:0; }
+  .med-card .mc-t b { display:block; font-size:15.5px; color:var(--ink); font-weight:700; }
+  .med-card .mc-t small { font-size:11px; color:var(--muted); line-height:1.5; }
+  .med-card .mc-n { font-size:12px; color:var(--accent); font-weight:700; background:var(--accent-soft); padding:3px 10px; border-radius:20px; }
+  .med-head { background:linear-gradient(150deg,var(--accent-deep),var(--accent)); padding:18px; color:#fff; border-radius:14px; text-align:center; margin-bottom:13px; }
+  .med-head .t { font-size:17px; font-weight:800; }
+  .med-head .s { font-size:11.5px; color:var(--gold); margin-top:4px; }
+  .med-filters { background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:12px; margin-bottom:12px; }
+  .med-chips { display:flex; gap:6px; overflow-x:auto; padding-bottom:7px; scrollbar-width:none; }
+  .med-chips::-webkit-scrollbar { display:none; }
+  .med-chip { flex-shrink:0; border:1px solid var(--line); background:var(--bg); color:var(--muted);
+    border-radius:20px; padding:6px 13px; font-family:var(--font-sans); font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .med-chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .med-grid { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .med-item { background:var(--surface); border:1px solid var(--line); border-radius:13px; overflow:hidden; cursor:pointer; }
+  .med-thumb { position:relative; aspect-ratio:16/9; background:linear-gradient(135deg,#dfd7c8,#c9bda8); overflow:hidden; }
+  .med-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .med-thumb .ph { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; opacity:.75; }
+  .med-thumb .dur { position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,.75); color:#fff;
+    font-size:10px; padding:2px 6px; border-radius:4px; font-variant-numeric:tabular-nums; }
+  .med-thumb .src { position:absolute; top:5px; right:5px; background:rgba(255,255,255,.94);
+    font-size:9.5px; padding:2px 7px; border-radius:10px; font-weight:700; }
+  .med-b { padding:10px 11px; }
+  .med-t { font-size:13px; font-weight:700; color:var(--ink); line-height:1.5; }
+  .med-m { font-size:10.5px; color:var(--muted); margin-top:4px; line-height:1.5; }
+  .med-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+  .med-tag { font-size:9.5px; background:var(--accent-soft); color:var(--accent); padding:2px 7px; border-radius:9px; }
+  .med-st { display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:5px; vertical-align:middle; }
+  .med-st.ok { background:var(--ok); } .med-st.bad { background:var(--danger); }
+  .med-st.priv { background:var(--warn); } .med-st.chk { background:var(--muted-2); }
+  /* نموذج الإضافة */
+  .mf-fld { margin-bottom:11px; }
+  .mf-fld label { display:block; font-size:12.5px; font-weight:600; color:var(--accent); margin-bottom:6px; }
+  .mf-fld input, .mf-fld select, .mf-fld textarea { width:100%; padding:11px 13px; border:1px solid var(--line);
+    border-radius:10px; font-family:var(--font-sans); font-size:13.5px; background:var(--bg); color:var(--ink); box-sizing:border-box; }
+  .mf-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .mf-prev { aspect-ratio:16/9; border-radius:11px; overflow:hidden; background:var(--bg); border:1px solid var(--line); margin-bottom:11px; }
+  .mf-prev img { width:100%; height:100%; object-fit:cover; }
+  .kw-picked { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:7px; }
+  .kw-tag { font-size:11px; background:var(--accent); color:#fff; padding:4px 9px; border-radius:10px; cursor:pointer; }
   /* الاقتراحات */
   .sg-add { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; }
   .sg-fld { margin-bottom:10px; }
@@ -1997,6 +2043,12 @@
       </div>
   </section>
 
+  <!-- الأرشيف الإعلامي -->
+  <section id="tab-media" class="tab-content" style="display:none">
+    <div class="page-bar"><button class="btn btn-ghost btn-sm" onclick="closeMediaArchive()">← رجوع للإعلامية</button></div>
+    <div id="mediaBody"></div>
+  </section>
+
   <!-- الجمعية العمومية -->
   <section id="tab-assembly" class="tab-content" style="display:none">
     <div class="page-bar">
@@ -2519,6 +2571,15 @@
     <!-- MEDIA -->
     <div id="idara-media" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+
+      <!-- الأرشيف الإعلامي -->
+      <button class="med-card" onclick="openMediaArchive()">
+        <span class="mc-ic"><svg class="ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><path d="M10 9l5 3-5 3z"/></svg></span>
+        <span class="mc-t"><b>الأرشيف الإعلامي</b>
+          <small>صور، فيديوهات، تسجيلات، أفلام، مسرحيات، وتصاميم الهيئة</small></span>
+        <span class="mc-n" id="medCount"></span>
+        <span style="font-size:22px;color:var(--muted-2)">›</span>
+      </button>
 
       <!-- مكتبة الصور من Google Drive -->
       <div class="panel">

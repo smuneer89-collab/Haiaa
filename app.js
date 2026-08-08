@@ -107,6 +107,7 @@ let financeLog = []; // سجل دخول اللجنة المالية: {id, email,
 let finance = { total:0, yearStart:0, expenses:[] }; // المالية: المبلغ الكلي، بداية العام، المصروفات
 let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, miqatId, deceased:[], amount, note, at}
 let revenues = []; // إيرادات المواقيت: {id, kind:'vow'|'donation', miqatId, name, amount, note, date, at}
+let mediaItems = []; // الأرشيف الإعلامي
 let letters = []; // الرسائل الرسمية الصادرة
 let archives = []; // أرشيف السنوات
 let radoodParts = []; // مشاركات مسجّلة يدوياً: {id, radoodId, miqatId, miqatName, note, at}
@@ -250,6 +251,7 @@ async function loadData(){
   try { const ar=await storage.get('archives'); if(ar) archives=JSON.parse(ar); } catch(e){ archives=[]; }
   try { const rv=await storage.get('revenues'); if(rv) revenues=JSON.parse(rv); } catch(e){ revenues=[]; }
   try { const lt=await storage.get('letters'); if(lt) letters=JSON.parse(lt); } catch(e){ letters=[]; }
+  try { const mi=await storage.get('mediaItems'); if(mi) mediaItems=JSON.parse(mi); } catch(e){ mediaItems=[]; }
   try { const gi=await storage.get('gdIndexCache'); if(gi) gdIndex=JSON.parse(gi); } catch(e){}
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
@@ -268,6 +270,7 @@ async function saveReminders(){ try{ await storage.set('reminders',JSON.stringif
 async function saveFinanceLog(){ try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(e){} cloudPush('financeLog',financeLog); }
 async function saveFinance(){ try{ await storage.set('finance',JSON.stringify(finance)); }catch(e){} if(window.CloudSync && CloudSync.pushFinance) CloudSync.pushFinance(); }
 async function savePaidThawab(){ try{ await storage.set('paidThawab',JSON.stringify(paidThawab)); }catch(e){} cloudPush('paidThawab',paidThawab); }
+async function saveMediaItems(){ try{ await storage.set('mediaItems',JSON.stringify(mediaItems)); }catch(e){} cloudPush('mediaItems',mediaItems); }
 async function saveLetters(){ try{ await storage.set('letters',JSON.stringify(letters)); }catch(e){} cloudPush('letters',letters); }
 async function saveRevenues(){ try{ await storage.set('revenues',JSON.stringify(revenues)); }catch(e){} cloudPush('revenues',revenues); }
 async function saveArchives(){ try{ await storage.set('archives',JSON.stringify(archives)); }catch(e){} cloudPush('archives',archives); }
@@ -1544,6 +1547,257 @@ async function printElectionResults(){
   <div class="foot">هيئة محبي الحسين (ع) — محضر رسمي لنتائج الانتخابات</div>
   </body></html>`);
   w.document.close(); w.focus();
+}
+
+
+/* ═══════════ الأرشيف الإعلامي ═══════════ */
+const MED_TYPES = ['مجلس عزاء','مجلس فرح','محاضرة','مسرحية','فيلم','مونتاج','بث مباشر','لقاء','قصيدة','نشيد','تصميم','صور'];
+const MED_SOURCES = ['YouTube','Instagram','Google Drive','Facebook','Vimeo','أخرى'];
+const MED_STATUS = { ok:'يعمل', bad:'محذوف', priv:'خاص', chk:'يحتاج مراجعة' };
+const MED_KEYWORDS = ['محرم','صفر','رمضان','عاشوراء','ليلة العاشر','الأربعين','التاسع','استقبال','موكب','مجلس',
+  'تغطية','لطم','قصيدة','خطبة','ذكرى','ولادة','شهادة','مسيرة','عزاء','احتفال'];
+
+let medFilter = { q:'', type:'', src:'', year:'' };
+let medEditId = null;
+
+/* استخراج معرّف يوتيوب والصورة المصغّرة */
+function ytId(url){
+  if(!url) return '';
+  const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : '';
+}
+function medThumb(m){
+  if(m.thumb) return m.thumb;
+  const y=ytId(m.url);
+  if(y) return `https://img.youtube.com/vi/${y}/hqdefault.jpg`;
+  const dm=String(m.url||'').match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]+)/);
+  if(dm) return `https://drive.google.com/thumbnail?id=${dm[1]}&sz=w480`;
+  return '';
+}
+function medSourceOf(url){
+  const u=String(url||'').toLowerCase();
+  if(/youtu\.?be|youtube/.test(u)) return 'YouTube';
+  if(/instagram/.test(u)) return 'Instagram';
+  if(/drive\.google/.test(u)) return 'Google Drive';
+  if(/facebook|fb\.watch/.test(u)) return 'Facebook';
+  if(/vimeo/.test(u)) return 'Vimeo';
+  return 'أخرى';
+}
+function medIconFor(t){
+  if(/مسرح|فيلم|مونتاج|بث/.test(t)) return 'image';
+  if(/قصيدة|نشيد/.test(t)) return 'mic';
+  if(/تصميم|صور/.test(t)) return 'image';
+  return 'doc';
+}
+
+function openMediaArchive(){ medEditId=null; openFullPage('media'); renderMediaArchive(); }
+function closeMediaArchive(){ switchTab('meetings'); setTimeout(()=>openIdara('media'),80); }
+
+function renderMediaArchive(){
+  const host=$('#mediaBody'); if(!host) return;
+  const f=medFilter;
+  let list=[...mediaItems];
+  if(f.type) list=list.filter(m=>m.type===f.type);
+  if(f.src) list=list.filter(m=>(m.source||medSourceOf(m.url))===f.src);
+  if(f.year) list=list.filter(m=>String(m.hYear||'')===f.year);
+  if(f.q){ const q=f.q.trim();
+    list=list.filter(m=>[m.title,m.occasion,m.place,m.people,m.committee,m.desc,(m.keywords||[]).join(' '),m.type]
+      .some(x=>String(x||'').includes(q))); }
+  list.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.at||'').localeCompare(a.at||''));
+  const years=[...new Set(mediaItems.map(m=>m.hYear).filter(Boolean))].sort((a,b)=>b-a);
+  host.innerHTML=`
+  <div class="med-head"><div class="t">${icon('image',18,'ico-btn')} الأرشيف الإعلامي</div>
+    <div class="s">${mediaItems.length} مادة · صور وفيديوهات وتسجيلات وتصاميم</div></div>
+
+  <button class="btn btn-primary" style="width:100%;margin-bottom:12px" onclick="openMediaForm()">
+    ${icon('plus',17,'ico-btn')} إضافة مادة إعلامية</button>
+
+  <div class="med-filters">
+    <div class="mg-search" style="margin-bottom:9px">${icon('search',16,'ico-btn')}
+      <input type="text" id="medQ" placeholder="ابحث بالعنوان أو المناسبة أو المشاركين أو الكلمات…"
+             value="${escapeHtml(f.q)}" oninput="medSet('q',this.value)" autocomplete="off" /></div>
+    <div class="med-chips">
+      <button class="med-chip ${!f.type?'on':''}" onclick="medSet('type','')">كل الأنواع</button>
+      ${MED_TYPES.filter(t=>mediaItems.some(m=>m.type===t)).map(t=>`
+        <button class="med-chip ${f.type===t?'on':''}" onclick="medSet('type','${t}')">${t}</button>`).join('')}
+    </div>
+    <div class="med-chips" style="margin-top:6px">
+      <button class="med-chip ${!f.src?'on':''}" onclick="medSet('src','')">كل المصادر</button>
+      ${MED_SOURCES.filter(s=>mediaItems.some(m=>(m.source||medSourceOf(m.url))===s)).map(s=>`
+        <button class="med-chip ${f.src===s?'on':''}" onclick="medSet('src','${s}')">${s}</button>`).join('')}
+      ${years.map(y=>`<button class="med-chip ${f.year===String(y)?'on':''}" onclick="medSet('year','${y}')">${y} هـ</button>`).join('')}
+    </div>
+  </div>
+
+  <div class="mg-selbar"><span>${list.length} ${list.length===1?'مادة':'مادة'}</span>
+    ${(f.q||f.type||f.src||f.year)?`<span class="mg-links"><a onclick="medReset()">مسح الفلاتر</a></span>`:''}</div>
+
+  ${list.length?`<div class="med-grid">${list.map(m=>{
+    const th=medThumb(m), src=m.source||medSourceOf(m.url);
+    const st=m.status||'chk';
+    return `<div class="med-item" onclick="openMediaForm('${m.id}')">
+      <div class="med-thumb">
+        ${th?`<img src="${th}" alt="" loading="lazy" onerror="this.style.display='none'" />`:''}
+        ${!th?`<span class="ph">${icon(medIconFor(m.type),34)}</span>`:''}
+        <span class="src">${escapeHtml(src)}</span>
+        ${m.duration?`<span class="dur">${escapeHtml(m.duration)}</span>`:''}
+      </div>
+      <div class="med-b">
+        <div class="med-t"><span class="med-st ${st}" title="${MED_STATUS[st]||''}"></span>${escapeHtml(m.title||'—')}</div>
+        <div class="med-m">${escapeHtml(m.type||'')}${m.occasion?' · '+escapeHtml(m.occasion):''}
+          ${m.hijri?`<br>${escapeHtml(m.hijri)}`:(m.date?`<br>${fmtDate(m.date)}`:'')}</div>
+        ${(m.keywords||[]).length?`<div class="med-tags">${m.keywords.slice(0,3).map(k=>`<span class="med-tag">${escapeHtml(k)}</span>`).join('')}</div>`:''}
+      </div>
+    </div>`;
+  }).join('')}</div>`:`<div class="lt-empty">${f.q||f.type||f.src||f.year?'لا نتائج مطابقة':'لا مواد بعد — اضغط «إضافة مادة إعلامية»'}</div>`}`;
+}
+function medSet(k,v){
+  medFilter[k]=v; renderMediaArchive();
+  if(k==='q'){ const i=$('#medQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }
+}
+function medReset(){ medFilter={q:'',type:'',src:'',year:''}; renderMediaArchive(); }
+
+/* نموذج الإضافة/التعديل */
+let medKeywords=[];
+function openMediaForm(id){
+  medEditId=id||null;
+  const m = id ? mediaItems.find(x=>x.id===id) : null;
+  medKeywords = m ? [...(m.keywords||[])] : [];
+  renderMediaForm(m);
+}
+function renderMediaForm(m){
+  const host=$('#mediaBody');
+  const d=m?m.date:today();
+  const th=m?medThumb(m):'';
+  host.innerHTML=`
+  <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:11px" onclick="renderMediaArchive()">← رجوع للأرشيف</button>
+  <div class="med-head"><div class="t">${m?'تعديل المادة':'مادة إعلامية جديدة'}</div></div>
+  <div class="lt-form">
+    ${th?`<div class="mf-prev"><img src="${th}" alt="" /></div>`:''}
+    <div class="mf-fld"><label>رابط المصدر</label>
+      <input id="mfUrl" type="url" dir="ltr" placeholder="https://youtube.com/watch?v=..." value="${escapeHtml(m?m.url:'')}" oninput="medUrlChanged()" /></div>
+    <div class="mf-row">
+      <div class="mf-fld"><label>المصدر</label>
+        <select id="mfSource">${MED_SOURCES.map(s=>`<option value="${s}" ${(m&&(m.source||medSourceOf(m.url))===s)?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="mf-fld"><label>حالة الرابط</label>
+        <select id="mfStatus">${Object.entries(MED_STATUS).map(([k,v])=>`<option value="${k}" ${(m&&m.status===k)?'selected':''}>${v}</option>`).join('')}</select></div>
+    </div>
+    <div class="mf-fld"><label>عنوان المادة</label>
+      <input id="mfTitle" type="text" placeholder="عنوان المقطع" value="${escapeHtml(m?m.title:'')}" /></div>
+    <div class="mf-row">
+      <div class="mf-fld"><label>النوع</label>
+        <select id="mfType">${MED_TYPES.map(t=>`<option value="${t}" ${(m&&m.type===t)?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="mf-fld"><label>المدة</label>
+        <input id="mfDuration" type="text" dir="ltr" placeholder="00:45:20" value="${escapeHtml(m?(m.duration||''):'')}" /></div>
+    </div>
+    <div class="mf-fld"><label>المناسبة</label>
+      <input id="mfOccasion" type="text" placeholder="ليلة عاشوراء ١٤٤٨" value="${escapeHtml(m?(m.occasion||''):'')}" /></div>
+    <div class="mf-row">
+      <div class="mf-fld"><label>التاريخ الميلادي</label>
+        <input id="mfDate" type="date" value="${d}" onchange="medDateChanged()" /></div>
+      <div class="mf-fld"><label>التاريخ الهجري</label>
+        <input id="mfHijri" type="text" placeholder="تلقائي" value="${escapeHtml(m?(m.hijri||''):gregToHijri(d))}" readonly style="opacity:.8" /></div>
+    </div>
+    <div class="mf-fld"><label>المكان</label>
+      <input id="mfPlace" type="text" placeholder="مأتم بني جمرة" value="${escapeHtml(m?(m.place||''):'')}" /></div>
+    <div class="mf-fld"><label>المشاركون <span style="font-weight:400;color:var(--muted)">(خطيب / رادود / شاعر)</span></label>
+      <input id="mfPeople" type="text" placeholder="الملا باسم الكربلائي" value="${escapeHtml(m?(m.people||''):'')}" /></div>
+    <div class="mf-fld"><label>اللجنة أو الجهة المنظّمة</label>
+      <input id="mfCommittee" type="text" placeholder="اللجنة الإعلامية" value="${escapeHtml(m?(m.committee||''):'')}" /></div>
+    <div class="mf-fld"><label>وصف مختصر</label>
+      <textarea id="mfDesc" rows="3" placeholder="وصف المحتوى…">${escapeHtml(m?(m.desc||''):'')}</textarea></div>
+    <div class="mf-fld"><label>الكلمات المفتاحية</label>
+      <div class="kw-picked" id="kwPicked"></div>
+      <div class="med-chips" id="kwChips"></div>
+      <div style="display:flex;gap:7px;margin-top:8px">
+        <input id="kwNew" type="text" placeholder="أضف كلمة جديدة…" style="flex:1" />
+        <button class="btn btn-ghost btn-sm" style="width:auto;padding:9px 14px" onclick="kwAddCustom()">${icon('plus',15)}</button>
+      </div>
+    </div>
+    <div class="lt-actions">
+      <button class="btn btn-primary" onclick="saveMediaItem()">${icon('check',16,'ico-btn')} حفظ</button>
+      ${m?`<a class="btn btn-accent" href="${escapeHtml(m.url||'#')}" target="_blank" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px">${icon('link',16,'ico-btn')} فتح المصدر</a>`:''}
+      ${m?`<button class="btn" style="background:var(--danger);color:#fff;border:none" onclick="delMediaItem('${m.id}')">${icon('trash',16,'ico-btn')} حذف</button>`:''}
+    </div>
+  </div>`;
+  renderKeywords();
+}
+function renderKeywords(){
+  const picked=$('#kwPicked'), chips=$('#kwChips');
+  if(picked) picked.innerHTML = medKeywords.map((k,i)=>`<span class="kw-tag" onclick="kwRemove(${i})">${escapeHtml(k)} ×</span>`).join('');
+  if(chips) chips.innerHTML = MED_KEYWORDS.filter(k=>!medKeywords.includes(k))
+    .map(k=>`<button class="med-chip" onclick="kwAdd('${k}')">${k}</button>`).join('');
+}
+function kwAdd(k){ if(!medKeywords.includes(k)) medKeywords.push(k); renderKeywords(); }
+function kwRemove(i){ medKeywords.splice(i,1); renderKeywords(); }
+function kwAddCustom(){
+  const v=($('#kwNew').value||'').trim(); if(!v) return;
+  if(!medKeywords.includes(v)) medKeywords.push(v);
+  $('#kwNew').value=''; renderKeywords();
+}
+function medUrlChanged(){
+  const u=$('#mfUrl').value;
+  const s=$('#mfSource'); if(s) s.value=medSourceOf(u);
+  const y=ytId(u);
+  if(y){
+    const p=document.querySelector('.mf-prev');
+    const html=`<img src="https://img.youtube.com/vi/${y}/hqdefault.jpg" alt="" />`;
+    if(p) p.innerHTML=html;
+    else { const d=document.createElement('div'); d.className='mf-prev'; d.innerHTML=html;
+           document.querySelector('.lt-form').prepend(d); }
+    checkYtStatus(y);
+  }
+}
+/* فحص حالة رابط يوتيوب تلقائياً */
+async function checkYtStatus(id){
+  try{
+    const r=await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`);
+    const st=$('#mfStatus');
+    if(r.ok){
+      const j=await r.json();
+      if(st) st.value='ok';
+      const t=$('#mfTitle'); if(t && !t.value.trim() && j.title) t.value=j.title;
+      toast('الرابط يعمل ✓');
+    } else { if(st) st.value = r.status===401 ? 'priv' : 'bad'; }
+  }catch(e){ /* الشبكة أو CORS — نترك الحالة كما هي */ }
+}
+function medDateChanged(){
+  const d=$('#mfDate').value;
+  const h=$('#mfHijri'); if(h) h.value=d?gregToHijri(d):'';
+}
+async function saveMediaItem(){
+  const url=($('#mfUrl').value||'').trim();
+  const title=($('#mfTitle').value||'').trim();
+  if(!title){ toast('اكتب عنوان المادة'); return; }
+  if(!url){ toast('أدخل رابط المصدر'); return; }
+  const d=$('#mfDate').value||today();
+  const data={
+    url, title, type:$('#mfType').value, source:$('#mfSource').value, status:$('#mfStatus').value,
+    duration:($('#mfDuration').value||'').trim(), occasion:($('#mfOccasion').value||'').trim(),
+    date:d, hijri:$('#mfHijri').value||gregToHijri(d), hYear:parseInt((gregToHijri(d).match(/\d{4}/)||[])[0],10)||null,
+    place:($('#mfPlace').value||'').trim(), people:($('#mfPeople').value||'').trim(),
+    committee:($('#mfCommittee').value||'').trim(), desc:($('#mfDesc').value||'').trim(),
+    keywords:[...medKeywords]
+  };
+  if(medEditId){
+    const m=mediaItems.find(x=>x.id===medEditId);
+    if(m) Object.assign(m, data, { updatedAt:new Date().toISOString() });
+    logAudit('تعديل','الأرشيف الإعلامي',`«${title}»`);
+  } else {
+    mediaItems.push({ id:'md_'+Date.now(), ...data, at:new Date().toISOString() });
+    logAudit('إضافة','الأرشيف الإعلامي',`«${title}» — ${data.type}`);
+  }
+  await saveMediaItems();
+  toast('حُفظت المادة');
+  renderMediaArchive();
+}
+async function delMediaItem(id){
+  const m=mediaItems.find(x=>x.id===id); if(!m) return;
+  if(!confirm(`حذف «${m.title}»؟`)) return;
+  mediaItems=mediaItems.filter(x=>x.id!==id);
+  await saveMediaItems();
+  logAudit('حذف','الأرشيف الإعلامي',`«${m.title}»`);
+  renderMediaArchive();
 }
 
 /* ═══════════ الرسائل الرسمية ═══════════ */
@@ -4760,7 +5014,7 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters
+    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters, mediaItems
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -4803,10 +5057,11 @@ async function backupImport(e){
     if(Array.isArray(backup.archives)) archives=backup.archives;
     if(Array.isArray(backup.revenues)) revenues=backup.revenues;
     if(Array.isArray(backup.letters)) letters=backup.letters;
+    if(Array.isArray(backup.mediaItems)) mediaItems=backup.mediaItems;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
-    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters();
+    await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters(); await saveMediaItems();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
@@ -4971,7 +5226,7 @@ function openIdara(which){
   if(which==='sec'){ idaraShow('sec'); updateSecCards(); fillAnnualYears(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
   else if(which==='finance'){ enterFinance(); }
-  else if(which==='media'){ idaraShow('media'); renderAlbum(); renderGdCats(); buildGdIndex(); }
+  else if(which==='media'){ idaraShow('media'); renderAlbum(); renderGdCats(); buildGdIndex(); const c=$('#medCount'); if(c) c.textContent=mediaItems.length?mediaItems.length+' مادة':''; }
   else if(which==='archive'){
     if(!archiveUnlocked){
       const code=prompt('🔐 الأرشيف — أدخل الرقم السري:');
