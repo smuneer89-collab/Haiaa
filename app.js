@@ -5019,6 +5019,17 @@ function downloadBlob(content,type,filename){
   const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
+function downloadProjectZip(){
+  const url='https://github.com/smuneer89-collab/Haiaa/archive/refs/heads/main.zip';
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='Haiaa-main.zip';
+  a.rel='noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('بدأ تحميل أحدث ملفات المشروع من GitHub');
+}
 async function backupExport(){
   const backup={
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),

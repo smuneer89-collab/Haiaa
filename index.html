@@ -2691,6 +2691,12 @@
           <input type="file" id="backupImportInput" style="display:none" accept="application/json,.json" onchange="backupImport(event)" />
         </div>
         <div class="actions-row" style="margin-top:8px;">
+          <button class="btn btn-primary" onclick="downloadProjectZip()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> تحميل ملفات المشروع ZIP</button>
+        </div>
+        <div class="note" style="margin-top:10px;">
+          <strong>ملفات المشروع ZIP</strong> تنزّل أحدث نسخة كاملة من مستودع GitHub، وتشمل جميع الملفات والمجلدات الحالية وأي ملفات جديدة تُضاف مستقبلًا إلى الفرع الرئيسي.
+        </div>
+        <div class="actions-row" style="margin-top:8px;">
           <button class="btn btn-ghost" onclick="exportCSV()">تصدير الأعضاء CSV</button>
           <button class="btn btn-danger" onclick="clearAllData()">مسح كل البيانات</button>
         </div>
