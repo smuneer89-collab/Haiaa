@@ -1559,8 +1559,6 @@ const MED_KEYWORDS = ['محرم','صفر','رمضان','عاشوراء','ليل�
 
 let medFilter = { q:'', type:'', src:'', year:'' };
 let medEditId = null;
-let medCoverData = '';
-let medDidDrag = false;
 
 /* استخراج معرّف يوتيوب والصورة المصغّرة */
 function ytId(url){
@@ -1605,11 +1603,7 @@ function renderMediaArchive(){
   if(f.q){ const q=f.q.trim();
     list=list.filter(m=>[m.title,m.occasion,m.place,m.people,m.committee,m.desc,(m.keywords||[]).join(' '),m.type]
       .some(x=>String(x||'').includes(q))); }
-  list.sort((a,b)=>{
-    const ao=Number.isFinite(Number(a.order))?Number(a.order):Number.MAX_SAFE_INTEGER;
-    const bo=Number.isFinite(Number(b.order))?Number(b.order):Number.MAX_SAFE_INTEGER;
-    return ao-bo || (b.date||'').localeCompare(a.date||'') || (b.at||'').localeCompare(a.at||'');
-  });
+  list.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.at||'').localeCompare(a.at||''));
   const years=[...new Set(mediaItems.map(m=>m.hYear).filter(Boolean))].sort((a,b)=>b-a);
   host.innerHTML=`
   <div class="med-head"><div class="t">${icon('image',18,'ico-btn')} الأرشيف الإعلامي</div>
@@ -1641,9 +1635,7 @@ function renderMediaArchive(){
   ${list.length?`<div class="med-grid">${list.map(m=>{
     const th=medThumb(m), src=m.source||medSourceOf(m.url);
     const st=m.status||'chk';
-    return `<div class="med-item" data-med-id="${m.id}">
-      <button type="button" class="med-drag" aria-label="اسحب لترتيب المادة" title="اسحب لترتيب المادة"
-        onpointerdown="medDragStart(event,'${m.id}')">☷</button>
+    return `<div class="med-item">
       <div class="med-thumb" onclick="openMediaSource('${m.id}')">
         ${th?`<img src="${th}" alt="" loading="lazy" onerror="this.style.display='none'" />`:''}
         ${!th?`<span class="ph">${icon(medIconFor(m.type),34)}</span>`:''}
@@ -1675,81 +1667,23 @@ function medSet(k,v){
 }
 function medReset(){ medFilter={q:'',type:'',src:'',year:''}; renderMediaArchive(); }
 
-/* ترتيب البطاقات بالسحب — يعمل باللمس والماوس ويحفظ الترتيب */
-let medDragState=null;
-function medDragStart(e,id){
-  if(e.button!==undefined && e.button!==0) return;
-  const item=e.currentTarget.closest('.med-item'), grid=item&&item.closest('.med-grid');
-  if(!item||!grid) return;
-  e.preventDefault(); e.stopPropagation();
-  medDidDrag=false;
-  medDragState={id,item,grid,startX:e.clientX,startY:e.clientY,pointerId:e.pointerId};
-  try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(_e){}
-  item.classList.add('med-dragging');
-  document.addEventListener('pointermove',medDragMove,{passive:false});
-  document.addEventListener('pointerup',medDragEnd,{once:true});
-  document.addEventListener('pointercancel',medDragEnd,{once:true});
-}
-function medDragMove(e){
-  const s=medDragState; if(!s) return;
-  e.preventDefault();
-  if(Math.hypot(e.clientX-s.startX,e.clientY-s.startY)>5) medDidDrag=true;
-  const under=document.elementFromPoint(e.clientX,e.clientY);
-  const target=under&&under.closest('.med-item');
-  s.grid.querySelectorAll('.med-drag-over').forEach(x=>x.classList.remove('med-drag-over'));
-  if(!target||target===s.item||target.parentElement!==s.grid) return;
-  target.classList.add('med-drag-over');
-  const r=target.getBoundingClientRect();
-  const before=e.clientY<r.top+r.height/2 || (Math.abs(e.clientY-(r.top+r.height/2))<r.height*.25 && e.clientX>r.left+r.width/2);
-  s.grid.insertBefore(s.item,before?target:target.nextSibling);
-}
-async function medDragEnd(e){
-  const s=medDragState; if(!s) return;
-  document.removeEventListener('pointermove',medDragMove);
-  s.item.classList.remove('med-dragging');
-  s.grid.querySelectorAll('.med-drag-over').forEach(x=>x.classList.remove('med-drag-over'));
-  medDragState=null;
-  if(!medDidDrag) return;
-  const visible=[...s.grid.querySelectorAll('.med-item')].map(x=>x.dataset.medId);
-  const visibleSet=new Set(visible), byId=new Map(mediaItems.map(m=>[m.id,m]));
-  const ordered=[...mediaItems].sort((a,b)=>{
-    const ao=Number.isFinite(Number(a.order))?Number(a.order):Number.MAX_SAFE_INTEGER;
-    const bo=Number.isFinite(Number(b.order))?Number(b.order):Number.MAX_SAFE_INTEGER;
-    return ao-bo || (b.date||'').localeCompare(a.date||'') || (b.at||'').localeCompare(a.at||'');
-  });
-  const slots=[]; ordered.forEach((m,i)=>{ if(visibleSet.has(m.id)) slots.push(i); });
-  visible.forEach((id,i)=>{ ordered[slots[i]]=byId.get(id); });
-  ordered.forEach((m,i)=>{ m.order=i; });
-  await saveMediaItems();
-  toast('تم حفظ الترتيب');
-  setTimeout(()=>{ medDidDrag=false; },300);
-}
-
 /* نموذج الإضافة/التعديل */
 let medKeywords=[];
 function openMediaForm(id){
   medEditId=id||null;
   const m = id ? mediaItems.find(x=>x.id===id) : null;
   medKeywords = m ? [...(m.keywords||[])] : [];
-  medCoverData = m ? (m.thumb||'') : '';
   renderMediaForm(m);
 }
 function renderMediaForm(m){
   const host=$('#mediaBody');
   const d=m?m.date:today();
-  const th=medCoverData || (m?medThumb(m):'');
+  const th=m?medThumb(m):'';
   host.innerHTML=`
   <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:11px" onclick="renderMediaArchive()">← رجوع للأرشيف</button>
   <div class="med-head"><div class="t">${m?'تعديل المادة':'مادة إعلامية جديدة'}</div></div>
   <div class="lt-form">
     ${th?`<div class="mf-prev"><img src="${th}" alt="" /></div>`:''}
-    <div class="mf-fld"><label>صورة الغلاف <span style="font-weight:400;color:var(--muted)">(مناسبة خصوصًا لإنستغرام)</span></label>
-      <div class="mf-cover-row">
-        <input id="mfCover" type="file" accept="image/*" onchange="medCoverChanged(this)" />
-        ${medCoverData?`<button type="button" class="btn btn-ghost btn-sm" style="width:auto" onclick="medRemoveCover()">حذف الغلاف</button>`:''}
-      </div>
-      <div style="font-size:10.5px;color:var(--muted);margin-top:5px">تُضغط الصورة تلقائيًا قبل الحفظ.</div>
-    </div>
     <div class="mf-fld"><label>رابط المصدر</label>
       <input id="mfUrl" type="url" dir="ltr" placeholder="https://youtube.com/watch?v=..." value="${escapeHtml(m?m.url:'')}" oninput="medUrlChanged()" /></div>
     <div class="mf-row">
@@ -1824,39 +1758,6 @@ function medUrlChanged(){
     checkYtStatus(y);
   }
 }
-async function medCoverChanged(input){
-  const file=input.files&&input.files[0]; if(!file) return;
-  if(!file.type.startsWith('image/')){ toast('اختر ملف صورة'); input.value=''; return; }
-  try{
-    medCoverData=await medCompressImage(file,960,0.78);
-    const p=document.querySelector('.mf-prev');
-    const html=`<img src="${medCoverData}" alt="معاينة الغلاف" />`;
-    if(p) p.innerHTML=html;
-    else { const d=document.createElement('div'); d.className='mf-prev'; d.innerHTML=html; document.querySelector('.lt-form').prepend(d); }
-    toast('تم تجهيز صورة الغلاف');
-  }catch(e){ toast('تعذر قراءة الصورة'); }
-}
-function medCompressImage(file,maxSide,quality){
-  return new Promise((resolve,reject)=>{
-    const img=new Image(), url=URL.createObjectURL(file);
-    img.onload=()=>{
-      let w=img.naturalWidth,h=img.naturalHeight;
-      const scale=Math.min(1,maxSide/Math.max(w,h)); w=Math.round(w*scale); h=Math.round(h*scale);
-      const c=document.createElement('canvas'); c.width=w; c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
-      resolve(c.toDataURL('image/jpeg',quality));
-    };
-    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('image')); };
-    img.src=url;
-  });
-}
-function medRemoveCover(){
-  medCoverData='';
-  const p=document.querySelector('.mf-prev'); if(p) p.remove();
-  const b=document.querySelector('.mf-cover-row button'); if(b) b.remove();
-  const f=$('#mfCover'); if(f) f.value='';
-  toast('سيُحذف الغلاف عند الحفظ');
-}
 /* فحص حالة رابط يوتيوب تلقائياً */
 async function checkYtStatus(id){
   try{
@@ -1886,14 +1787,14 @@ async function saveMediaItem(){
     date:d, hijri:$('#mfHijri').value||gregToHijri(d), hYear:parseInt((gregToHijri(d).match(/\d{4}/)||[])[0],10)||null,
     place:($('#mfPlace').value||'').trim(), people:($('#mfPeople').value||'').trim(),
     committee:($('#mfCommittee').value||'').trim(), desc:($('#mfDesc').value||'').trim(),
-    keywords:[...medKeywords], thumb:medCoverData
+    keywords:[...medKeywords]
   };
   if(medEditId){
     const m=mediaItems.find(x=>x.id===medEditId);
     if(m) Object.assign(m, data, { updatedAt:new Date().toISOString() });
     logAudit('تعديل','الأرشيف الإعلامي',`«${title}»`);
   } else {
-    mediaItems.push({ id:'md_'+Date.now(), ...data, order:mediaItems.length, at:new Date().toISOString() });
+    mediaItems.push({ id:'md_'+Date.now(), ...data, at:new Date().toISOString() });
     logAudit('إضافة','الأرشيف الإعلامي',`«${title}» — ${data.type}`);
   }
   await saveMediaItems();
@@ -6189,6 +6090,26 @@ function surveyPageURL(sessionId){
   const base=location.origin + location.pathname.replace(/[^/]*$/, '');
   return base + 'survey.html?s=' + sessionId;
 }
+function cloudCreateErrorMessage(err){
+  const code=(err&&err.code)||'';
+  if(code==='permission-denied' || code==='firestore/permission-denied'){
+    return 'لا توجد صلاحية لإنشاء الرابط بهذا الحساب. تأكد أن البريد مسموح به في قواعد Firebase.';
+  }
+  if(code==='cloud/timeout' || code==='unavailable' || code==='firestore/unavailable'){
+    return 'تعذّر الوصول إلى Firebase. تحقق من الإنترنت ومن نشر قواعد Firebase، ثم حاول مرة أخرى.';
+  }
+  if(code==='cloud/not-ready' || code==='unauthenticated' || code==='firestore/unauthenticated'){
+    return 'السحابة غير جاهزة. سجّل الخروج ثم ادخل من جديد وحاول مرة أخرى.';
+  }
+  return 'تعذّر إنشاء الرابط: '+escapeHtml((err&&err.message)||'خطأ غير معروف في Firebase.');
+}
+function setCreateLinkButtonBusy(resultEl, busy){
+  const modal=resultEl&&resultEl.closest('#evalLinkBody');
+  const btn=modal&&modal.querySelector('.actions-row .btn-primary');
+  if(!btn) return;
+  btn.disabled=!!busy;
+  btn.style.opacity=busy?'.65':'';
+}
 let currentSurveyRadoodId=null;
 function openSurveyLinkDialog(radoodId){
   currentSurveyRadoodId=radoodId;
@@ -6215,6 +6136,7 @@ async function createSurveyLink(){
   const r=radoods.find(x=>x.id===currentSurveyRadoodId); if(!r) return;
   const mq=miqats.find(x=>x.id===miqatId);
   const res=$('#surveyLinkResult'); res.innerHTML='<div class="eval-link-loading">جارٍ الإنشاء…</div>';
+  setCreateLinkButtonBusy(res,true);
   try{
     const sessionId=await CloudSync.createSurveySession({
       radoodId:r.id, radoodName:r.name, radoodImg:r.img||'', miqatId, miqatName:mq?mq.name:''
@@ -6230,7 +6152,10 @@ async function createSurveyLink(){
         </div>
       </div>`;
     loadRecordSurveys(currentSurveyRadoodId);
-  }catch(e){ console.error(e); res.innerHTML='<div class="eval-link-err">تعذّر إنشاء الرابط.</div>'; }
+  }catch(e){
+    console.error('survey link create error:',e);
+    res.innerHTML=`<div class="eval-link-err">${cloudCreateErrorMessage(e)}</div>`;
+  }finally{ setCreateLinkButtonBusy(res,false); }
 }
 async function viewSurveyResults(sessionId, miqatName){
   const box=$('#recSurv_'+sessionId); if(!box) return;
@@ -6303,6 +6228,7 @@ async function createEvalLink(){
   const r=radoods.find(x=>x.id===currentEvalRadoodId); if(!r) return;
   const mq=miqats.find(x=>x.id===miqatId);
   const res=$('#evalLinkResult'); res.innerHTML='<div class="eval-link-loading">جارٍ الإنشاء…</div>';
+  setCreateLinkButtonBusy(res,true);
   try{
     const sessionId=await CloudSync.createEvalSession({
       radoodId:r.id, radoodName:r.name, radoodImg:r.img||'',
@@ -6319,7 +6245,10 @@ async function createEvalLink(){
         </div>
       </div>`;
     loadRecordSessions(currentEvalRadoodId);
-  }catch(e){ console.error(e); res.innerHTML='<div class="eval-link-err">تعذّر إنشاء الرابط. تأكد من الاتصال.</div>'; }
+  }catch(e){
+    console.error('evaluation link create error:',e);
+    res.innerHTML=`<div class="eval-link-err">${cloudCreateErrorMessage(e)}</div>`;
+  }finally{ setCreateLinkButtonBusy(res,false); }
 }
 function copyEvalLink(url){
   navigator.clipboard?.writeText(url).then(()=>toast('تم نسخ الرابط')).catch(()=>{

@@ -44,6 +44,32 @@ const CloudSync = (() => {
   let allowBigDelete = false;
   let pendingPush = {};
   const uploadedOnce = {};   // منع تكرار الرفع التلقائي لكل مجموعة
+  const REQUEST_TIMEOUT_MS = 15000;
+
+  function withTimeout(promise, label){
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        const err = new Error(label || 'انتهت مهلة الاتصال بالسحابة');
+        err.code = 'cloud/timeout';
+        reject(err);
+      }, REQUEST_TIMEOUT_MS);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  async function ensureServerAccess(collectionName){
+    if(!db || !auth || !user || !ready){
+      const err = new Error('السحابة غير جاهزة. سجّل الدخول ثم حاول مرة أخرى.');
+      err.code = 'cloud/not-ready';
+      throw err;
+    }
+    // القراءة من الخادم مباشرة تمنع اعتبار تسجيل الدخول أو النسخة المحلية اتصالاً ناجحاً.
+    await withTimeout(
+      db.collection(collectionName).limit(1).get({ source:'server' }),
+      'تعذّر الوصول إلى خادم Firebase خلال المهلة المحددة.'
+    );
+  }
 
   /* ── تهيئة ── */
   function init(){
@@ -365,8 +391,11 @@ const CloudSync = (() => {
   // ═══ التقييم الجماعي عبر الرابط ═══
   // إنشاء جلسة تقييم (يعيد معرّف الجلسة)
   async function createEvalSession(payload){
-    if(!db) throw new Error('cloud not ready');
-    const ref = await db.collection('evalSessions').add(Object.assign({ closed:false, at:new Date().toISOString() }, payload));
+    await ensureServerAccess('evalSessions');
+    const ref = await withTimeout(
+      db.collection('evalSessions').add(Object.assign({ closed:false, at:new Date().toISOString() }, payload)),
+      'تأخّر Firebase في إنشاء رابط التقييم.'
+    );
     return ref.id;
   }
   // جلب التقييمات الواردة لجلسة معيّنة (الإدارة فقط)
@@ -391,8 +420,11 @@ const CloudSync = (() => {
 
   // ═══ استبيان الرادود ═══
   async function createSurveySession(payload){
-    if(!db) throw new Error('cloud not ready');
-    const ref = await db.collection('surveySessions').add(Object.assign({ closed:false, at:new Date().toISOString() }, payload));
+    await ensureServerAccess('surveySessions');
+    const ref = await withTimeout(
+      db.collection('surveySessions').add(Object.assign({ closed:false, at:new Date().toISOString() }, payload)),
+      'تأخّر Firebase في إنشاء رابط الاستبيان.'
+    );
     return ref.id;
   }
   async function fetchPublicSurveys(sessionId){
