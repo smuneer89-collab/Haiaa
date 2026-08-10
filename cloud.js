@@ -44,31 +44,58 @@ const CloudSync = (() => {
   let allowBigDelete = false;
   let pendingPush = {};
   const uploadedOnce = {};   // منع تكرار الرفع التلقائي لكل مجموعة
-  const REQUEST_TIMEOUT_MS = 15000;
+  const ADMIN_EMAILS = ['smuneer89@gmail.com', 'abuyusufjoud@gmail.com'];
+  const LINK_TIMEOUT_MS = 15000;
 
-  function withTimeout(promise, label){
+  function withTimeout(promise, ms, code){
     let timer;
-    const timeout = new Promise((_, reject) => {
-      timer = setTimeout(() => {
-        const err = new Error(label || 'انتهت مهلة الاتصال بالسحابة');
-        err.code = 'cloud/timeout';
-        reject(err);
-      }, REQUEST_TIMEOUT_MS);
-    });
-    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const err = new Error('انتهت مهلة الاتصال بـ Firebase. تأكد من الإنترنت ثم حاول مرة أخرى.');
+          err.code = code || 'cloud/timeout';
+          reject(err);
+        }, ms);
+      })
+    ]).finally(() => clearTimeout(timer));
   }
 
-  async function ensureServerAccess(collectionName){
-    if(!db || !auth || !user || !ready){
-      const err = new Error('السحابة غير جاهزة. سجّل الدخول ثم حاول مرة أخرى.');
+  async function requireLinkAccess(){
+    if(!db || !auth) {
+      const err = new Error('السحابة لم تجهز بعد. أعد تحميل الصفحة ثم سجّل الدخول.');
       err.code = 'cloud/not-ready';
       throw err;
     }
-    // القراءة من الخادم مباشرة تمنع اعتبار تسجيل الدخول أو النسخة المحلية اتصالاً ناجحاً.
-    await withTimeout(
-      db.collection(collectionName).limit(1).get({ source:'server' }),
-      'تعذّر الوصول إلى خادم Firebase خلال المهلة المحددة.'
-    );
+    const current = auth.currentUser;
+    if(!current){
+      const err = new Error('انتهت جلسة الدخول. سجّل الدخول من جديد.');
+      err.code = 'cloud/not-authenticated';
+      throw err;
+    }
+    const email = String(current.email || '').trim().toLowerCase();
+    if(!ADMIN_EMAILS.includes(email)){
+      const err = new Error('هذا البريد غير مسموح له بإنشاء الروابط في قواعد Firebase.');
+      err.code = 'cloud/email-not-allowed';
+      throw err;
+    }
+    await withTimeout(current.getIdToken(true), LINK_TIMEOUT_MS, 'cloud/auth-timeout');
+  }
+
+  async function createLinkSession(collectionName, payload){
+    await requireLinkAccess();
+    try{
+      const data = Object.assign({ closed:false, at:new Date().toISOString() }, payload);
+      const ref = await withTimeout(db.collection(collectionName).add(data), LINK_TIMEOUT_MS, 'cloud/write-timeout');
+      return ref.id;
+    }catch(e){
+      if(e && e.code === 'permission-denied'){
+        e.message = 'رفضت قواعد Firebase إنشاء الرابط. تأكد من نشر firestore-rules.txt ومن البريد المسجّل.';
+      }else if(e && (e.code === 'unavailable' || e.code === 'auth/network-request-failed')){
+        e.message = 'تعذّر الوصول إلى Firebase. تحقق من الإنترنت ثم حاول مرة أخرى.';
+      }
+      throw e;
+    }
   }
 
   /* ── تهيئة ── */
@@ -391,12 +418,7 @@ const CloudSync = (() => {
   // ═══ التقييم الجماعي عبر الرابط ═══
   // إنشاء جلسة تقييم (يعيد معرّف الجلسة)
   async function createEvalSession(payload){
-    await ensureServerAccess('evalSessions');
-    const ref = await withTimeout(
-      db.collection('evalSessions').add(Object.assign({ closed:false, at:new Date().toISOString() }, payload)),
-      'تأخّر Firebase في إنشاء رابط التقييم.'
-    );
-    return ref.id;
+    return createLinkSession('evalSessions', payload);
   }
   // جلب التقييمات الواردة لجلسة معيّنة (الإدارة فقط)
   async function fetchPublicEvals(sessionId){
@@ -420,12 +442,7 @@ const CloudSync = (() => {
 
   // ═══ استبيان الرادود ═══
   async function createSurveySession(payload){
-    await ensureServerAccess('surveySessions');
-    const ref = await withTimeout(
-      db.collection('surveySessions').add(Object.assign({ closed:false, at:new Date().toISOString() }, payload)),
-      'تأخّر Firebase في إنشاء رابط الاستبيان.'
-    );
-    return ref.id;
+    return createLinkSession('surveySessions', payload);
   }
   async function fetchPublicSurveys(sessionId){
     if(!db) throw new Error('cloud not ready');

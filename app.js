@@ -6090,26 +6090,6 @@ function surveyPageURL(sessionId){
   const base=location.origin + location.pathname.replace(/[^/]*$/, '');
   return base + 'survey.html?s=' + sessionId;
 }
-function cloudCreateErrorMessage(err){
-  const code=(err&&err.code)||'';
-  if(code==='permission-denied' || code==='firestore/permission-denied'){
-    return 'لا توجد صلاحية لإنشاء الرابط بهذا الحساب. تأكد أن البريد مسموح به في قواعد Firebase.';
-  }
-  if(code==='cloud/timeout' || code==='unavailable' || code==='firestore/unavailable'){
-    return 'تعذّر الوصول إلى Firebase. تحقق من الإنترنت ومن نشر قواعد Firebase، ثم حاول مرة أخرى.';
-  }
-  if(code==='cloud/not-ready' || code==='unauthenticated' || code==='firestore/unauthenticated'){
-    return 'السحابة غير جاهزة. سجّل الخروج ثم ادخل من جديد وحاول مرة أخرى.';
-  }
-  return 'تعذّر إنشاء الرابط: '+escapeHtml((err&&err.message)||'خطأ غير معروف في Firebase.');
-}
-function setCreateLinkButtonBusy(resultEl, busy){
-  const modal=resultEl&&resultEl.closest('#evalLinkBody');
-  const btn=modal&&modal.querySelector('.actions-row .btn-primary');
-  if(!btn) return;
-  btn.disabled=!!busy;
-  btn.style.opacity=busy?'.65':'';
-}
 let currentSurveyRadoodId=null;
 function openSurveyLinkDialog(radoodId){
   currentSurveyRadoodId=radoodId;
@@ -6124,7 +6104,7 @@ function openSurveyLinkDialog(radoodId){
         ${miqatOpts.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
       </select></div>
     <div class="actions-row">
-      <button class="btn btn-primary" onclick="createSurveyLink()">${icon('doc',17,'ico-btn')} إنشاء الرابط</button>
+      <button class="btn btn-primary" id="createSurveyLinkBtn" onclick="createSurveyLink()">${icon('doc',17,'ico-btn')} إنشاء الرابط</button>
     </div>
     <div id="surveyLinkResult" style="margin-top:14px;"></div>`;
   $('#evalLinkModal').classList.add('open');
@@ -6135,8 +6115,10 @@ async function createSurveyLink(){
   if(!miqatId){ toast('اختر المناسبة'); return; }
   const r=radoods.find(x=>x.id===currentSurveyRadoodId); if(!r) return;
   const mq=miqats.find(x=>x.id===miqatId);
+  const btn=$('#createSurveyLinkBtn');
+  if(btn && btn.disabled) return;
+  if(btn){ btn.disabled=true; btn.innerHTML='جارٍ الإنشاء…'; }
   const res=$('#surveyLinkResult'); res.innerHTML='<div class="eval-link-loading">جارٍ الإنشاء…</div>';
-  setCreateLinkButtonBusy(res,true);
   try{
     const sessionId=await CloudSync.createSurveySession({
       radoodId:r.id, radoodName:r.name, radoodImg:r.img||'', miqatId, miqatName:mq?mq.name:''
@@ -6153,9 +6135,11 @@ async function createSurveyLink(){
       </div>`;
     loadRecordSurveys(currentSurveyRadoodId);
   }catch(e){
-    console.error('survey link create error:',e);
-    res.innerHTML=`<div class="eval-link-err">${cloudCreateErrorMessage(e)}</div>`;
-  }finally{ setCreateLinkButtonBusy(res,false); }
+    console.error(e);
+    res.innerHTML=`<div class="eval-link-err">${escapeHtml(linkCreationError(e))}</div>`;
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML=icon('doc',17,'ico-btn')+' إنشاء الرابط'; }
+  }
 }
 async function viewSurveyResults(sessionId, miqatName){
   const box=$('#recSurv_'+sessionId); if(!box) return;
@@ -6216,7 +6200,7 @@ function openEvalLinkDialog(radoodId){
         ${miqatOpts.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
       </select></div>
     <div class="actions-row">
-      <button class="btn btn-primary" onclick="createEvalLink()">${icon('link',17,'ico-btn')} إنشاء الرابط</button>
+      <button class="btn btn-primary" id="createEvalLinkBtn" onclick="createEvalLink()">${icon('link',17,'ico-btn')} إنشاء الرابط</button>
     </div>
     <div id="evalLinkResult" style="margin-top:14px;"></div>`;
   $('#evalLinkModal').classList.add('open');
@@ -6227,8 +6211,10 @@ async function createEvalLink(){
   if(!miqatId){ toast('اختر المناسبة'); return; }
   const r=radoods.find(x=>x.id===currentEvalRadoodId); if(!r) return;
   const mq=miqats.find(x=>x.id===miqatId);
+  const btn=$('#createEvalLinkBtn');
+  if(btn && btn.disabled) return;
+  if(btn){ btn.disabled=true; btn.innerHTML='جارٍ الإنشاء…'; }
   const res=$('#evalLinkResult'); res.innerHTML='<div class="eval-link-loading">جارٍ الإنشاء…</div>';
-  setCreateLinkButtonBusy(res,true);
   try{
     const sessionId=await CloudSync.createEvalSession({
       radoodId:r.id, radoodName:r.name, radoodImg:r.img||'',
@@ -6246,9 +6232,20 @@ async function createEvalLink(){
       </div>`;
     loadRecordSessions(currentEvalRadoodId);
   }catch(e){
-    console.error('evaluation link create error:',e);
-    res.innerHTML=`<div class="eval-link-err">${cloudCreateErrorMessage(e)}</div>`;
-  }finally{ setCreateLinkButtonBusy(res,false); }
+    console.error(e);
+    res.innerHTML=`<div class="eval-link-err">${escapeHtml(linkCreationError(e))}</div>`;
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML=icon('link',17,'ico-btn')+' إنشاء الرابط'; }
+  }
+}
+function linkCreationError(e){
+  const code=(e&&e.code)||'';
+  if(code==='permission-denied') return 'رفضت قواعد Firebase إنشاء الرابط. تأكد من نشر ملف القواعد ومن البريد المسجّل.';
+  if(code==='cloud/email-not-allowed') return 'البريد المسجّل غير مسموح له بإنشاء الروابط في قواعد Firebase.';
+  if(code==='cloud/not-authenticated') return 'انتهت جلسة الدخول. سجّل الدخول من جديد.';
+  if(code==='unavailable'||code==='auth/network-request-failed') return 'لا يوجد اتصال بخادم Firebase. تحقق من الإنترنت وحاول مرة أخرى.';
+  if(code==='cloud/timeout'||code==='cloud/auth-timeout'||code==='cloud/write-timeout') return 'تأخر اتصال Firebase. تحقق من الإنترنت ومن نشر القواعد ثم حاول مرة أخرى.';
+  return (e&&e.message) ? e.message : 'تعذّر إنشاء الرابط.';
 }
 function copyEvalLink(url){
   navigator.clipboard?.writeText(url).then(()=>toast('تم نسخ الرابط')).catch(()=>{
