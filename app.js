@@ -5019,16 +5019,65 @@ function downloadBlob(content,type,filename){
   const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
-function downloadProjectZip(){
+async function downloadProjectZip(){
   const url='https://github.com/smuneer89-collab/Haiaa/archive/refs/heads/main.zip';
-  const a=document.createElement('a');
-  a.href=url;
-  a.download='Haiaa-main.zip';
-  a.rel='noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  toast('بدأ تحميل أحدث ملفات المشروع من GitHub');
+  const filename='Haiaa-main.zip';
+  try{
+    let saveHandle=null;
+    // يجب فتح Save As مباشرة من ضغطة المستخدم قبل أي انتظار.
+    if(typeof window.showSaveFilePicker==='function'){
+      saveHandle=await window.showSaveFilePicker({
+        suggestedName:filename,
+        types:[{description:'ZIP archive',accept:{'application/zip':['.zip']}}]
+      });
+    }
+    toast('جارٍ تجهيز أحدث ملفات المشروع…');
+    const response=await fetch(url);
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob=await response.blob();
+
+    // Chrome وEdge: افتح نافذة Save As لاختيار الاسم والمجلد.
+    if(saveHandle){
+      const writable=await saveHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      toast('تم حفظ أحدث ملفات المشروع');
+      return;
+    }
+
+    // Safari على iPhone وiPad: افتح قائمة المشاركة ومنها «حفظ في الملفات».
+    const file=new File([blob],filename,{type:'application/zip'});
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      await new Promise((resolve,reject)=>{
+        const layer=document.createElement('div');
+        layer.style.cssText='position:fixed;inset:0;z-index:99999;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px';
+        layer.innerHTML=`<div style="max-width:360px;width:100%;background:#fff;color:#222;border-radius:16px;padding:20px;text-align:center;box-shadow:0 12px 40px #0005"><b style="display:block;margin-bottom:8px">ملف المشروع جاهز</b><div style="font-size:14px;margin-bottom:16px">اضغط الزر ثم اختر «حفظ في الملفات» وحدد المجلد.</div><button class="btn btn-primary" data-save style="width:100%;margin-bottom:8px">اختيار مكان الحفظ</button><button class="btn btn-ghost" data-cancel style="width:100%">إلغاء</button></div>`;
+        document.body.appendChild(layer);
+        layer.querySelector('[data-save]').onclick=async()=>{
+          try{ await navigator.share({files:[file],title:'نسخة ملفات المشروع'}); layer.remove(); resolve(); }
+          catch(e){ layer.remove(); reject(e); }
+        };
+        layer.querySelector('[data-cancel]').onclick=()=>{ layer.remove(); reject(new DOMException('Cancelled','AbortError')); };
+      });
+      toast('تم فتح خيارات حفظ الملف');
+      return;
+    }
+
+    // حل احتياطي للمتصفحات التي لا تدعم اختيار مكان الحفظ.
+    const blobUrl=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=blobUrl; a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(blobUrl),1000);
+    toast('المتصفح لا يدعم Save As؛ بدأ التنزيل بالطريقة العادية');
+  }catch(err){
+    if(err && err.name==='AbortError'){
+      toast('تم إلغاء الحفظ');
+      return;
+    }
+    console.error('Project ZIP download failed:',err);
+    toast('تعذّر تجهيز ملف المشروع — تحقق من الإنترنت وحاول مرة أخرى');
+  }
 }
 async function backupExport(){
   const backup={
