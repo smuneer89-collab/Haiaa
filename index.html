@@ -517,8 +517,18 @@
   .med-chip { flex-shrink:0; border:1px solid var(--line); background:var(--bg); color:var(--muted);
     border-radius:20px; padding:6px 13px; font-family:var(--font-sans); font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
   .med-chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
-  .med-grid { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
-  .med-item { background:var(--surface); border:1px solid var(--line); border-radius:13px; overflow:hidden; cursor:pointer; }
+  .med-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px; }
+  @media (min-width:1024px) and (hover:hover) and (pointer:fine) {
+    .med-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  }
+  .med-item { background:var(--surface); border:1px solid var(--line); border-radius:13px; overflow:hidden; cursor:pointer;
+    position:relative; transition:transform .16s,box-shadow .16s,opacity .16s; }
+  .med-item.med-dragging { opacity:.72; transform:scale(.97); box-shadow:0 10px 28px rgba(0,0,0,.2); z-index:20; }
+  .med-item.med-drag-over { outline:2px solid var(--gold); outline-offset:2px; }
+  .med-drag { position:absolute; z-index:4; top:5px; left:5px; width:30px; height:30px; border:0; border-radius:9px;
+    background:rgba(0,0,0,.62); color:#fff; display:flex; align-items:center; justify-content:center; cursor:grab;
+    touch-action:none; user-select:none; -webkit-user-select:none; font-size:19px; line-height:1; }
+  .med-drag:active { cursor:grabbing; }
   .med-thumb { position:relative; aspect-ratio:16/9; background:linear-gradient(135deg,#dfd7c8,#c9bda8); overflow:hidden; }
   .med-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
   .med-thumb .ph { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; opacity:.75; }
@@ -542,6 +552,8 @@
   .mf-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
   .mf-prev { aspect-ratio:16/9; border-radius:11px; overflow:hidden; background:var(--bg); border:1px solid var(--line); margin-bottom:11px; }
   .mf-prev img { width:100%; height:100%; object-fit:cover; }
+  .mf-cover-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .mf-cover-row input[type=file] { flex:1; min-width:180px; padding:8px; }
   .kw-picked { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:7px; }
   .kw-tag { font-size:11px; background:var(--accent); color:#fff; padding:4px 9px; border-radius:10px; cursor:pointer; }
   .med-thumb { cursor:pointer; }

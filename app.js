@@ -1559,6 +1559,8 @@ const MED_KEYWORDS = ['محرم','صفر','رمضان','عاشوراء','ليل�
 
 let medFilter = { q:'', type:'', src:'', year:'' };
 let medEditId = null;
+let medCoverData = '';
+let medDidDrag = false;
 
 /* استخراج معرّف يوتيوب والصورة المصغّرة */
 function ytId(url){
@@ -1603,7 +1605,11 @@ function renderMediaArchive(){
   if(f.q){ const q=f.q.trim();
     list=list.filter(m=>[m.title,m.occasion,m.place,m.people,m.committee,m.desc,(m.keywords||[]).join(' '),m.type]
       .some(x=>String(x||'').includes(q))); }
-  list.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.at||'').localeCompare(a.at||''));
+  list.sort((a,b)=>{
+    const ao=Number.isFinite(Number(a.order))?Number(a.order):Number.MAX_SAFE_INTEGER;
+    const bo=Number.isFinite(Number(b.order))?Number(b.order):Number.MAX_SAFE_INTEGER;
+    return ao-bo || (b.date||'').localeCompare(a.date||'') || (b.at||'').localeCompare(a.at||'');
+  });
   const years=[...new Set(mediaItems.map(m=>m.hYear).filter(Boolean))].sort((a,b)=>b-a);
   host.innerHTML=`
   <div class="med-head"><div class="t">${icon('image',18,'ico-btn')} الأرشيف الإعلامي</div>
@@ -1635,7 +1641,9 @@ function renderMediaArchive(){
   ${list.length?`<div class="med-grid">${list.map(m=>{
     const th=medThumb(m), src=m.source||medSourceOf(m.url);
     const st=m.status||'chk';
-    return `<div class="med-item">
+    return `<div class="med-item" data-med-id="${m.id}">
+      <button type="button" class="med-drag" aria-label="اسحب لترتيب المادة" title="اسحب لترتيب المادة"
+        onpointerdown="medDragStart(event,'${m.id}')">☷</button>
       <div class="med-thumb" onclick="openMediaSource('${m.id}')">
         ${th?`<img src="${th}" alt="" loading="lazy" onerror="this.style.display='none'" />`:''}
         ${!th?`<span class="ph">${icon(medIconFor(m.type),34)}</span>`:''}
@@ -1667,23 +1675,81 @@ function medSet(k,v){
 }
 function medReset(){ medFilter={q:'',type:'',src:'',year:''}; renderMediaArchive(); }
 
+/* ترتيب البطاقات بالسحب — يعمل باللمس والماوس ويحفظ الترتيب */
+let medDragState=null;
+function medDragStart(e,id){
+  if(e.button!==undefined && e.button!==0) return;
+  const item=e.currentTarget.closest('.med-item'), grid=item&&item.closest('.med-grid');
+  if(!item||!grid) return;
+  e.preventDefault(); e.stopPropagation();
+  medDidDrag=false;
+  medDragState={id,item,grid,startX:e.clientX,startY:e.clientY,pointerId:e.pointerId};
+  try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(_e){}
+  item.classList.add('med-dragging');
+  document.addEventListener('pointermove',medDragMove,{passive:false});
+  document.addEventListener('pointerup',medDragEnd,{once:true});
+  document.addEventListener('pointercancel',medDragEnd,{once:true});
+}
+function medDragMove(e){
+  const s=medDragState; if(!s) return;
+  e.preventDefault();
+  if(Math.hypot(e.clientX-s.startX,e.clientY-s.startY)>5) medDidDrag=true;
+  const under=document.elementFromPoint(e.clientX,e.clientY);
+  const target=under&&under.closest('.med-item');
+  s.grid.querySelectorAll('.med-drag-over').forEach(x=>x.classList.remove('med-drag-over'));
+  if(!target||target===s.item||target.parentElement!==s.grid) return;
+  target.classList.add('med-drag-over');
+  const r=target.getBoundingClientRect();
+  const before=e.clientY<r.top+r.height/2 || (Math.abs(e.clientY-(r.top+r.height/2))<r.height*.25 && e.clientX>r.left+r.width/2);
+  s.grid.insertBefore(s.item,before?target:target.nextSibling);
+}
+async function medDragEnd(e){
+  const s=medDragState; if(!s) return;
+  document.removeEventListener('pointermove',medDragMove);
+  s.item.classList.remove('med-dragging');
+  s.grid.querySelectorAll('.med-drag-over').forEach(x=>x.classList.remove('med-drag-over'));
+  medDragState=null;
+  if(!medDidDrag) return;
+  const visible=[...s.grid.querySelectorAll('.med-item')].map(x=>x.dataset.medId);
+  const visibleSet=new Set(visible), byId=new Map(mediaItems.map(m=>[m.id,m]));
+  const ordered=[...mediaItems].sort((a,b)=>{
+    const ao=Number.isFinite(Number(a.order))?Number(a.order):Number.MAX_SAFE_INTEGER;
+    const bo=Number.isFinite(Number(b.order))?Number(b.order):Number.MAX_SAFE_INTEGER;
+    return ao-bo || (b.date||'').localeCompare(a.date||'') || (b.at||'').localeCompare(a.at||'');
+  });
+  const slots=[]; ordered.forEach((m,i)=>{ if(visibleSet.has(m.id)) slots.push(i); });
+  visible.forEach((id,i)=>{ ordered[slots[i]]=byId.get(id); });
+  ordered.forEach((m,i)=>{ m.order=i; });
+  await saveMediaItems();
+  toast('تم حفظ الترتيب');
+  setTimeout(()=>{ medDidDrag=false; },300);
+}
+
 /* نموذج الإضافة/التعديل */
 let medKeywords=[];
 function openMediaForm(id){
   medEditId=id||null;
   const m = id ? mediaItems.find(x=>x.id===id) : null;
   medKeywords = m ? [...(m.keywords||[])] : [];
+  medCoverData = m ? (m.thumb||'') : '';
   renderMediaForm(m);
 }
 function renderMediaForm(m){
   const host=$('#mediaBody');
   const d=m?m.date:today();
-  const th=m?medThumb(m):'';
+  const th=medCoverData || (m?medThumb(m):'');
   host.innerHTML=`
   <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:11px" onclick="renderMediaArchive()">← رجوع للأرشيف</button>
   <div class="med-head"><div class="t">${m?'تعديل المادة':'مادة إعلامية جديدة'}</div></div>
   <div class="lt-form">
     ${th?`<div class="mf-prev"><img src="${th}" alt="" /></div>`:''}
+    <div class="mf-fld"><label>صورة الغلاف <span style="font-weight:400;color:var(--muted)">(مناسبة خصوصًا لإنستغرام)</span></label>
+      <div class="mf-cover-row">
+        <input id="mfCover" type="file" accept="image/*" onchange="medCoverChanged(this)" />
+        ${medCoverData?`<button type="button" class="btn btn-ghost btn-sm" style="width:auto" onclick="medRemoveCover()">حذف الغلاف</button>`:''}
+      </div>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:5px">تُضغط الصورة تلقائيًا قبل الحفظ.</div>
+    </div>
     <div class="mf-fld"><label>رابط المصدر</label>
       <input id="mfUrl" type="url" dir="ltr" placeholder="https://youtube.com/watch?v=..." value="${escapeHtml(m?m.url:'')}" oninput="medUrlChanged()" /></div>
     <div class="mf-row">
@@ -1758,6 +1824,39 @@ function medUrlChanged(){
     checkYtStatus(y);
   }
 }
+async function medCoverChanged(input){
+  const file=input.files&&input.files[0]; if(!file) return;
+  if(!file.type.startsWith('image/')){ toast('اختر ملف صورة'); input.value=''; return; }
+  try{
+    medCoverData=await medCompressImage(file,960,0.78);
+    const p=document.querySelector('.mf-prev');
+    const html=`<img src="${medCoverData}" alt="معاينة الغلاف" />`;
+    if(p) p.innerHTML=html;
+    else { const d=document.createElement('div'); d.className='mf-prev'; d.innerHTML=html; document.querySelector('.lt-form').prepend(d); }
+    toast('تم تجهيز صورة الغلاف');
+  }catch(e){ toast('تعذر قراءة الصورة'); }
+}
+function medCompressImage(file,maxSide,quality){
+  return new Promise((resolve,reject)=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{
+      let w=img.naturalWidth,h=img.naturalHeight;
+      const scale=Math.min(1,maxSide/Math.max(w,h)); w=Math.round(w*scale); h=Math.round(h*scale);
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('image')); };
+    img.src=url;
+  });
+}
+function medRemoveCover(){
+  medCoverData='';
+  const p=document.querySelector('.mf-prev'); if(p) p.remove();
+  const b=document.querySelector('.mf-cover-row button'); if(b) b.remove();
+  const f=$('#mfCover'); if(f) f.value='';
+  toast('سيُحذف الغلاف عند الحفظ');
+}
 /* فحص حالة رابط يوتيوب تلقائياً */
 async function checkYtStatus(id){
   try{
@@ -1787,14 +1886,14 @@ async function saveMediaItem(){
     date:d, hijri:$('#mfHijri').value||gregToHijri(d), hYear:parseInt((gregToHijri(d).match(/\d{4}/)||[])[0],10)||null,
     place:($('#mfPlace').value||'').trim(), people:($('#mfPeople').value||'').trim(),
     committee:($('#mfCommittee').value||'').trim(), desc:($('#mfDesc').value||'').trim(),
-    keywords:[...medKeywords]
+    keywords:[...medKeywords], thumb:medCoverData
   };
   if(medEditId){
     const m=mediaItems.find(x=>x.id===medEditId);
     if(m) Object.assign(m, data, { updatedAt:new Date().toISOString() });
     logAudit('تعديل','الأرشيف الإعلامي',`«${title}»`);
   } else {
-    mediaItems.push({ id:'md_'+Date.now(), ...data, at:new Date().toISOString() });
+    mediaItems.push({ id:'md_'+Date.now(), ...data, order:mediaItems.length, at:new Date().toISOString() });
     logAudit('إضافة','الأرشيف الإعلامي',`«${title}» — ${data.type}`);
   }
   await saveMediaItems();
@@ -6846,18 +6945,13 @@ function mergeClear(){ mergeSel.clear(); renderFinancePage('merge',{}); }
 function printMergedReport(){
   const data=[...mergeSel].map(id=>miqatFinData(id)).filter(Boolean);
   if(!data.length){ toast('اختر ميقاتاً على الأقل'); return; }
-  const reportTitleInput=prompt('أدخل اسم التقرير المدموج\nمثال: ليالي عاشوراء');
-  if(reportTitleInput===null) return;
-  const reportTitle=reportTitleInput.trim();
-  if(!reportTitle){ toast('يجب إدخال اسم للتقرير المدموج'); return; }
-  const safeReportTitle=escapeHtml(reportTitle);
   const tot=sumFin(data);
   // تجميع المصروفات حسب النوع
   const byType={};
   data.forEach(d=>d.expenses.forEach(e=>{ byType[e.type]=(byType[e.type]||0)+(Number(e.cost)||0); }));
   const typeArr=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${safeReportTitle} — ${data.length} مواقيت</title>
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير مدموج — ${data.length} مواقيت</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
   <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:32px 36px;color:#1a2620;line-height:1.85;font-size:14px;}
   .pdf-logo{display:block;margin:0 auto 8px;max-width:180px;max-height:68px;}
@@ -6889,7 +6983,7 @@ function printMergedReport(){
     <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
   </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
-    <div class="doc-title">${safeReportTitle}</div>
+    <div class="doc-title">تقرير مالي مدموج</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
   <div class="chips">${data.map(d=>`<span class="chip">${escapeHtml(d.name)}</span>`).join('')}</div>
 
