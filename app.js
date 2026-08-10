@@ -6852,10 +6852,35 @@ function printMergedReport(){
   if(!reportTitle){ toast('يجب إدخال اسم للتقرير المدموج'); return; }
   const safeReportTitle=escapeHtml(reportTitle);
   const tot=sumFin(data);
-  // تجميع المصروفات حسب النوع
+
+  // تجميع كل المصروفات من المواقيت المختارة حسب النوع
   const byType={};
-  data.forEach(d=>d.expenses.forEach(e=>{ byType[e.type]=(byType[e.type]||0)+(Number(e.cost)||0); }));
+  data.forEach(d=>d.expenses.forEach(e=>{
+    const k=(e.type||'غير مصنّف').trim()||'غير مصنّف';
+    byType[k]=(byType[k]||0)+(Number(e.cost)||0);
+  }));
   const typeArr=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+
+  // صفوف الإيرادات لكل مناسبة: لا نظهر أي مصدر قيمته صفر في قسم التفاصيل فقط
+  function detailIncomeRows(d){
+    const rows=[];
+    if(Number(d.cash)>0) rows.push(`<tr><td>مساهمات الأعضاء (نقدي)</td><td>${finMoney(d.cash)}</td></tr>`);
+    if(Number(d.vows)>0) rows.push(`<tr><td>النذور</td><td>${finMoney(d.vows)}</td></tr>`);
+    if(Number(d.donations)>0) rows.push(`<tr><td>التبرعات</td><td>${finMoney(d.donations)}</td></tr>`);
+    if(Number(d.thawab)>0) rows.push(`<tr><td>التثويبات المدفوعة</td><td>${finMoney(d.thawab)}</td></tr>`);
+    return rows.join('');
+  }
+
+  function detailExpenseRows(d){
+    if(!d.expenses.length) return '<tr><td colspan="4" style="text-align:center;color:#8a7c6b">لا توجد مصروفات مسجّلة</td></tr>';
+    return d.expenses.map(e=>`<tr>
+      <td>${escapeHtml(e.type||'—')}</td>
+      <td>${e.subType?escapeHtml(e.subType):'—'}</td>
+      <td>${e.note?escapeHtml(e.note):'—'}</td>
+      <td>${finMoney(e.cost)}</td>
+    </tr>`).join('');
+  }
+
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${safeReportTitle} — ${data.length} مواقيت</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
@@ -6874,24 +6899,19 @@ function printMergedReport(){
   .s3.np{background:#e6f0ea;} .s3.np .v{color:#1c4536;}
   .s3.nn{background:#f9ecec;} .s3.nn .v{color:#b85c5c;}
   h2{font-size:14.5px;color:#fff;background:#1c4536;display:inline-block;padding:5px 14px 5px 18px;border-radius:0 16px 16px 0;margin:18px 0 9px;}
-  .section-title{font-family:'Amiri',serif;font-size:19px;font-weight:700;color:#1c4536;border-bottom:2px solid #c19a3e;padding-bottom:6px;margin:22px 0 8px;}
-  .occasion-block{margin-top:24px;padding-top:4px;}
-  .occasion-head{background:#f6f2ea;border:1px solid #e6ddcb;border-radius:12px;padding:12px 14px;margin-bottom:10px;}
-  .occasion-name{font-size:16px;font-weight:800;color:#1c4536;}
-  .occasion-date{font-size:12px;color:#8a7c6b;margin-top:2px;}
-  .mini-sum{display:flex;gap:8px;margin:8px 0 12px;}
-  .mini-sum>div{flex:1;background:#faf7f0;border:1px solid #e6ddcb;border-radius:10px;padding:9px 8px;text-align:center;}
-  .mini-sum b{display:block;font-size:14px;color:#1c4536;}
-  .mini-sum span{font-size:10.5px;color:#8a7c6b;}
+  h3{font-size:16px;color:#1c4536;margin:20px 0 4px;padding-bottom:6px;border-bottom:2px solid #c19a3e;}
+  .miqat-sec{margin-top:18px;padding-top:2px;page-break-inside:avoid;}
+  .miqat-meta{font-size:12px;color:#8a7c6b;margin-bottom:8px;}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px;}
   th,td{border:1px solid #e6ddcb;padding:7px 10px;text-align:right;}
   th{background:#1c4536;color:#fff;font-size:12.5px;}
   tr:nth-child(even){background:#faf7f0;}
   .sum-row td{background:#e6f0ea;font-weight:800;color:#1c4536;}
   .pos{color:#2f8f5b;font-weight:700;} .neg{color:#b85c5c;font-weight:700;}
+  .section-break{margin:25px 0 8px;border-top:2px dashed #c19a3e;}
   ${CONTRIB_CSS}
   .foot{margin-top:26px;padding-top:11px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
-  @media print{body{padding:22px;} .no-print{display:none;} table{page-break-inside:auto;} tr{page-break-inside:avoid;}}
+  @media print{body{padding:22px;} .no-print{display:none;} table{page-break-inside:auto;} tr{page-break-inside:avoid;} .miqat-sec{page-break-inside:avoid;}}
   </style></head><body>
   <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
     <button onclick="window.print()" style="background:#1c4536;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">🖨️ طباعة / PDF</button>
@@ -6902,13 +6922,12 @@ function printMergedReport(){
     <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
   <div class="chips">${data.map(d=>`<span class="chip">${escapeHtml(d.name)}</span>`).join('')}</div>
 
+  <h2>القسم الأول: المجموع الكلي</h2>
   <div class="sum3">
     <div class="s3 inc"><div class="v">${finMoney(tot.income)}</div><div class="l">إجمالي الإيرادات</div></div>
     <div class="s3 exp"><div class="v">${finMoney(tot.expTotal)}</div><div class="l">إجمالي المصروفات</div></div>
     <div class="s3 ${tot.net>=0?'np':'nn'}"><div class="v">${finMoney(tot.net)}</div><div class="l">الصافي</div></div>
   </div>
-
-  <div class="section-title">القسم الأول: المجموع الكلي للمناسبات المدموجة</div>
 
   <h2>الإيرادات المجمّعة</h2>
   <table><tr><th>المصدر</th><th>المبلغ</th><th>النسبة</th></tr>
@@ -6921,53 +6940,38 @@ function printMergedReport(){
 
   ${contribTableHTML(data.flatMap(d=>d.contribs||[]))}
 
-  ${typeArr.length?`<h2>إجمالي المصروفات المدموجة حسب النوع</h2>
-  <table><tr><th>البند</th><th>المبلغ المجمّع</th><th>النسبة</th></tr>
+  ${typeArr.length?`<h2>المصروفات المجمّعة حسب النوع</h2>
+  <table><tr><th>البند</th><th>المبلغ</th><th>النسبة</th></tr>
     ${typeArr.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${tot.expTotal?Math.round(v/tot.expTotal*100):0}%</td></tr>`).join('')}
-    <tr class="sum-row"><td>إجمالي جميع المصروفات</td><td>${finMoney(tot.expTotal)}</td><td>100%</td></tr>
-  </table>`:'<div class="note-sm">لا توجد مصروفات مسجّلة للمناسبات المختارة.</div>'}
-
-  ${data.flatMap(d=>(d.expenses||[]).map(e=>({ ...e, _miqatName:d.name }))).length?`<h2>سجل المصروفات المدموج</h2>
-  <table><tr><th>#</th><th>المناسبة</th><th>البند</th><th>التاريخ</th><th>ملاحظات</th><th>المبلغ</th></tr>
-    ${data.flatMap(d=>(d.expenses||[]).map(e=>({ ...e, _miqatName:d.name }))).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map((e,i)=>`<tr>
-      <td>${i+1}</td><td>${escapeHtml(e._miqatName)}</td><td>${escapeHtml(e.type||'—')}${e.subType?' — '+escapeHtml(e.subType):''}</td>
-      <td>${e.date?fmtDate(e.date):'—'}</td><td>${e.note?escapeHtml(e.note):'—'}</td><td>${finMoney(e.cost)}</td></tr>`).join('')}
-    <tr class="sum-row"><td colspan="5">إجمالي جميع المصروفات</td><td>${finMoney(tot.expTotal)}</td></tr>
+    <tr class="sum-row"><td>الإجمالي</td><td>${finMoney(tot.expTotal)}</td><td>100%</td></tr>
   </table>`:''}
 
-  <div class="section-title">القسم الثاني: تفاصيل كل مناسبة</div>
-  ${data.map((d,di)=>{
-    const dByType={};
-    (d.expenses||[]).forEach(e=>{ const k=e.type+(e.subType?' — '+e.subType:''); dByType[k]=(dByType[k]||0)+(Number(e.cost)||0); });
-    const dTypes=Object.entries(dByType).sort((a,b)=>b[1]-a[1]);
-    return `<div class="occasion-block">
-      <div class="occasion-head"><div class="occasion-name">${di+1}. ${escapeHtml(d.name)}</div><div class="occasion-date">${escapeHtml(d.date||'')}</div></div>
-      <div class="mini-sum">
-        <div><b>${finMoney(d.income)}</b><span>الإيرادات</span></div>
-        <div><b>${finMoney(d.expTotal)}</b><span>المصروفات</span></div>
-        <div><b class="${d.net>=0?'pos':'neg'}">${finMoney(d.net)}</b><span>الصافي</span></div>
-      </div>
-      <h2>الإيرادات</h2>
-      <table><tr><th>المصدر</th><th>المبلغ</th></tr>
-        <tr><td>مساهمات الأعضاء (نقدي)</td><td>${finMoney(d.cash)}</td></tr>
-        <tr><td>النذور</td><td>${finMoney(d.vows)}</td></tr>
-        <tr><td>التبرعات</td><td>${finMoney(d.donations)}</td></tr>
-        <tr><td>التثويبات المدفوعة</td><td>${finMoney(d.thawab)}</td></tr>
-        <tr class="sum-row"><td>إجمالي الإيرادات</td><td>${finMoney(d.income)}</td></tr>
-      </table>
-      ${contribTableHTML(d.contribs||[])}
-      ${dTypes.length?`<h2>المصروفات حسب النوع</h2>
-      <table><tr><th>البند</th><th>المبلغ</th><th>النسبة</th></tr>
-        ${dTypes.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${finMoney(v)}</td><td>${d.expTotal?Math.round(v/d.expTotal*100):0}%</td></tr>`).join('')}
-        <tr class="sum-row"><td>إجمالي مصروفات المناسبة</td><td>${finMoney(d.expTotal)}</td><td>${d.expTotal?'100%':'0%'}</td></tr>
-      </table>`:'<div class="note-sm">لا توجد مصروفات مسجّلة لهذه المناسبة.</div>'}
-      ${(d.expenses||[]).length?`<h2>سجل المصروفات</h2>
-      <table><tr><th>#</th><th>البند</th><th>التاريخ</th><th>ملاحظات</th><th>المبلغ</th></tr>
-        ${(d.expenses||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map((e,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(e.type||'—')}${e.subType?' — '+escapeHtml(e.subType):''}</td><td>${e.date?fmtDate(e.date):'—'}</td><td>${e.note?escapeHtml(e.note):'—'}</td><td>${finMoney(e.cost)}</td></tr>`).join('')}
-        <tr class="sum-row"><td colspan="4">إجمالي مصروفات المناسبة</td><td>${finMoney(d.expTotal)}</td></tr>
-      </table>`:''}
-    </div>`;
-  }).join('')}
+  <div class="section-break"></div>
+  <h2>القسم الثاني: تفاصيل كل مناسبة</h2>
+
+  ${data.map(d=>`<div class="miqat-sec">
+    <h3>${escapeHtml(d.name)}</h3>
+    <div class="miqat-meta">${escapeHtml(d.date||'')}</div>
+
+    ${d.income>0?`<table>
+      <tr><th>مصدر الإيراد</th><th>المبلغ</th></tr>
+      ${detailIncomeRows(d)}
+      <tr class="sum-row"><td>إجمالي الإيرادات</td><td>${finMoney(d.income)}</td></tr>
+    </table>`:''}
+
+    ${(d.contribs||[]).some(c=>(Number(c.est)||0)>0)?contribTableHTML((d.contribs||[]).filter(c=>(Number(c.est)||0)>0)):''}
+
+    <table>
+      <tr><th>بند المصروف</th><th>التفصيل</th><th>ملاحظات</th><th>المبلغ</th></tr>
+      ${detailExpenseRows(d)}
+      <tr class="sum-row"><td colspan="3">إجمالي المصروفات</td><td>${finMoney(d.expTotal)}</td></tr>
+    </table>
+
+    <table>
+      <tr><th>الإيرادات</th><th>المصروفات</th><th>الصافي</th></tr>
+      <tr><td>${finMoney(d.income)}</td><td>${finMoney(d.expTotal)}</td><td class="${d.net>=0?'pos':'neg'}">${finMoney(d.net)}</td></tr>
+    </table>
+  </div>`).join('')}
 
   <div class="foot">هيئة محبي الحسين (ع) — تقرير مالي مدموج (${data.length} مواقيت)</div>
   </body></html>`);
