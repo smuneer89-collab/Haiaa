@@ -6846,13 +6846,18 @@ function mergeClear(){ mergeSel.clear(); renderFinancePage('merge',{}); }
 function printMergedReport(){
   const data=[...mergeSel].map(id=>miqatFinData(id)).filter(Boolean);
   if(!data.length){ toast('اختر ميقاتاً على الأقل'); return; }
+  const reportTitleInput=prompt('أدخل اسم التقرير المدموج\nمثال: ليالي عاشوراء');
+  if(reportTitleInput===null) return;
+  const reportTitle=reportTitleInput.trim();
+  if(!reportTitle){ toast('يجب إدخال اسم للتقرير المدموج'); return; }
+  const safeReportTitle=escapeHtml(reportTitle);
   const tot=sumFin(data);
   // تجميع المصروفات حسب النوع
   const byType={};
   data.forEach(d=>d.expenses.forEach(e=>{ byType[e.type]=(byType[e.type]||0)+(Number(e.cost)||0); }));
   const typeArr=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير مدموج — ${data.length} مواقيت</title>
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${safeReportTitle} — ${data.length} مواقيت</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
   <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:32px 36px;color:#1a2620;line-height:1.85;font-size:14px;}
   .pdf-logo{display:block;margin:0 auto 8px;max-width:180px;max-height:68px;}
@@ -6884,7 +6889,7 @@ function printMergedReport(){
     <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
   </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
-    <div class="doc-title">تقرير مالي مدموج</div>
+    <div class="doc-title">${safeReportTitle}</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
   <div class="chips">${data.map(d=>`<span class="chip">${escapeHtml(d.name)}</span>`).join('')}</div>
 
