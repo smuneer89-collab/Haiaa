@@ -562,7 +562,7 @@ function openFullPage(name){
 function isFullPageOpen(name){ const e=$('#tab-'+name); return !!(e && e.style.display==='block'); }
 
 /* ── طباعة ملف العضو PDF ── */
-function printMemberProfile(id){
+function printMemberProfileLegacy(id){
   const m=members.find(x=>x.id===id); if(!m) return;
   const active=isActive(m); const mms=memberMiqats(m);
   const row=(k,v)=>v?`<tr><th>${k}</th><td>${v}</td></tr>`:'';
@@ -633,6 +633,21 @@ function printMemberProfile(id){
   ${miq}
   <div class="foot">هيئة محبي الحسين (ع) — وثيقة رسمية</div>
   </body></html>`);
+  w.document.close(); w.focus();
+}
+
+/* ملف العضو العصري — التصميم الأخضر الدائري المعتمد */
+function printMemberProfile(id){
+  const m=members.find(x=>x.id===id); if(!m) return;
+  const active=isActive(m), mms=memberMiqats(m), pays=memberPayments(m);
+  const infoRow=(k,v,ic='•')=>v?`<div class="ir"><span class="ii">${ic}</span><span class="ik">${k}</span><span class="iv">${v}</span></div>`:'';
+  const payments=pays.length?`<section class="wide"><div class="sh"><b>دفعات العضوية</b><span>◈</span></div><table><thead><tr><th>#</th><th>التاريخ</th><th>المبلغ</th></tr></thead><tbody>${pays.map((p,i)=>`<tr><td>${i+1}</td><td>${fmtDate(p.date)}</td><td>${fmtMoney(p.amount)}</td></tr>`).join('')}<tr class="sum"><td colspan="2">الإجمالي المدفوع</td><td>${fmtMoney(memberPaid(m))}</td></tr></tbody></table></section>`:'';
+  const miqats=mms.length?`<section class="wide"><div class="sh"><b>المواقيت السنوية</b><span>◫</span></div><table><thead><tr><th>الميقات</th><th>التاريخ</th><th>المساهمة</th></tr></thead><tbody>${mms.map(mq=>{const b=(mq.bookings||[]).find(x=>x.memberId===m.id);return `<tr><td>${escapeHtml(mq.name)}</td><td>${fmtMiqatDate(mq)}</td><td>${b?fmtMoney(bookingAgreed(b)):'—'}</td></tr>`;}).join('')}</tbody></table></section>`:'';
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ملف العضو — ${escapeHtml(m.name)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800&family=Amiri:wght@700&display=swap" rel="stylesheet"><style>
+  :root{--d:#123028;--g:#1c4536;--s:#e6f0ea;--c:#f4efe6;--w:#fffdf8;--i:#1a2620;--i2:#3a473f;--gold:#c19a3e}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4 portrait;margin:9mm}body{margin:0;background:#e8e5df;font-family:'IBM Plex Sans Arabic',sans-serif;color:var(--i);font-size:12.5px;line-height:1.6}.sheet{width:192mm;min-height:279mm;margin:auto;background:var(--w);position:relative;overflow:hidden;padding:12mm 11mm 9mm}.sheet:before{content:'';position:absolute;top:0;left:0;width:45%;height:87mm;background:var(--d);clip-path:polygon(0 0,100% 0,77% 100%,0 100%)}.sheet:after{content:'';position:absolute;top:86mm;left:0;width:38%;height:2mm;background:var(--gold);clip-path:polygon(0 0,100% 0,96% 100%,0 100%)}.brand{min-height:23mm;position:relative;z-index:2;padding-right:47%;display:flex;align-items:center;gap:9px}.brand img{max-width:50mm;max-height:20mm}.brand-copy{border-right:2px solid var(--gold);padding-right:9px}.bt{font-family:'Amiri',serif;color:var(--g);font-size:21px;font-weight:700;line-height:1.1}.bs{color:#887a67;font-size:9.5px;margin-top:3px}.identity{display:grid;grid-template-columns:43% 57%;align-items:center;min-height:58mm;position:relative;z-index:3;direction:ltr}.pw{display:flex;justify-content:flex-start;padding-left:4mm}.photo{width:55mm;height:55mm;border-radius:50%;padding:2mm;background:linear-gradient(145deg,#ecd58f,var(--gold));box-shadow:0 4mm 10mm #12302838}.pi{width:100%;height:100%;border-radius:50%;overflow:hidden;border:2mm solid var(--w);background:var(--s);display:flex;align-items:center;justify-content:center;color:var(--g);font-size:24mm;font-weight:800}.photo img{width:100%;height:100%;object-fit:cover}.copy{direction:rtl;text-align:right;padding-right:7mm}.name{font-size:28px;font-weight:800;color:var(--d);line-height:1.2;margin-bottom:5mm}.il{display:grid;grid-template-columns:27mm 1fr 8mm;align-items:center;gap:3mm;padding:2.5mm 0;border-bottom:1px solid #e3ddcf}.il .k{font-weight:600;color:var(--i2)}.il .v{font-weight:800;color:var(--d);font-size:14px}.code{display:block;background:linear-gradient(135deg,var(--d),var(--g));color:#fff!important;border-radius:5px;padding:1mm 4mm;text-align:center;direction:ltr;letter-spacing:1px}.status{display:inline-block;border-radius:6px;padding:1mm 4mm;background:${active?'#e3f2e8':'#f6e6e6'};color:${active?'#257448':'#a74747'};font-weight:800}.ico{width:7mm;height:7mm;border:1px solid var(--gold);color:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center}.grid{display:grid;grid-template-columns:1fr 1fr;gap:5mm;margin-top:7mm;position:relative;z-index:2}.card,.wide{border:1px solid #ded8ca;border-radius:3.5mm;overflow:hidden;background:#fff;break-inside:avoid}.sh{height:11mm;background:linear-gradient(135deg,var(--d),var(--g));color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 5mm;font-size:15px;border-left:2mm solid var(--gold)}.body{padding:2mm 4mm}.ir{display:grid;grid-template-columns:6mm 27mm 1fr;align-items:center;gap:2mm;min-height:9mm;border-bottom:1px solid #eee9df}.ir:last-child{border:0}.ii{color:var(--g);font-weight:800;text-align:center}.ik{color:var(--i2);font-weight:600}.iv{font-weight:700;text-align:left;overflow-wrap:anywhere}.phone-disp{direction:ltr;unicode-bidi:isolate;display:inline-block}.wide{margin-top:5mm;position:relative;z-index:2}table{width:100%;border-collapse:collapse}th,td{padding:2.5mm 4mm;text-align:right;border-bottom:1px solid #e7e1d5}th{background:var(--s);color:var(--g);font-weight:800}tbody tr:last-child td{border:0}.sum td{background:#f1f6f3;color:var(--d);font-weight:800}.foot{display:flex;justify-content:space-between;margin-top:7mm;padding-top:3mm;border-top:1px solid var(--gold);color:#887a67;font-size:9.5px;position:relative;z-index:2}.foot b{color:var(--g);font-size:11px}@media print{body{background:#fff}.sheet{width:100%;min-height:auto;margin:0}.no-print{display:none!important}}
+  ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}<main class="sheet"><header class="brand"><img src="${HAIAA_LOGO}" alt="هيئة محبي الحسين"><div class="brand-copy"><div class="bt">ملف العضو</div><div class="bs">خدمةٌ بإخلاص.. وعملٌ بإتقان</div></div></header><section class="identity"><div class="pw"><div class="photo"><div class="pi">${m.photo?`<img src="${m.photo}" alt="صورة ${escapeHtml(m.name)}">`:escapeHtml((m.name||'؟').trim().charAt(0))}</div></div></div><div class="copy"><div class="name">${escapeHtml(m.name)}</div><div class="il"><span class="k">رقم العضوية</span><span class="v code">${memberCode(m)}</span><span class="ico">◉</span></div><div class="il"><span class="k">حالة العضوية</span><span class="v"><span class="status">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span></span><span class="ico">✓</span></div><div class="il"><span class="k">نوع العضوية</span><span class="v">${escapeHtml(m.type)}</span><span class="ico">◆</span></div></div></section><section class="grid"><div class="card"><div class="sh"><b>بيانات العضو</b><span>●</span></div><div class="body">${infoRow('رقم الهاتف',phoneDisp(m.phone),'☎')}${infoRow('المنطقة',escapeHtml(m.area),'⌖')}${infoRow('البريد الإلكتروني',escapeHtml(m.email),'✉')}${infoRow('العنوان',escapeHtml(m.address),'⌂')}${infoRow('تاريخ التسجيل',fmtDate(m.joinDate),'◫')}${m.isMinor&&m.birthdate?infoRow('تاريخ الميلاد',fmtDate(m.birthdate),'◫'):''}${m.isAdmin?infoRow('اللجنة',escapeHtml(m.committee||'—'),'◆'):''}</div></div><div class="card"><div class="sh"><b>بيانات العضوية</b><span>◇</span></div><div class="body">${infoRow('بداية العضوية',m.paymentDate?fmtHijriStart(m):'—','◫')}${infoRow('انتهاء العضوية',m.paymentDate?fmtHijriEnd(m):'—','◫')}${infoRow('نوع العضوية',escapeHtml(m.type),'◆')}${infoRow('الحالة',active?'مفعّلة':'غير مفعّلة','✓')}</div></div></section>${payments}${miqats}<footer class="foot"><span>تاريخ الإصدار: ${fmtDate(today())} · ${hijriToday()}</span><b>هيئة محبي الحسين (ع)</b></footer></main></body></html>`);
   w.document.close(); w.focus();
 }
 
@@ -3771,6 +3786,20 @@ function showDetail(id){
     </ul></div>`:'';
   const reminderHTML=miqatRemindersHTML(m);
   $('#detailContent').innerHTML=`
+    <div class="member-profile-hero">
+      <div class="member-profile-main">
+        <div class="member-profile-name">${escapeHtml(m.name)}</div>
+        <div class="member-profile-code">${memberCode(m)}</div>
+        <div class="member-profile-badges">
+          <span class="badge status-${active?'active':'inactive'}">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span>
+          <span class="badge type-${escapeHtml(m.type)}">${escapeHtml(m.type)}</span>
+          ${m.isAdmin?'<span class="badge admin">إداري</span>':''}
+        </div>
+      </div>
+      <div class="member-profile-photo"><div class="member-profile-photo-inner">
+        ${m.photo?`<img src="${m.photo}" alt="صورة ${escapeHtml(m.name)}" />`:escapeHtml((m.name||'؟').trim().charAt(0))}
+      </div></div>
+    </div>
     <div class="detail-rows">
       ${m.isMinor&&m.birthdate?detailRow('تاريخ الميلاد', fmtDate(m.birthdate)):''}
       ${m.isMinor&&m.age!=null?detailRow('العمر', m.age):''}
