@@ -562,7 +562,7 @@ function openFullPage(name){
 function isFullPageOpen(name){ const e=$('#tab-'+name); return !!(e && e.style.display==='block'); }
 
 /* ── طباعة ملف العضو PDF ── */
-function printMemberProfileLegacy(id){
+function printMemberProfile(id){
   const m=members.find(x=>x.id===id); if(!m) return;
   const active=isActive(m); const mms=memberMiqats(m);
   const row=(k,v)=>v?`<tr><th>${k}</th><td>${v}</td></tr>`:'';
@@ -633,21 +633,6 @@ function printMemberProfileLegacy(id){
   ${miq}
   <div class="foot">هيئة محبي الحسين (ع) — وثيقة رسمية</div>
   </body></html>`);
-  w.document.close(); w.focus();
-}
-
-/* ملف العضو العصري — التصميم الأخضر الدائري المعتمد */
-function printMemberProfile(id){
-  const m=members.find(x=>x.id===id); if(!m) return;
-  const active=isActive(m), mms=memberMiqats(m), pays=memberPayments(m);
-  const infoRow=(k,v,ic='•')=>v?`<div class="ir"><span class="ii">${ic}</span><span class="ik">${k}</span><span class="iv">${v}</span></div>`:'';
-  const payments=pays.length?`<section class="wide"><div class="sh"><b>دفعات العضوية</b><span>◈</span></div><table><thead><tr><th>#</th><th>التاريخ</th><th>المبلغ</th></tr></thead><tbody>${pays.map((p,i)=>`<tr><td>${i+1}</td><td>${fmtDate(p.date)}</td><td>${fmtMoney(p.amount)}</td></tr>`).join('')}<tr class="sum"><td colspan="2">الإجمالي المدفوع</td><td>${fmtMoney(memberPaid(m))}</td></tr></tbody></table></section>`:'';
-  const miqats=mms.length?`<section class="wide"><div class="sh"><b>المواقيت السنوية</b><span>◫</span></div><table><thead><tr><th>الميقات</th><th>التاريخ</th><th>المساهمة</th></tr></thead><tbody>${mms.map(mq=>{const b=(mq.bookings||[]).find(x=>x.memberId===m.id);return `<tr><td>${escapeHtml(mq.name)}</td><td>${fmtMiqatDate(mq)}</td><td>${b?fmtMoney(bookingAgreed(b)):'—'}</td></tr>`;}).join('')}</tbody></table></section>`:'';
-  const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ملف العضو — ${escapeHtml(m.name)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800&family=Amiri:wght@700&display=swap" rel="stylesheet"><style>
-  :root{--d:#123028;--g:#1c4536;--s:#e6f0ea;--c:#f4efe6;--w:#fffdf8;--i:#1a2620;--i2:#3a473f;--gold:#c19a3e}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:A4 portrait;margin:0}body{margin:0;background:#e8e5df;font-family:'IBM Plex Sans Arabic',sans-serif;color:var(--i);font-size:12.5px;line-height:1.6}.sheet{width:210mm;min-height:297mm;margin:auto;background:var(--w);position:relative;overflow:hidden;padding:12mm 11mm 9mm}.sheet:before{content:'';position:absolute;top:0;left:0;width:45%;height:87mm;background:var(--d);clip-path:polygon(0 0,100% 0,77% 100%,0 100%)}.sheet:after{content:'';position:absolute;top:86mm;left:0;width:38%;height:2mm;background:var(--gold);clip-path:polygon(0 0,100% 0,96% 100%,0 100%)}.brand{min-height:23mm;position:relative;z-index:2}.brand img{position:absolute;right:0;top:0;max-width:50mm;max-height:20mm;object-fit:contain}.brand-copy{position:absolute;left:3mm;top:3mm;border-left:2px solid var(--gold);padding-left:9px;text-align:left}.bt{font-family:'Amiri',serif;color:#fff;font-size:22px;font-weight:700;line-height:1.1}.bs{color:#e7cc82;font-size:9.5px;margin-top:3px}.identity{display:grid;grid-template-columns:43% 57%;align-items:center;min-height:58mm;position:relative;z-index:3;direction:ltr}.pw{display:flex;justify-content:flex-start;padding-left:4mm}.photo{width:55mm;height:55mm;border-radius:50%;padding:2mm;background:linear-gradient(145deg,#ecd58f,var(--gold));box-shadow:0 4mm 10mm #12302838}.pi{width:100%;height:100%;border-radius:50%;overflow:hidden;border:2mm solid var(--w);background:var(--s);display:flex;align-items:center;justify-content:center;color:var(--g);font-size:24mm;font-weight:800}.photo img{width:100%;height:100%;object-fit:cover}.copy{direction:rtl;text-align:right;padding-right:7mm}.name{font-size:28px;font-weight:800;color:var(--d);line-height:1.2;margin-bottom:5mm}.il{display:grid;grid-template-columns:27mm 1fr 8mm;align-items:center;gap:3mm;padding:2.5mm 0;border-bottom:1px solid #e3ddcf}.il .k{font-weight:600;color:var(--i2)}.il .v{font-weight:800;color:var(--d);font-size:14px}.code{display:block;background:linear-gradient(135deg,var(--d),var(--g));color:#fff!important;border-radius:5px;padding:1mm 4mm;text-align:center;direction:ltr;letter-spacing:1px}.status{display:inline-block;border-radius:6px;padding:1mm 4mm;background:${active?'#e3f2e8':'#f6e6e6'};color:${active?'#257448':'#a74747'};font-weight:800}.state{display:inline-block;padding:1mm 3mm;border-radius:5px;font-weight:800}.state-on{background:#e3f2e8;color:#257448}.state-off{background:#f6e6e6;color:#b43d3d}.ico{width:7mm;height:7mm;border:1px solid var(--gold);color:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center}.grid{display:grid;grid-template-columns:1fr 1fr;gap:5mm;margin-top:7mm;position:relative;z-index:2}.card,.wide{border:1px solid #ded8ca;border-radius:3.5mm;overflow:hidden;background:#fff;break-inside:avoid}.sh{height:11mm;background:linear-gradient(135deg,var(--d),var(--g));color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 5mm;font-size:15px;border-left:2mm solid var(--gold)}.body{padding:2mm 4mm}.ir{display:grid;grid-template-columns:6mm 27mm 1fr;align-items:center;gap:2mm;min-height:9mm;border-bottom:1px solid #eee9df}.ir:last-child{border:0}.ii{color:var(--g);font-weight:800;text-align:center}.ik{color:var(--i2);font-weight:600}.iv{font-weight:700;text-align:left;overflow-wrap:anywhere}.phone-disp{direction:ltr;unicode-bidi:isolate;display:inline-block}.wide{margin-top:5mm;position:relative;z-index:2}table{width:100%;border-collapse:collapse}th,td{padding:2.5mm 4mm;text-align:right;border-bottom:1px solid #e7e1d5}th{background:var(--s);color:var(--g);font-weight:800}tbody tr:last-child td{border:0}.sum td{background:#f1f6f3;color:var(--d);font-weight:800}.foot{display:flex;justify-content:space-between;margin-top:7mm;padding-top:3mm;border-top:1px solid var(--gold);color:#887a67;font-size:9.5px;position:relative;z-index:2}.foot b{color:var(--g);font-size:11px}@media print{body{background:#fff}.sheet{width:210mm;min-height:297mm;margin:0}.no-print{display:none!important}}
-  ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}<main class="sheet"><header class="brand"><img src="${HAIAA_LOGO}" alt="هيئة محبي الحسين"><div class="brand-copy"><div class="bt">ملف العضو</div><div class="bs">خدمةٌ بإخلاص.. وعملٌ بإتقان</div></div></header><section class="identity"><div class="pw"><div class="photo"><div class="pi">${m.photo?`<img src="${m.photo}" alt="صورة ${escapeHtml(m.name)}">`:escapeHtml((m.name||'؟').trim().charAt(0))}</div></div></div><div class="copy"><div class="name">${escapeHtml(m.name)}</div><div class="il"><span class="k">رقم العضوية</span><span class="v code">${memberCode(m)}</span><span class="ico">◉</span></div><div class="il"><span class="k">حالة العضوية</span><span class="v"><span class="status">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span></span><span class="ico">✓</span></div><div class="il"><span class="k">نوع العضوية</span><span class="v">${escapeHtml(m.type)}</span><span class="ico">◆</span></div></div></section><section class="grid"><div class="card"><div class="sh"><b>بيانات العضو</b><span>●</span></div><div class="body">${infoRow('رقم الهاتف',phoneDisp(m.phone),'☎')}${infoRow('المنطقة',escapeHtml(m.area),'⌖')}${infoRow('البريد الإلكتروني',escapeHtml(m.email),'✉')}${infoRow('العنوان',escapeHtml(m.address),'⌂')}${infoRow('تاريخ التسجيل',fmtDate(m.joinDate),'◫')}${m.isMinor&&m.birthdate?infoRow('تاريخ الميلاد',fmtDate(m.birthdate),'◫'):''}${m.isAdmin?infoRow('اللجنة',escapeHtml(m.committee||'—'),'◆'):''}</div></div><div class="card"><div class="sh"><b>بيانات العضوية</b><span>◇</span></div><div class="body">${infoRow('بداية العضوية',m.paymentDate?fmtHijriStart(m):'—','◫')}${infoRow('انتهاء العضوية',m.paymentDate?fmtHijriEnd(m):'—','◫')}${infoRow('نوع العضوية',escapeHtml(m.type),'◆')}${infoRow('الحالة',active?'<span class="state state-on">مفعّلة</span>':'<span class="state state-off">غير مفعّلة</span>','✓')}</div></div></section>${payments}${miqats}<footer class="foot"><span>تاريخ الإصدار: ${fmtDate(today())} · ${hijriToday()}</span><b>هيئة محبي الحسين (ع)</b></footer></main></body></html>`);
   w.document.close(); w.focus();
 }
 
@@ -3786,20 +3771,6 @@ function showDetail(id){
     </ul></div>`:'';
   const reminderHTML=miqatRemindersHTML(m);
   $('#detailContent').innerHTML=`
-    <div class="member-profile-hero">
-      <div class="member-profile-main">
-        <div class="member-profile-name">${escapeHtml(m.name)}</div>
-        <div class="member-profile-code">${memberCode(m)}</div>
-        <div class="member-profile-badges">
-          <span class="badge status-${active?'active':'inactive'}">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span>
-          <span class="badge type-${escapeHtml(m.type)}">${escapeHtml(m.type)}</span>
-          ${m.isAdmin?'<span class="badge admin">إداري</span>':''}
-        </div>
-      </div>
-      <div class="member-profile-photo"><div class="member-profile-photo-inner">
-        ${m.photo?`<img src="${m.photo}" alt="صورة ${escapeHtml(m.name)}" />`:escapeHtml((m.name||'؟').trim().charAt(0))}
-      </div></div>
-    </div>
     <div class="detail-rows">
       ${m.isMinor&&m.birthdate?detailRow('تاريخ الميلاد', fmtDate(m.birthdate)):''}
       ${m.isMinor&&m.age!=null?detailRow('العمر', m.age):''}
@@ -5048,11 +5019,6 @@ function downloadBlob(content,type,filename){
   const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
-async function downloadProjectZip(){
-  const url='https://github.com/smuneer89-collab/Haiaa/archive/refs/heads/main.zip';
-  toast('سيتم فتح أحدث نسخة من ملفات المشروع…');
-  window.location.assign(url);
-}
 async function backupExport(){
   const backup={
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
@@ -6138,7 +6104,7 @@ function openSurveyLinkDialog(radoodId){
         ${miqatOpts.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
       </select></div>
     <div class="actions-row">
-      <button class="btn btn-primary" id="createSurveyLinkBtn" onclick="createSurveyLink()">${icon('doc',17,'ico-btn')} إنشاء الرابط</button>
+      <button class="btn btn-primary" onclick="createSurveyLink()">${icon('doc',17,'ico-btn')} إنشاء الرابط</button>
     </div>
     <div id="surveyLinkResult" style="margin-top:14px;"></div>`;
   $('#evalLinkModal').classList.add('open');
@@ -6149,9 +6115,6 @@ async function createSurveyLink(){
   if(!miqatId){ toast('اختر المناسبة'); return; }
   const r=radoods.find(x=>x.id===currentSurveyRadoodId); if(!r) return;
   const mq=miqats.find(x=>x.id===miqatId);
-  const btn=$('#createSurveyLinkBtn');
-  if(btn && btn.disabled) return;
-  if(btn){ btn.disabled=true; btn.innerHTML='جارٍ الإنشاء…'; }
   const res=$('#surveyLinkResult'); res.innerHTML='<div class="eval-link-loading">جارٍ الإنشاء…</div>';
   try{
     const sessionId=await CloudSync.createSurveySession({
@@ -6168,12 +6131,7 @@ async function createSurveyLink(){
         </div>
       </div>`;
     loadRecordSurveys(currentSurveyRadoodId);
-  }catch(e){
-    console.error(e);
-    res.innerHTML=`<div class="eval-link-err">${escapeHtml(linkCreationError(e))}</div>`;
-  }finally{
-    if(btn){ btn.disabled=false; btn.innerHTML=icon('doc',17,'ico-btn')+' إنشاء الرابط'; }
-  }
+  }catch(e){ console.error(e); res.innerHTML='<div class="eval-link-err">تعذّر إنشاء الرابط.</div>'; }
 }
 async function viewSurveyResults(sessionId, miqatName){
   const box=$('#recSurv_'+sessionId); if(!box) return;
@@ -6234,7 +6192,7 @@ function openEvalLinkDialog(radoodId){
         ${miqatOpts.map(mq=>`<option value="${mq.id}">${escapeHtml(mq.name)} (${fmtMiqatDate(mq)})</option>`).join('')}
       </select></div>
     <div class="actions-row">
-      <button class="btn btn-primary" id="createEvalLinkBtn" onclick="createEvalLink()">${icon('link',17,'ico-btn')} إنشاء الرابط</button>
+      <button class="btn btn-primary" onclick="createEvalLink()">${icon('link',17,'ico-btn')} إنشاء الرابط</button>
     </div>
     <div id="evalLinkResult" style="margin-top:14px;"></div>`;
   $('#evalLinkModal').classList.add('open');
@@ -6245,9 +6203,6 @@ async function createEvalLink(){
   if(!miqatId){ toast('اختر المناسبة'); return; }
   const r=radoods.find(x=>x.id===currentEvalRadoodId); if(!r) return;
   const mq=miqats.find(x=>x.id===miqatId);
-  const btn=$('#createEvalLinkBtn');
-  if(btn && btn.disabled) return;
-  if(btn){ btn.disabled=true; btn.innerHTML='جارٍ الإنشاء…'; }
   const res=$('#evalLinkResult'); res.innerHTML='<div class="eval-link-loading">جارٍ الإنشاء…</div>';
   try{
     const sessionId=await CloudSync.createEvalSession({
@@ -6265,21 +6220,7 @@ async function createEvalLink(){
         </div>
       </div>`;
     loadRecordSessions(currentEvalRadoodId);
-  }catch(e){
-    console.error(e);
-    res.innerHTML=`<div class="eval-link-err">${escapeHtml(linkCreationError(e))}</div>`;
-  }finally{
-    if(btn){ btn.disabled=false; btn.innerHTML=icon('link',17,'ico-btn')+' إنشاء الرابط'; }
-  }
-}
-function linkCreationError(e){
-  const code=(e&&e.code)||'';
-  if(code==='permission-denied') return 'رفضت قواعد Firebase إنشاء الرابط. تأكد من نشر ملف القواعد ومن البريد المسجّل.';
-  if(code==='cloud/email-not-allowed') return 'البريد المسجّل غير مسموح له بإنشاء الروابط في قواعد Firebase.';
-  if(code==='cloud/not-authenticated') return 'انتهت جلسة الدخول. سجّل الدخول من جديد.';
-  if(code==='unavailable'||code==='auth/network-request-failed') return 'لا يوجد اتصال بخادم Firebase. تحقق من الإنترنت وحاول مرة أخرى.';
-  if(code==='cloud/timeout'||code==='cloud/auth-timeout'||code==='cloud/write-timeout') return 'تأخر اتصال Firebase. تحقق من الإنترنت ومن نشر القواعد ثم حاول مرة أخرى.';
-  return (e&&e.message) ? e.message : 'تعذّر إنشاء الرابط.';
+  }catch(e){ console.error(e); res.innerHTML='<div class="eval-link-err">تعذّر إنشاء الرابط. تأكد من الاتصال.</div>'; }
 }
 function copyEvalLink(url){
   navigator.clipboard?.writeText(url).then(()=>toast('تم نسخ الرابط')).catch(()=>{
@@ -7305,6 +7246,8 @@ async function toggleMiqatClosed(opts){
     logAudit('تعديل','المالية',`أُلغي إنهاء مناسبة «${mq?mq.name:''}»`);
     toast('أُلغي الإنهاء');
   } else {
+    const pendingMeals=(finance.expenses||[]).filter(e=>e.miqatId===opts.miqatId&&e.kind===opts.kind&&e.mood===opts.mood&&e.meal&&!e.meal.result).length;
+    if(pendingMeals && !confirm(`توجد ${pendingMeals} وجبة لم تُسجّل نتيجتها بعد (زادت / كفت / نقصت).\n\nهل تريد إنهاء المناسبة على أي حال؟`)) return;
     if(!confirm(`تسجيل انتهاء المناسبة اليوم؟\n\nيبقى بإمكانك تعديل المصروفات بعدها.`)) return;
     finance.closedMiqats[key]=today();
     logAudit('تعديل','المالية',`انتهت مناسبة «${mq?mq.name:''}»`);
@@ -7493,6 +7436,7 @@ function finExpEntryHTML(opts){
   </div>
 
   <div class="fin-add-exp">
+    <input id="expEditId" type="hidden" value="" />
     <div class="fin-field"><label>نوع المصروف</label>
       <select id="expType" onchange="expTypeChange()">
         <option value="">— اختر —</option>
@@ -7508,28 +7452,69 @@ function finExpEntryHTML(opts){
       <input id="expDate" type="date" value="${today()}" /></div>
     <div class="fin-field"><label>ملاحظة (اختياري)</label>
       <input id="expNote" type="text" placeholder="ملاحظة" /></div>
-    <button class="btn btn-primary" onclick='addExpense(${JSON.stringify(opts)})'>${icon('plus',17,'ico-btn')} إضافة مصروف</button>
+    <div class="meal-details" id="mealDetails">
+      <div class="meal-title">تفاصيل الوجبة (اختيارية)</div>
+      <div class="meal-grid">
+        <div class="fin-field wide"><label>نوع الطعام</label><input id="mealFood" type="text" placeholder="مثال: چبدة، قيمة، برجر، سندويش تندر دجاج" /></div>
+        <div class="fin-field"><label>عدد الوجبات التقديري</label><input id="mealEstimate" type="number" min="0" step="1" placeholder="مثال: 400" /></div>
+        <div class="fin-field"><label>الإيدام</label><select id="mealStew" onchange="mealStewChange()"><option value="">— اختر —</option><option>دجاج</option><option>لحم</option><option>سمك</option><option>أخرى</option><option>لا يوجد</option></select></div>
+        <div class="fin-field wide" id="mealStewOtherWrap" style="display:none"><label>نوع الإيدام</label><input id="mealStewOther" type="text" placeholder="مثال: قيمة — لحم مفروم، عدس" /></div>
+        <div class="fin-field" id="mealStewQtyWrap"><label>كمية الإيدام</label><input id="mealStewQty" type="text" placeholder="مثال: 70 كيلو" /></div>
+        <div class="fin-field"><label>كمية العيش</label><input id="mealRiceQty" type="text" placeholder="مثال: 40 كيلو" /><label class="meal-none"><input id="mealNoRice" type="checkbox" onchange="mealRiceChange()" /> لا يوجد</label></div>
+        <div class="fin-field"><label>نتيجة الكمية</label><select id="mealResult" onchange="mealResultChange()"><option value="">تُسجّل بعد المناسبة</option><option value="more">زادت</option><option value="enough">كفت</option><option value="less">نقصت</option></select></div>
+        <div class="fin-field" id="mealResultQtyWrap" style="display:none"><label id="mealResultQtyLabel">مقدار الزيادة أو النقص</label><input id="mealResultQty" type="text" placeholder="مثال: قرابة 20 وجبة" /></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="expSaveBtn" onclick='addExpense(${JSON.stringify(opts)})'>${icon('plus',17,'ico-btn')} إضافة مصروف</button>
   </div>
   <div class="fin-exp-list">
     <div class="fel-head"><span>المصروفات المسجّلة</span><b>الإجمالي: ${finMoney(total)}</b></div>
     ${rows.length?rows.map(e=>`<div class="fel-item">
       <div><div class="fel-type">${escapeHtml(e.type)}${e.subType?' — '+escapeHtml(e.subType):''}</div>
-        <div class="fel-meta">${e.date?fmtDate(e.date):''}${e.note?' · '+escapeHtml(e.note):''}</div></div>
+        <div class="fel-meta">${e.date?fmtDate(e.date):''}${e.note?' · '+escapeHtml(e.note):''}</div>
+        ${e.meal?`<span class="meal-badge ${e.meal.result||''}">${e.meal.result==='more'?'● زادت':e.meal.result==='enough'?'● كفت':e.meal.result==='less'?'● نقصت':'تفاصيل الوجبة غير مكتملة'}</span>`:''}
+        <button class="fel-edit" onclick="editExpense('${e.id}')">تعديل</button></div>
       <div class="fel-cost">${finMoney(e.cost)}<button class="fel-del" onclick="deleteExpense('${e.id}')">×</button></div>
     </div>`).join(''):'<div class="fel-empty">لا توجد مصروفات بعد</div>'}
   </div>
   <div class="exp-foot">
-    <button class="btn btn-accent" style="width:100%;" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>
-      ${icon('print',17,'ico-btn')} تقرير المناسبة PDF</button>
-    <button class="btn ${closed?'btn-ghost':''}" style="width:100%;margin-top:9px;${closed?'':'background:var(--warn);color:#fff;border:none;'}"
+    <div class="exp-actions">
+    <button class="btn ${closed?'btn-ghost':''} finish" style="width:100%;${closed?'':'background:var(--warn);color:#fff;border:none;'}"
       onclick='toggleMiqatClosed(${JSON.stringify(opts)})'>
       ${closed?'↺ إلغاء إنهاء المناسبة':icon('check',16,'ico-btn')+' انتهت المناسبة'}
     </button>
+    <button class="btn btn-accent" onclick='printMiqatExpenseReport(${JSON.stringify(opts)})'>${icon('print',17,'ico-btn')} التقرير المالي فقط PDF</button>
+    <button class="btn btn-primary" onclick='printMiqatDetailedReport(${JSON.stringify(opts)})'>${icon('print',17,'ico-btn')} التقرير التفصيلي PDF</button>
+    </div>
   </div>`;
 }
 function expTypeChange(){
   const t=$('#expType').value;
   $('#expSubWrap').style.display = (t==='متفرقات')?'block':'none';
+  $('#mealDetails').classList.toggle('show', t==='وجبة الغداء'||t==='وجبة العشاء');
+}
+function mealStewChange(){
+  const v=$('#mealStew').value;
+  $('#mealStewOtherWrap').style.display=v==='أخرى'?'block':'none';
+  $('#mealStewQtyWrap').style.display=v==='لا يوجد'?'none':'block';
+  if(v==='لا يوجد') $('#mealStewQty').value='';
+}
+function mealRiceChange(){
+  const none=$('#mealNoRice').checked; $('#mealRiceQty').disabled=none; if(none) $('#mealRiceQty').value='';
+}
+function mealResultChange(){
+  const v=$('#mealResult').value, show=v==='more'||v==='less';
+  $('#mealResultQtyWrap').style.display=show?'block':'none';
+  $('#mealResultQtyLabel').textContent=v==='more'?'مقدار الزيادة':v==='less'?'مقدار النقص':'مقدار الزيادة أو النقص';
+  if(!show) $('#mealResultQty').value='';
+}
+function readMealDetails(type){
+  if(type!=='وجبة الغداء'&&type!=='وجبة العشاء') return null;
+  const meal={ food:$('#mealFood').value.trim(), estimatedMeals:parseInt($('#mealEstimate').value,10)||0,
+    stew:$('#mealStew').value, stewOther:$('#mealStewOther').value.trim(), stewQty:$('#mealStewQty').value.trim(),
+    riceQty:$('#mealRiceQty').value.trim(), noRice:$('#mealNoRice').checked,
+    result:$('#mealResult').value, resultQty:$('#mealResultQty').value.trim() };
+  return Object.values(meal).some(Boolean)?meal:null;
 }
 async function addExpense(opts){
   const type=$('#expType').value;
@@ -7537,10 +7522,24 @@ async function addExpense(opts){
   const subType = (type==='متفرقات') ? $('#expSub').value : '';
   const cost=parseFloat($('#expCost').value);
   if(isNaN(cost)||cost<0){ toast('أدخل تكلفة صحيحة'); return; }
-  finance.expenses.push({ id:'e_'+Date.now(), section:'miqat', mood:opts.mood, miqatId:opts.miqatId, kind:opts.kind,
-    type, subType, cost, date:$('#expDate').value||today(), note:$('#expNote').value.trim(), at:new Date().toISOString() });
+  const editId=$('#expEditId').value;
+  const payload={ section:'miqat', mood:opts.mood, miqatId:opts.miqatId, kind:opts.kind, type, subType, cost,
+    date:$('#expDate').value||today(), note:$('#expNote').value.trim(), meal:readMealDetails(type), at:new Date().toISOString() };
+  if(editId){ const i=finance.expenses.findIndex(e=>e.id===editId); if(i>=0) finance.expenses[i]={...finance.expenses[i],...payload}; }
+  else finance.expenses.push({id:'e_'+Date.now(),...payload});
   await saveFinance();
-  renderFinancePage('expEntry',opts); toast('تمت إضافة المصروف');
+  renderFinancePage('expEntry',opts); toast(editId?'تم تعديل المصروف':'تمت إضافة المصروف');
+}
+function editExpense(id){
+  const e=finance.expenses.find(x=>x.id===id); if(!e) return;
+  $('#expEditId').value=e.id; $('#expType').value=e.type||''; expTypeChange();
+  if(e.type==='متفرقات') $('#expSub').value=e.subType||EXP_MISC[0];
+  $('#expCost').value=e.cost; $('#expDate').value=e.date||today(); $('#expNote').value=e.note||'';
+  const m=e.meal||{}; $('#mealFood').value=m.food||''; $('#mealEstimate').value=m.estimatedMeals||'';
+  $('#mealStew').value=m.stew||''; $('#mealStewOther').value=m.stewOther||''; $('#mealStewQty').value=m.stewQty||'';
+  $('#mealRiceQty').value=m.riceQty||''; $('#mealNoRice').checked=!!m.noRice; $('#mealResult').value=m.result||''; $('#mealResultQty').value=m.resultQty||'';
+  mealStewChange(); mealRiceChange(); mealResultChange();
+  $('#expSaveBtn').innerHTML='حفظ التعديل'; $('.fin-add-exp').scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function deleteExpense(id){
   if(!confirm('حذف هذا المصروف؟')) return;
@@ -7563,7 +7562,8 @@ function gregToHijri(iso){
 }
 
 /* تقرير ذكي لمصروفات مناسبة (PDF بالتاريخين + أزرار) */
-function printMiqatExpenseReport(opts){
+function printMiqatDetailedReport(opts){ printMiqatExpenseReport(opts,true); }
+function printMiqatExpenseReport(opts, detailed=false){
   const mq=miqats.find(x=>x.id===opts.miqatId);
   const isHzn=opts.mood==='hzn';
   const kindLbl = isHzn ? 'مناسبة حزن' : (opts.kind==='mawlid'?'قراءة مولد':'احتفال');
@@ -7605,7 +7605,9 @@ function printMiqatExpenseReport(opts){
   if(mq){ try{ const g=hijriToGregorian(mq.day, mq.month, hYear); if(g) gregDateStr=new Date(g).toLocaleDateString('ar',{day:'numeric',month:'long',year:'numeric'}); }catch(e){} }
 
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير مصروفات — ${escapeHtml(mq?mq.name:'')}</title>
+  const mealRows=rows.filter(e=>e.meal);
+  const resultLabel=r=>r==='more'?'زادت':r==='enough'?'كفت':r==='less'?'نقصت':'لم تُسجّل بعد';
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${detailed?'التقرير التفصيلي':'تقرير مصروفات'} — ${escapeHtml(mq?mq.name:'')}</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
   <style>*{box-sizing:border-box;}body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:36px 40px;color:#1a2620;line-height:1.8;font-size:14.5px;}
   .pdf-logo{display:block;margin:0 auto 8px;max-width:185px;max-height:70px;}
@@ -7637,6 +7639,7 @@ function printMiqatExpenseReport(opts){
   .insights h3{font-size:14px;color:#7a5c1e;margin-bottom:8px;}
   .insights li{margin:6px 0;font-size:13.5px;line-height:1.8;}
   .foot{margin-top:28px;padding-top:12px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:12px;}
+  .page-break{break-before:page;page-break-before:always;padding-top:10px}.result{display:inline-block;padding:3px 10px;border-radius:14px;font-weight:700}.result.more{color:#247849;background:#e5f4eb}.result.enough{color:#8a6a10;background:#fff4c9}.result.less{color:#a33f3f;background:#fae5e5}.result.pending{color:#756b5d;background:#eeeae3}.meal-card{border:1px solid #e6ddcb;border-radius:12px;padding:14px;margin:0 0 13px;break-inside:avoid}.meal-card h3{margin:0 0 9px;color:#1c4536;font-size:15px}
   @media print{body{padding:24px;} .no-print{display:none;}}
   </style></head><body>
   <div class="no-print" style="position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99;">
@@ -7644,7 +7647,7 @@ function printMiqatExpenseReport(opts){
     <button onclick="window.close()" style="background:#8a7c6b;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;">↩︎ عودة</button>
   </div>
   <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" />
-    <div class="doc-title">تقرير المناسبة المالي</div>
+    <div class="doc-title">${detailed?'التقرير التفصيلي':'تقرير المناسبة المالي'}</div>
     <div class="doc-sub">هيئة محبي الحسين (ع) · اللجنة المالية · ${hijriToday()}</div></div>
   <div class="mq-banner">
     <div class="mq-name">${escapeHtml(mq?mq.name:'')}</div>
@@ -7694,7 +7697,12 @@ function printMiqatExpenseReport(opts){
     ${rows.map((e,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(e.type)}${e.subType?' — '+escapeHtml(e.subType):''}</td><td>${e.date?fmtDate(e.date):'—'}</td><td>${e.date?escapeHtml(gregToHijri(e.date)):'—'}</td><td>${finMoney(e.cost)}</td></tr>`).join('')}
   </table>
   <div class="insights"><h3>💡 قراءة ذكية للمصروفات</h3><ul>${insights.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ul></div>
-  <div class="foot">هيئة محبي الحسين (ع) — اللجنة المالية · تقرير مصروفات المناسبة</div>
+  ${detailed?`<section class="page-break">
+    <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt="" /><div class="doc-title">تقرير الوجبات والكميات</div><div class="doc-sub">جزء من التقرير التفصيلي للمناسبة</div></div>
+    ${mealRows.length?`<table><tr><th>الوجبة</th><th>نوع الطعام</th><th>العدد التقديري</th><th>الإيدام وكميته</th><th>العيش</th><th>النتيجة</th></tr>${mealRows.map(e=>{const m=e.meal||{}, cls=m.result||'pending';return `<tr><td>${escapeHtml(e.type)}</td><td>${escapeHtml(m.food||'—')}</td><td>${m.estimatedMeals?m.estimatedMeals+' وجبة':'—'}</td><td>${m.stew==='لا يوجد'?'لا يوجد':escapeHtml((m.stew==='أخرى'?(m.stewOther||'أخرى'):(m.stew||'—'))+(m.stewQty?' — '+m.stewQty:''))}</td><td>${m.noRice?'لا يوجد':escapeHtml(m.riceQty||'—')}</td><td><span class="result ${cls}">● ${resultLabel(m.result)}</span></td></tr>`}).join('')}</table>`:'<p style="color:#8a7c6b">لا توجد تفاصيل وجبات مسجّلة لهذه المناسبة.</p>'}
+    ${mealRows.map((e,i)=>{const m=e.meal||{}, cls=m.result||'pending';return `<div class="meal-card"><h3>الوجبة ${i+1}: ${escapeHtml(e.type)} — ${escapeHtml(m.food||'نوع الطعام غير مسجّل')}</h3><table><tr><td><b>التكلفة</b></td><td>${finMoney(e.cost)}</td><td><b>عدد الوجبات التقديري</b></td><td>${m.estimatedMeals?m.estimatedMeals+' وجبة':'—'}</td></tr><tr><td><b>الإيدام</b></td><td>${m.stew==='لا يوجد'?'لا يوجد':escapeHtml(m.stew==='أخرى'?(m.stewOther||'أخرى'):(m.stew||'—'))}</td><td><b>كمية الإيدام</b></td><td>${m.stew==='لا يوجد'?'لا يوجد':escapeHtml(m.stewQty||'—')}</td></tr><tr><td><b>كمية العيش</b></td><td>${m.noRice?'لا يوجد':escapeHtml(m.riceQty||'—')}</td><td><b>النتيجة</b></td><td><span class="result ${cls}">● ${resultLabel(m.result)}</span>${m.resultQty?' — '+escapeHtml(m.resultQty):''}</td></tr>${e.note?`<tr><td><b>الملاحظة</b></td><td colspan="3">${escapeHtml(e.note)}</td></tr>`:''}</table></div>`}).join('')}
+  </section>`:''}
+  <div class="foot">هيئة محبي الحسين (ع) — اللجنة المالية · ${detailed?'التقرير التفصيلي':'تقرير مصروفات المناسبة'}</div>
   </body></html>`);
   w.document.close(); w.focus();
 }
