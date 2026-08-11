@@ -573,6 +573,7 @@ function printMemberProfile(id){
   const inst = pays.length ? `<h2>دفعات العضوية</h2><table class="tb"><tr><th>#</th><th>التاريخ</th><th>المبلغ</th></tr>
     ${pays.map((p,i)=>`<tr><td>${i+1}</td><td>${fmtDate(p.date)}</td><td>${fmtMoney(p.amount)}</td></tr>`).join('')}
     <tr class="sum"><td colspan="2">الإجمالي المدفوع</td><td>${fmtMoney(memberPaid(m))}</td></tr></table>` : '';
+  const photo=m.photo?`<img src="${m.photo}" alt="صورة العضو" />`:`<span>${escapeHtml((m.name||'؟').trim().charAt(0))}</span>`;
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ملف العضو — ${escapeHtml(m.name)}</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
@@ -580,27 +581,39 @@ function printMemberProfile(id){
   *{box-sizing:border-box;}
   @page{size:A4;margin:12mm;}
   html,body{width:210mm;min-height:297mm;}
-  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0 auto;padding:0;color:#1a2620;line-height:1.65;font-size:14px;background:#fff;}
-  .pdf-head{display:flex;direction:ltr;align-items:center;justify-content:space-between;gap:18px;background:#1c4536;
-    padding:14px 18px;border-bottom:4px solid #c19a3e;margin-bottom:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  .pdf-logo{display:block;max-width:205px;max-height:72px;width:auto;height:auto;object-fit:contain;}
-  .pdf-heading{flex:1;direction:rtl;text-align:left;}
-  .doc-title{font-family:'Amiri',serif;font-size:27px;font-weight:700;color:#fff;margin:0;}
-  .doc-sub{color:#f1e6c9;font-size:12.5px;margin-top:2px;}
-  h2{font-size:17px;color:#fff;background:#1c4536;display:inline-block;padding:6px 16px 6px 20px;border-radius:0 18px 18px 0;margin:26px 0 12px;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0 auto;padding:0;color:#142b23;line-height:1.55;font-size:13px;background:#fff;}
+  .member-cover{position:relative;min-height:103mm;display:grid;grid-template-columns:47% 53%;direction:ltr;
+    overflow:hidden;margin-bottom:12px;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .cover-photo-side{position:relative;background:linear-gradient(145deg,#073d2f,#0b5941);display:flex;align-items:center;justify-content:center;}
+  .cover-photo-side::after{content:'';position:absolute;bottom:0;left:0;right:0;height:6px;background:#d0a02e;}
+  .cover-photo{width:74mm;height:74mm;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;
+    border:3px solid #d8aa35;box-shadow:0 0 0 4px #fff,0 6px 18px rgba(0,0,0,.22);background:#e7efe9;
+    color:#0b4b38;font-size:70px;font-weight:700;}
+  .cover-photo img{width:100%;height:100%;object-fit:cover;display:block;}
+  .cover-info{direction:rtl;padding:12mm 8mm 8mm;display:flex;flex-direction:column;justify-content:center;}
+  .cover-logo{display:block;margin:0 0 7mm auto;max-width:50mm;max-height:26mm;object-fit:contain;}
+  .cover-name{font-family:'Amiri',serif;font-size:29px;font-weight:700;color:#084735;text-align:right;line-height:1.2;
+    padding-bottom:5mm;border-bottom:1.5px solid #d0a02e;margin-bottom:6mm;}
+  .cover-stat{display:grid;grid-template-columns:14mm 1fr 1.18fr;direction:rtl;align-items:stretch;margin:2.3mm 0;border-radius:7px;overflow:hidden;}
+  .cover-stat .ico{background:#064735;color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;}
+  .cover-stat .label{background:#f1f2ec;padding:3mm;font-weight:600;}
+  .cover-stat .value{background:#e4eee8;padding:3mm;font-size:15px;text-align:center;}
+  .cover-stat .value.strong{background:#08734b;color:#fff;font-weight:700;}
+  .pdf-body{padding:0 5mm;}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:5mm;align-items:start;}
+  .info-card{border:1px solid #ded8ca;border-radius:7px;overflow:hidden;page-break-inside:avoid;}
+  .info-title{background:#084735;color:#fff;border-left:9mm solid #d0a02e;padding:3mm 5mm;font-size:16px;font-weight:700;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  h2{display:block;font-size:16px;color:#fff;background:#084735;padding:3mm 5mm;margin:6mm 0 0;border-left:9mm solid #d0a02e;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
   table{width:100%;border-collapse:collapse;font-size:14.5px;}
-  th,td{border:1px solid #e6ddcb;padding:9px 12px;text-align:right;}
-  th{background:#f6f2ea;color:#3a473f;font-weight:600;width:34%;}
+  th,td{border:0;border-bottom:1px solid #e6ddcb;padding:2.6mm 3mm;text-align:right;}
+  th{background:#faf9f5;color:#3a473f;font-weight:600;width:42%;}
   .tb th{background:#1c4536;color:#fff;width:auto;}
   .tb tr:nth-child(even){background:#faf7f0;}
   .tb .sum td{background:#e6f0ea;font-weight:700;}
   .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:13px;font-weight:700;}
   .on{background:#e6f3ea;color:#2f8f5b;} .off{background:#f6e6e6;color:#b85c5c;}
-  .mem-id{display:flex;align-items:center;gap:20px;background:#f6f2ea;border:1px solid #ece3d4;border-radius:14px;padding:18px 22px;margin-bottom:8px;}
-  .mem-photo{width:92px;height:92px;border-radius:50%;overflow:hidden;background:#e6f0ea;border:3px solid #c19a3e;display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:700;color:#1c4536;flex-shrink:0;}
-  .mem-photo img{width:100%;height:100%;object-fit:cover;}
-  .mem-id-name{font-size:21px;font-weight:800;color:#1c4536;}
-  .mem-id-code{font-size:13px;color:#8a7c6b;margin:3px 0 7px;}
   .phone-disp{direction:ltr;unicode-bidi:isolate;display:inline-block;}
   .editor-signature{display:flex;direction:ltr;justify-content:flex-start;margin-top:32px;page-break-inside:avoid;}
   .editor-box{text-align:center;min-width:245px;color:#1c4536;}
@@ -608,27 +621,22 @@ function printMemberProfile(id){
   .editor-signature img{display:block;margin:0 auto 1px;max-width:155px;max-height:85px;width:auto;height:auto;}
   .editor-line{width:205px;border-top:1px solid #8a7c6b;margin:0 auto;}
   .foot{margin-top:18px;padding-top:10px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:11px;}
-  @media print{html,body{width:auto;min-height:auto;} body{padding:0;} .pdf-head,h2{-webkit-print-color-adjust:exact;print-color-adjust:exact;} tr,.mem-id{page-break-inside:avoid;}}
+  @media print{html,body{width:auto;min-height:auto;} body{padding:0;} tr,.info-card{page-break-inside:avoid;}}
   ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
-  <div class="pdf-head">
-    <div class="pdf-heading"><div class="doc-title">ملف العضو</div>
-      <div class="doc-sub">${escapeHtml(m.name)} · ${memberCode(m)} · ${hijriToday()}</div></div>
-    <img class="pdf-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" />
-  </div>
-  <div class="mem-id">
-    <div class="mem-photo">${m.photo?`<img src="${m.photo}" alt="" />`:escapeHtml((m.name||'؟').trim().charAt(0))}</div>
-    <div class="mem-id-info">
-      <div class="mem-id-name">${escapeHtml(m.name)}</div>
-      <div class="mem-id-code">${memberCode(m)}</div>
-      <div><span class="badge ${active?'on':'off'}">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span></div>
+  <div class="member-cover">
+    <div class="cover-photo-side"><div class="cover-photo">${photo}</div></div>
+    <div class="cover-info">
+      <img class="cover-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" />
+      <div class="cover-name">${escapeHtml(m.name)}</div>
+      <div class="cover-stat"><span class="ico">●</span><span class="label">رقم العضوية</span><span class="value strong">${memberCode(m)}</span></div>
+      <div class="cover-stat"><span class="ico">✓</span><span class="label">حالة العضوية</span><span class="value strong">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span></div>
+      <div class="cover-stat"><span class="ico">♟</span><span class="label">نوع العضوية</span><span class="value">${escapeHtml(m.type||'—')}</span></div>
     </div>
   </div>
-  <h2>البيانات الأساسية</h2>
-  <table>
+  <div class="pdf-body"><div class="info-grid">
+  <div class="info-card"><div class="info-title">بيانات العضو</div><table>
     ${row('الاسم الكامل', escapeHtml(m.name))}
     ${row('رقم العضوية', memberCode(m))}
-    ${row('نوع العضوية', m.type)}
-    ${row('الحالة', `<span class="badge ${active?'on':'off'}">${active?'مفعّلة':'غير مفعّلة'}</span>`)}
     ${row('الهاتف', phoneDisp(m.phone))}
     ${m.isMinor&&m.birthdate?row('تاريخ الميلاد', fmtDate(m.birthdate)):''}
     ${m.isMinor&&m.age!=null?row('العمر', m.age):''}
@@ -637,9 +645,13 @@ function printMemberProfile(id){
     ${row('العنوان', m.address)}
     ${m.isAdmin?row('اللجنة', m.committee||'—'):''}
     ${row('تاريخ التسجيل', fmtDate(m.joinDate))}
-    ${m.paymentDate?row('بداية العضوية', fmtHijriStart(m)):''}
-    ${m.paymentDate?row('انتهاء العضوية', fmtHijriEnd(m)):''}
-  </table>
+  </table></div>
+  <div class="info-card"><div class="info-title">بيانات العضوية</div><table>
+    ${row('بداية العضوية', m.paymentDate?fmtHijriStart(m):'—')}
+    ${row('انتهاء العضوية', m.paymentDate?fmtHijriEnd(m):'—')}
+    ${row('نوع العضوية', escapeHtml(m.type||'—'))}
+    ${row('الحالة', `<span class="badge ${active?'on':'off'}">${active?'مفعّلة':'غير مفعّلة'}</span>`)}
+  </table></div></div>
   ${inst}
   ${miq}
   <div class="editor-signature"><div class="editor-box">
@@ -648,6 +660,7 @@ function printMemberProfile(id){
     <div class="editor-line"></div>
   </div></div>
   <div class="foot">هيئة محبي الحسين (ع) — وثيقة رسمية</div>
+  </div>
   </body></html>`);
   w.document.close(); w.focus();
 }
@@ -3789,10 +3802,14 @@ function showDetail(id){
   const profilePhoto=m.photo?`<img src="${m.photo}" alt="صورة ${escapeHtml(m.name)}">`:escapeHtml((m.name||'؟').trim().charAt(0));
   $('#detailContent').innerHTML=`
     <div class="member-profile-head">
+      <div class="member-profile-top">
+        <div class="member-profile-title">ملف العضو</div>
+        <div class="member-profile-status"><span class="dot ${active?'':'off'}"></span><b>${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</b><span class="sep"></span><span>${memberCode(m)}</span></div>
+      </div>
       <div class="member-profile-photo">${profilePhoto}</div>
-      <div class="member-profile-summary">
-        <div class="member-profile-name">${escapeHtml(m.name)}</div>
-        <div class="member-profile-code">${memberCode(m)} · ${escapeHtml(m.type||'')}</div>
+      <div class="member-photo-actions">
+        <button class="member-photo-btn" onclick="openEditMember('${m.id}');setTimeout(()=>document.getElementById('editPhotoInput').click(),120)">📷 تغيير الصورة</button>
+        ${m.photo?`<button class="member-photo-btn delete" onclick="removeMemberPhoto('${m.id}')">🗑 حذف الصورة</button>`:''}
       </div>
     </div>
     <div class="detail-rows">
@@ -3824,6 +3841,16 @@ function showDetail(id){
     </div>`;
   rememberListPos('members', id);
   currentMemberPageId=id; openFullPage('memberpage');
+}
+
+/* حذف صورة العضو من واجهة ملفه */
+async function removeMemberPhoto(id){
+  const m=members.find(x=>x.id===id); if(!m||!m.photo) return;
+  if(!confirm('حذف صورة العضو؟')) return;
+  m.photo=null;
+  await saveMembers();
+  showDetail(id); renderMembers(); renderDashboard();
+  toast('تم حذف الصورة');
 }
 
 /* ═══════════ تثويبات المرحومين من ملف العضو ═══════════ */
