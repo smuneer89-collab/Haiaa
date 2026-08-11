@@ -347,22 +347,6 @@
   .cc-sum b { color:var(--ink); }
   /* أزرار أسفل صفحة المصروفات */
   .exp-foot { margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
-  .meal-details { display:none; margin:10px 0 12px; padding:13px; background:var(--accent-soft); border:1px solid rgba(28,69,54,.18); border-radius:13px; }
-  .meal-details.show { display:block; }
-  .meal-title { color:var(--accent); font-size:13.5px; font-weight:800; margin-bottom:10px; }
-  .meal-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-  .meal-grid .wide { grid-column:1/-1; }
-  .meal-none { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); margin-top:6px; }
-  .meal-none input { width:auto; }
-  .meal-result-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-  .meal-badge { display:inline-flex; align-items:center; gap:5px; margin-top:5px; padding:3px 8px; border-radius:12px; font-size:10.5px; font-weight:700; }
-  .meal-badge.more { color:#247849; background:#e5f4eb; }
-  .meal-badge.enough { color:#8a6a10; background:#fff4c9; }
-  .meal-badge.less { color:#a33f3f; background:#fae5e5; }
-  .fel-edit { border:0; background:transparent; color:var(--accent); font-family:var(--font-sans); font-size:11px; font-weight:700; cursor:pointer; margin-inline-start:5px; }
-  .exp-actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-  .exp-actions .finish { grid-column:1/-1; }
-  @media(max-width:480px){ .meal-grid,.meal-result-row,.exp-actions { grid-template-columns:1fr; } .meal-grid .wide,.exp-actions .finish { grid-column:auto; } }
   /* كشف الحساب */
   .stmt-filters { background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:12px; margin-bottom:11px; }
   .stmt-filters select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-family:var(--font-sans); font-size:13.5px; background:var(--bg); color:var(--ink); margin-bottom:9px; }
@@ -733,6 +717,22 @@
   .fel-del { background:none; border:none; color:var(--danger); font-size:18px; cursor:pointer; }
   .fel-empty, .fs-txt { color:var(--muted-2); }
   .fel-empty { text-align:center; padding:20px; font-size:13px; }
+  .meal-details { display:none; margin:10px 0 12px; padding:13px; background:var(--accent-soft); border:1px solid rgba(28,69,54,.18); border-radius:13px; }
+  .meal-details.show { display:block; }
+  .meal-title { color:var(--accent); font-size:13.5px; font-weight:800; margin-bottom:10px; }
+  .meal-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .meal-grid .wide { grid-column:1/-1; }
+  .meal-none { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); margin-top:6px; }
+  .meal-none input { width:auto; }
+  .meal-result-row { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .meal-badge { display:inline-flex; align-items:center; gap:5px; margin-top:5px; padding:3px 8px; border-radius:12px; font-size:10.5px; font-weight:700; }
+  .meal-badge.more { color:#247849; background:#e5f4eb; }
+  .meal-badge.enough { color:#8a6a10; background:#fff4c9; }
+  .meal-badge.less { color:#a33f3f; background:#fae5e5; }
+  .fel-edit { border:0; background:transparent; color:var(--accent); font-family:var(--font-sans); font-size:11px; font-weight:700; cursor:pointer; margin-inline-start:5px; }
+  .exp-actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .exp-actions .finish { grid-column:1/-1; }
+  @media(max-width:480px){ .meal-grid,.meal-result-row,.exp-actions { grid-template-columns:1fr; } .meal-grid .wide,.exp-actions .finish { grid-column:auto; } }
   .fin-soon { text-align:center; padding:50px 20px; }
   .fin-soon .fs-ic { font-size:44px; margin-bottom:14px; }
   .fin-soon .fs-title { font-size:17px; font-weight:700; color:var(--ink); margin-bottom:6px; }
@@ -2693,6 +2693,12 @@
           <button class="btn btn-primary" onclick="backupExport()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> نسخة احتياطية كاملة</button>
           <button class="btn btn-ghost" onclick="document.getElementById('backupImportInput').click()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> استعادة نسخة</button>
           <input type="file" id="backupImportInput" style="display:none" accept="application/json,.json" onchange="backupImport(event)" />
+        </div>
+        <div class="actions-row" style="margin-top:8px;">
+          <button class="btn btn-primary" onclick="downloadProjectZip()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> تحميل ملفات المشروع ZIP</button>
+        </div>
+        <div class="note" style="margin-top:10px;">
+          <strong>ملفات المشروع ZIP</strong> تنزّل أحدث نسخة كاملة من مستودع GitHub، وتشمل جميع الملفات والمجلدات الحالية وأي ملفات جديدة تُضاف مستقبلًا إلى الفرع الرئيسي.
         </div>
         <div class="actions-row" style="margin-top:8px;">
           <button class="btn btn-ghost" onclick="exportCSV()">تصدير الأعضاء CSV</button>
