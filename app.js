@@ -579,54 +579,55 @@ function printMemberProfile(id){
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
   <style>
   *{box-sizing:border-box;}
-  @page{size:A4;margin:12mm;}
+  @page{size:A4;margin:8mm;}
   html,body{width:210mm;min-height:297mm;}
-  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0 auto;padding:0;color:#142b23;line-height:1.55;font-size:13px;background:#fff;}
-  .member-cover{position:relative;min-height:103mm;display:grid;grid-template-columns:47% 53%;direction:ltr;
-    overflow:hidden;margin-bottom:12px;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  .cover-photo-side{position:relative;background:linear-gradient(145deg,#073d2f,#0b5941);display:flex;align-items:center;justify-content:center;}
-  .cover-photo-side::after{content:'';position:absolute;bottom:0;left:0;right:0;height:6px;background:#d0a02e;}
-  .cover-photo{width:74mm;height:74mm;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;
-    border:3px solid #d8aa35;box-shadow:0 0 0 4px #fff,0 6px 18px rgba(0,0,0,.22);background:#e7efe9;
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0 auto;padding:0;color:#142b23;line-height:1.45;font-size:11.5px;background:#fff;}
+  .pdf-top{height:17mm;display:flex;align-items:center;justify-content:space-between;padding:0 5mm;margin-bottom:4mm;}
+  .pdf-top img{display:block;max-width:44mm;max-height:15mm;object-fit:contain;}
+  .pdf-title{font-size:13px;font-weight:800;color:#084735;display:flex;align-items:center;gap:7px;}
+  .pdf-title::before{content:'PDF';display:inline-flex;align-items:center;justify-content:center;border:1px solid #d0a02e;
+    color:#a77d18;border-radius:6px;padding:2px 7px;font-size:9px;}
+  .member-cover{position:relative;height:65mm;display:grid;grid-template-columns:55% 45%;direction:ltr;border-radius:7mm;
+    overflow:hidden;margin:0 4mm 5mm;background:linear-gradient(135deg,#063c2e,#0a5b42);-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .cover-photo-side{position:relative;display:flex;align-items:stretch;justify-content:stretch;border-left:2.5mm solid #d0a02e;}
+  .cover-photo{width:100%;height:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#e7efe9;
     color:#0b4b38;font-size:70px;font-weight:700;}
   .cover-photo img{width:100%;height:100%;object-fit:cover;display:block;}
-  .cover-info{direction:rtl;padding:12mm 8mm 8mm;display:flex;flex-direction:column;justify-content:center;}
-  .cover-logo{display:block;margin:0 0 7mm auto;max-width:50mm;max-height:26mm;object-fit:contain;}
-  .cover-name{font-family:'Amiri',serif;font-size:29px;font-weight:700;color:#084735;text-align:right;line-height:1.2;
-    padding-bottom:5mm;border-bottom:1.5px solid #d0a02e;margin-bottom:6mm;}
-  .cover-stat{display:grid;grid-template-columns:14mm 1fr 1.18fr;direction:rtl;align-items:stretch;margin:2.3mm 0;border-radius:7px;overflow:hidden;}
-  .cover-stat .ico{background:#064735;color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;}
-  .cover-stat .label{background:#f1f2ec;padding:3mm;font-weight:600;}
-  .cover-stat .value{background:#e4eee8;padding:3mm;font-size:15px;text-align:center;}
-  .cover-stat .value.strong{background:#08734b;color:#fff;font-weight:700;}
-  .pdf-body{padding:0 5mm;}
-  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:5mm;align-items:start;}
-  .info-card{border:1px solid #ded8ca;border-radius:7px;overflow:hidden;page-break-inside:avoid;}
-  .info-title{background:#084735;color:#fff;border-left:9mm solid #d0a02e;padding:3mm 5mm;font-size:16px;font-weight:700;
+  .cover-info{direction:rtl;padding:8mm 9mm;display:flex;flex-direction:column;justify-content:center;color:#fff;}
+  .cover-name{font-size:24px;font-weight:800;color:#fff;text-align:right;line-height:1.25;margin-bottom:5mm;}
+  .cover-stat{display:grid;grid-template-columns:1fr 1.1fr;direction:rtl;align-items:center;margin:1.5mm 0;border:1px solid rgba(208,160,46,.55);border-radius:4mm;overflow:hidden;}
+  .cover-stat .ico{display:none;}
+  .cover-stat .label{padding:2.4mm 3mm;color:#d8cdb8;font-size:10px;}
+  .cover-stat .value{padding:2.4mm 3mm;font-size:12px;text-align:center;background:rgba(255,255,255,.08);}
+  .cover-stat .value.strong{color:#fff;font-weight:800;}
+  .pdf-body{padding:0 4mm;}
+  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;align-items:start;}
+  .info-card{border:1px solid #e2ded4;border-radius:4mm;overflow:hidden;page-break-inside:avoid;box-shadow:0 1.5mm 4mm rgba(8,71,53,.04);}
+  .info-title{background:#fff;color:#084735;padding:3mm 4mm;font-size:13px;font-weight:800;border-bottom:1px solid #e8e3d8;}
+  h2{display:block;font-size:13px;color:#084735;background:#fff;padding:3mm 4mm;margin:4mm 0 0;border:1px solid #e2ded4;border-bottom:0;border-radius:4mm 4mm 0 0;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  h2{display:block;font-size:16px;color:#fff;background:#084735;padding:3mm 5mm;margin:6mm 0 0;border-left:9mm solid #d0a02e;
-    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  table{width:100%;border-collapse:collapse;font-size:14.5px;}
-  th,td{border:0;border-bottom:1px solid #e6ddcb;padding:2.6mm 3mm;text-align:right;}
-  th{background:#faf9f5;color:#3a473f;font-weight:600;width:42%;}
-  .tb th{background:#1c4536;color:#fff;width:auto;}
-  .tb tr:nth-child(even){background:#faf7f0;}
-  .tb .sum td{background:#e6f0ea;font-weight:700;}
+  table{width:100%;border-collapse:collapse;font-size:11px;}
+  th,td{border:0;border-bottom:1px solid #eee9df;padding:1.8mm 2.5mm;text-align:right;}
+  th{background:#fbfaf6;color:#6c746f;font-weight:600;width:42%;}
+  .tb{border:1px solid #e2ded4;border-radius:0 0 4mm 4mm;overflow:hidden;}
+  .tb th{background:#f7f3e9;color:#54615b;width:auto;}
+  .tb tr:nth-child(even){background:#fcfbf8;}
+  .tb .sum td{background:#edf5f0;color:#084735;font-weight:800;}
   .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:13px;font-weight:700;}
   .on{background:#e6f3ea;color:#2f8f5b;} .off{background:#f6e6e6;color:#b85c5c;}
   .phone-disp{direction:ltr;unicode-bidi:isolate;display:inline-block;}
-  .editor-signature{display:flex;direction:ltr;justify-content:flex-start;margin-top:32px;page-break-inside:avoid;}
-  .editor-box{text-align:center;min-width:245px;color:#1c4536;}
-  .editor-label{text-align:left;font-size:12.5px;font-weight:600;margin-bottom:2px;}
-  .editor-signature img{display:block;margin:0 auto 1px;max-width:155px;max-height:85px;width:auto;height:auto;}
-  .editor-line{width:205px;border-top:1px solid #8a7c6b;margin:0 auto;}
-  .foot{margin-top:18px;padding-top:10px;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:11px;}
+  .editor-signature{display:flex;direction:ltr;justify-content:flex-start;margin-top:5mm;page-break-inside:avoid;}
+  .editor-box{text-align:center;min-width:58mm;color:#1c4536;}
+  .editor-label{text-align:left;font-size:10px;font-weight:700;margin-bottom:1px;}
+  .editor-signature img{display:block;margin:0 auto;max-width:37mm;max-height:18mm;width:auto;height:auto;}
+  .editor-line{width:48mm;border-top:1px solid #8a7c6b;margin:0 auto;}
+  .foot{margin-top:3mm;padding-top:2mm;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:9px;}
   @media print{html,body{width:auto;min-height:auto;} body{padding:0;} tr,.info-card{page-break-inside:avoid;}}
   ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
+  <div class="pdf-top"><img src="${HAIAA_LOGO}" alt="هيئة محبي الحسين"><div class="pdf-title">ملف العضو</div></div>
   <div class="member-cover">
     <div class="cover-photo-side"><div class="cover-photo">${photo}</div></div>
     <div class="cover-info">
-      <img class="cover-logo" src="${HAIAA_LOGO}" alt="هيئة محبي الحسين" />
       <div class="cover-name">${escapeHtml(m.name)}</div>
       <div class="cover-stat"><span class="ico">●</span><span class="label">رقم العضوية</span><span class="value strong">${memberCode(m)}</span></div>
       <div class="cover-stat"><span class="ico">✓</span><span class="label">حالة العضوية</span><span class="value strong">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span></div>
@@ -3801,28 +3802,48 @@ function showDetail(id){
   const reminderHTML=miqatRemindersHTML(m);
   const profilePhoto=m.photo?`<img src="${m.photo}" alt="صورة ${escapeHtml(m.name)}">`:escapeHtml((m.name||'؟').trim().charAt(0));
   $('#detailContent').innerHTML=`
-    <div class="member-profile-head">
-      <div class="member-profile-top">
-        <div class="member-profile-title">ملف العضو</div>
-        <div class="member-profile-status"><span class="dot ${active?'':'off'}"></span><b>${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</b><span class="sep"></span><span>${memberCode(m)}</span></div>
+    <div class="member-modern-card">
+      <div class="member-modern-hero">
+        <div class="member-modern-logo">
+          <img src="${HAIAA_LOGO}" alt="هيئة محبي الحسين">
+          <span class="file-label">ملف العضو</span>
+        </div>
+        <div class="member-modern-identity">
+          <div class="member-modern-photo">${profilePhoto}</div>
+          <div>
+            <div class="member-modern-name">${escapeHtml(m.name)}</div>
+            <div class="member-modern-code">${memberCode(m)}</div><br>
+            <div class="member-modern-state ${active?'':'inactive'}"><span class="dot"></span>${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</div>
+          </div>
+        </div>
       </div>
-      <div class="member-profile-photo">${profilePhoto}</div>
-      <div class="member-photo-actions">
+      <div class="member-photo-actions modern">
         <button class="member-photo-btn" onclick="openEditMember('${m.id}');setTimeout(()=>document.getElementById('editPhotoInput').click(),120)">📷 تغيير الصورة</button>
         ${m.photo?`<button class="member-photo-btn delete" onclick="removeMemberPhoto('${m.id}')">🗑 حذف الصورة</button>`:''}
       </div>
     </div>
-    <div class="detail-rows">
-      ${m.isMinor&&m.birthdate?detailRow('تاريخ الميلاد', fmtDate(m.birthdate)):''}
-      ${m.isMinor&&m.age!=null?detailRow('العمر', m.age):''}
-      ${detailRow('الهاتف', phoneDisp(m.phone))}
-      ${m.area?detailRow('المنطقة',m.area):''}
-      ${m.email?detailRow('الإيميل',m.email):''}
-      ${m.address?detailRow('العنوان',m.address):''}
-      ${m.isAdmin?detailRow('اللجنة', m.committee||'—'):''}
-      ${detailRow('تاريخ التسجيل', fmtDate(m.joinDate))}
-      ${m.paymentDate?detailRow('بداية العضوية', fmtHijriStart(m)):''}
-      ${m.paymentDate?detailRow('انتهاء العضوية', fmtHijriEnd(m)):''}
+    <div class="member-modern-grid">
+      <div class="member-modern-panel">
+        <div class="member-modern-panel-title">البيانات الشخصية <span>${memberCode(m)}</span></div>
+        <div class="detail-rows">
+          ${m.isMinor&&m.birthdate?detailRow('تاريخ الميلاد', fmtDate(m.birthdate)):''}
+          ${m.isMinor&&m.age!=null?detailRow('العمر', m.age):''}
+          ${detailRow('الهاتف', phoneDisp(m.phone))}
+          ${m.area?detailRow('المنطقة',m.area):''}
+          ${m.email?detailRow('الإيميل',m.email):''}
+          ${m.address?detailRow('العنوان',m.address):''}
+          ${m.isAdmin?detailRow('اللجنة', m.committee||'—'):''}
+          ${detailRow('تاريخ التسجيل', fmtDate(m.joinDate))}
+        </div>
+      </div>
+      <div class="member-modern-panel">
+        <div class="member-modern-panel-title">بيانات العضوية <span>${escapeHtml(m.type||'—')}</span></div>
+        <div class="member-modern-membership">
+          <div class="member-modern-kpi"><div class="k">بداية العضوية</div><div class="v">${m.paymentDate?fmtHijriStart(m):'—'}</div></div>
+          <div class="member-modern-kpi"><div class="k">انتهاء العضوية</div><div class="v">${m.paymentDate?fmtHijriEnd(m):'—'}</div></div>
+          <div class="member-modern-kpi"><div class="k">الحالة</div><div class="v ${active?'active':''}">${active?'مفعّلة':'غير مفعّلة'}</div></div>
+        </div>
+      </div>
     </div>
     ${subInstallmentHTML(m)}
     ${miqatsHTML}
