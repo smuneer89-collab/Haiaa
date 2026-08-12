@@ -565,103 +565,81 @@ function isFullPageOpen(name){ const e=$('#tab-'+name); return !!(e && e.style.d
 function printMemberProfile(id){
   const m=members.find(x=>x.id===id); if(!m) return;
   const active=isActive(m); const mms=memberMiqats(m);
-  const row=(k,v)=>v?`<tr><th>${k}</th><td>${v}</td></tr>`:'';
-  const miq = mms.length ? `<h2>المواقيت والمساهمات</h2><table class="tb"><tr><th>الميقات</th><th>التاريخ</th><th>المساهمة</th></tr>
-    ${mms.map(mq=>{const b=(mq.bookings||[]).find(x=>x.memberId===m.id);
-      return `<tr><td>${escapeHtml(mq.name)}</td><td>${fmtMiqatDate(mq)}</td><td>${b?fmtMoney(bookingAgreed(b)):'—'}</td></tr>`;}).join('')}</table>` : '';
-  const pays = memberPayments(m);
-  const inst = pays.length ? `<h2>دفعات العضوية</h2><table class="tb"><tr><th>#</th><th>التاريخ</th><th>المبلغ</th></tr>
-    ${pays.map((p,i)=>`<tr><td>${i+1}</td><td>${fmtDate(p.date)}</td><td>${fmtMoney(p.amount)}</td></tr>`).join('')}
-    <tr class="sum"><td colspan="2">الإجمالي المدفوع</td><td>${fmtMoney(memberPaid(m))}</td></tr></table>` : '';
   const photo=m.photo?`<img src="${m.photo}" alt="صورة العضو" />`:`<span>${escapeHtml((m.name||'؟').trim().charAt(0))}</span>`;
+  const miqatRows=mms.map(mq=>{const b=(mq.bookings||[]).find(x=>x.memberId===m.id);
+    return `<tr><td>${escapeHtml(mq.name)}</td><td>${fmtMiqatDate(mq)}</td><td>${b?fmtMoney(bookingAgreed(b)):'—'}</td></tr>`;
+  }).join('');
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>ملف العضو — ${escapeHtml(m.name)}</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
   <style>
   *{box-sizing:border-box;}
-  @page{size:A4;margin:8mm;}
-  html,body{width:210mm;min-height:297mm;}
-  body{font-family:'IBM Plex Sans Arabic',sans-serif;margin:0 auto;padding:0;color:#142b23;line-height:1.45;font-size:11.5px;background:#fff;}
-  .pdf-top{height:17mm;display:flex;align-items:center;justify-content:space-between;padding:0 5mm;margin-bottom:4mm;}
-  .pdf-top img{display:block;max-width:44mm;max-height:15mm;object-fit:contain;}
-  .pdf-title{font-size:13px;font-weight:800;color:#084735;display:flex;align-items:center;gap:7px;}
-  .pdf-title::before{content:'PDF';display:inline-flex;align-items:center;justify-content:center;border:1px solid #d0a02e;
-    color:#a77d18;border-radius:6px;padding:2px 7px;font-size:9px;}
-  .member-cover{position:relative;height:65mm;display:grid;grid-template-columns:55% 45%;direction:ltr;border-radius:7mm;
-    overflow:hidden;margin:0 4mm 5mm;background:linear-gradient(135deg,#063c2e,#0a5b42);-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  .cover-photo-side{position:relative;display:flex;align-items:stretch;justify-content:stretch;border-left:2.5mm solid #d0a02e;}
-  .cover-photo{width:100%;height:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#e7efe9;
-    color:#0b4b38;font-size:70px;font-weight:700;}
-  .cover-photo img{width:100%;height:100%;object-fit:cover;display:block;}
-  .cover-info{direction:rtl;padding:8mm 9mm;display:flex;flex-direction:column;justify-content:center;color:#fff;}
-  .cover-name{font-size:24px;font-weight:800;color:#fff;text-align:right;line-height:1.25;margin-bottom:5mm;}
-  .cover-stat{display:grid;grid-template-columns:1fr 1.1fr;direction:rtl;align-items:center;margin:1.5mm 0;border:1px solid rgba(208,160,46,.55);border-radius:4mm;overflow:hidden;}
-  .cover-stat .ico{display:none;}
-  .cover-stat .label{padding:2.4mm 3mm;color:#d8cdb8;font-size:10px;}
-  .cover-stat .value{padding:2.4mm 3mm;font-size:12px;text-align:center;background:rgba(255,255,255,.08);}
-  .cover-stat .value.strong{color:#fff;font-weight:800;}
-  .pdf-body{padding:0 4mm;}
-  .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;align-items:start;}
-  .info-card{border:1px solid #e2ded4;border-radius:4mm;overflow:hidden;page-break-inside:avoid;box-shadow:0 1.5mm 4mm rgba(8,71,53,.04);}
-  .info-title{background:#fff;color:#084735;padding:3mm 4mm;font-size:13px;font-weight:800;border-bottom:1px solid #e8e3d8;}
-  h2{display:block;font-size:13px;color:#084735;background:#fff;padding:3mm 4mm;margin:4mm 0 0;border:1px solid #e2ded4;border-bottom:0;border-radius:4mm 4mm 0 0;
+  @page{size:A4 portrait;margin:0;}
+  html,body{width:210mm;height:297mm;margin:0;padding:0;}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;color:#142b23;background:#e9ecea;font-size:12px;}
+  .page{position:relative;width:210mm;height:297mm;margin:0 auto;background:#fff;overflow:hidden;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;}
-  table{width:100%;border-collapse:collapse;font-size:11px;}
-  th,td{border:0;border-bottom:1px solid #eee9df;padding:1.8mm 2.5mm;text-align:right;}
-  th{background:#fbfaf6;color:#6c746f;font-weight:600;width:42%;}
-  .tb{border:1px solid #e2ded4;border-radius:0 0 4mm 4mm;overflow:hidden;}
-  .tb th{background:#f7f3e9;color:#54615b;width:auto;}
-  .tb tr:nth-child(even){background:#fcfbf8;}
-  .tb .sum td{background:#edf5f0;color:#084735;font-weight:800;}
-  .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:13px;font-weight:700;}
-  .on{background:#e6f3ea;color:#2f8f5b;} .off{background:#f6e6e6;color:#b85c5c;}
+  .top-shape{position:absolute;right:0;left:0;top:0;height:69mm;overflow:hidden;pointer-events:none;}
+  .green-a,.green-b,.green-c{position:absolute;left:-18mm;top:-29mm;transform:skewY(-15deg);transform-origin:left top;}
+  .green-a{width:127mm;height:83mm;background:#063d2e;}
+  .green-b{width:151mm;height:76mm;top:-8mm;background:#07583c;opacity:.98;}
+  .green-c{width:118mm;height:68mm;top:7mm;background:#08784a;opacity:.78;}
+  .head-logo{position:absolute;top:10mm;left:11mm;width:59mm;height:22mm;display:flex;align-items:center;z-index:2;}
+  .head-logo img{display:block;max-width:59mm;max-height:22mm;object-fit:contain;filter:none;}
+  .title{position:absolute;top:33mm;right:14mm;color:#07543a;font-size:28px;font-weight:800;line-height:1;z-index:2;}
+  .profile{position:absolute;top:70mm;right:14mm;left:14mm;height:69mm;display:grid;grid-template-columns:1fr 64mm;gap:12mm;align-items:center;direction:rtl;}
+  .details{align-self:stretch;display:flex;flex-direction:column;justify-content:center;}
+  .detail-row{display:grid;grid-template-columns:35mm 1fr;gap:5mm;align-items:center;min-height:10mm;border-bottom:1px solid #d8ddda;}
+  .detail-label{font-weight:700;color:#273a33;}.detail-value{font-weight:600;color:#17251f;}
+  .status{display:inline-block;font-weight:800;}.status.on{color:#158447}.status.off{color:#c62828;}
+  .photo{width:61mm;height:61mm;border:1.2mm solid #08784a;border-radius:50%;padding:1.5mm;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#eef3f0;color:#07543a;font-size:64px;font-weight:800;}
+  .photo img{width:100%;height:100%;display:block;object-fit:cover;border-radius:50%;}
+  .watermark{position:absolute;right:-15mm;left:-15mm;top:139mm;height:91mm;opacity:.06;background:
+    linear-gradient(30deg,transparent 47%,#08784a 48%,#08784a 50%,transparent 51%) 0 0/18mm 18mm,
+    linear-gradient(-30deg,transparent 47%,#08784a 48%,#08784a 50%,transparent 51%) 0 0/18mm 18mm;}
+  .miqats{position:absolute;top:151mm;right:14mm;left:14mm;min-height:55mm;z-index:2;}
+  .section-head{display:flex;align-items:center;gap:3mm;color:#07543a;font-size:17px;font-weight:800;border-bottom:1.2px solid #08784a;padding-bottom:3mm;margin-bottom:3mm;}
+  .section-head::before{content:'◷';font-size:18px;}
+  .miqat-table{width:100%;border-collapse:collapse;font-size:11px;background:rgba(255,255,255,.86);}
+  .miqat-table th,.miqat-table td{padding:2.2mm 3mm;border-bottom:1px solid #dfe5e1;text-align:right;}
+  .miqat-table th{color:#07543a;font-weight:700;background:#f1f7f3;}
+  .no-miqats{padding:8mm 2mm;text-align:center;color:#8a9690;border-bottom:1px dashed #c9d2cd;}
+  .approvals{position:absolute;right:14mm;left:14mm;bottom:24mm;height:49mm;border-top:1.2px solid #07543a;display:grid;grid-template-columns:1fr 1fr;direction:rtl;}
+  .approval{position:relative;text-align:center;padding-top:6mm;color:#07543a;font-weight:800;font-size:15px;}
+  .approval:first-child{border-left:1px solid #c7ceca;}
+  .stamp-space{width:31mm;height:31mm;border:1.5px dotted #07543a;border-radius:50%;margin:3mm auto 0;}
+  .signature img{display:block;max-width:42mm;max-height:23mm;margin:0 auto -1mm;object-fit:contain;}
+  .sig-line{width:48mm;border-top:1px solid #84928b;margin:0 auto;}
+  .bottom{position:absolute;right:0;left:0;bottom:0;height:14mm;padding:0 12mm;background:linear-gradient(105deg,#063d2e,#08784a);color:#fff;display:flex;align-items:center;justify-content:space-between;font-size:10px;}
   .phone-disp{direction:ltr;unicode-bidi:isolate;display:inline-block;}
-  .editor-signature{display:flex;direction:ltr;justify-content:flex-start;margin-top:5mm;page-break-inside:avoid;}
-  .editor-box{text-align:center;min-width:58mm;color:#1c4536;}
-  .editor-label{text-align:left;font-size:10px;font-weight:700;margin-bottom:1px;}
-  .editor-signature img{display:block;margin:0 auto;max-width:37mm;max-height:18mm;width:auto;height:auto;}
-  .editor-line{width:48mm;border-top:1px solid #8a7c6b;margin:0 auto;}
-  .foot{margin-top:3mm;padding-top:2mm;border-top:1px solid #e6ddcb;text-align:center;color:#b3a894;font-size:9px;}
-  @media print{html,body{width:auto;min-height:auto;} body{padding:0;} tr,.info-card{page-break-inside:avoid;}}
+  @media print{html,body{width:210mm;height:297mm;background:#fff}.page{margin:0;}tr{page-break-inside:avoid;}}
   ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}
-  <div class="pdf-top"><img src="${HAIAA_LOGO}" alt="هيئة محبي الحسين"><div class="pdf-title">ملف العضو</div></div>
-  <div class="member-cover">
-    <div class="cover-photo-side"><div class="cover-photo">${photo}</div></div>
-    <div class="cover-info">
-      <div class="cover-name">${escapeHtml(m.name)}</div>
-      <div class="cover-stat"><span class="ico">●</span><span class="label">رقم العضوية</span><span class="value strong">${memberCode(m)}</span></div>
-      <div class="cover-stat"><span class="ico">✓</span><span class="label">حالة العضوية</span><span class="value strong">${active?'عضوية مفعّلة':'عضوية غير مفعّلة'}</span></div>
-      <div class="cover-stat"><span class="ico">♟</span><span class="label">نوع العضوية</span><span class="value">${escapeHtml(m.type||'—')}</span></div>
-    </div>
-  </div>
-  <div class="pdf-body"><div class="info-grid">
-  <div class="info-card"><div class="info-title">بيانات العضو</div><table>
-    ${row('الاسم الكامل', escapeHtml(m.name))}
-    ${row('رقم العضوية', memberCode(m))}
-    ${row('الهاتف', phoneDisp(m.phone))}
-    ${m.isMinor&&m.birthdate?row('تاريخ الميلاد', fmtDate(m.birthdate)):''}
-    ${m.isMinor&&m.age!=null?row('العمر', m.age):''}
-    ${row('المنطقة', m.area)}
-    ${row('البريد الإلكتروني', m.email)}
-    ${row('العنوان', m.address)}
-    ${m.isAdmin?row('اللجنة', m.committee||'—'):''}
-    ${row('تاريخ التسجيل', fmtDate(m.joinDate))}
-  </table></div>
-  <div class="info-card"><div class="info-title">بيانات العضوية</div><table>
-    ${row('بداية العضوية', m.paymentDate?fmtHijriStart(m):'—')}
-    ${row('انتهاء العضوية', m.paymentDate?fmtHijriEnd(m):'—')}
-    ${row('نوع العضوية', escapeHtml(m.type||'—'))}
-    ${row('الحالة', `<span class="badge ${active?'on':'off'}">${active?'مفعّلة':'غير مفعّلة'}</span>`)}
-  </table></div></div>
-  ${inst}
-  ${miq}
-  <div class="editor-signature"><div class="editor-box">
-    <div class="editor-label">تم التحرير بواسطة لجنة أمانة السر</div>
-    <img src="${HAIAA_SIGNATURE}" alt="التوقيع" />
-    <div class="editor-line"></div>
-  </div></div>
-  <div class="foot">هيئة محبي الحسين (ع) — وثيقة رسمية</div>
-  </div>
+  <main class="page">
+    <div class="top-shape"><div class="green-a"></div><div class="green-b"></div><div class="green-c"></div></div>
+    <div class="head-logo"><img src="${HAIAA_LOGO_WHITE}" alt="هيئة محبي الحسين" /></div>
+    <div class="title">ملف العضو</div>
+    <section class="profile">
+      <div class="details">
+        <div class="detail-row"><div class="detail-label">الاسم</div><div class="detail-value">${escapeHtml(m.name)}</div></div>
+        <div class="detail-row"><div class="detail-label">رقم العضوية</div><div class="detail-value">${memberCode(m)}</div></div>
+        <div class="detail-row"><div class="detail-label">رقم الهاتف</div><div class="detail-value">${phoneDisp(m.phone)||'—'}</div></div>
+        <div class="detail-row"><div class="detail-label">تاريخ الانضمام</div><div class="detail-value">${fmtDate(m.joinDate)}</div></div>
+        <div class="detail-row"><div class="detail-label">الحالة</div><div class="detail-value"><span class="status ${active?'on':'off'}">${active?'مفعّلة':'غير مفعّلة'}</span></div></div>
+        <div class="detail-row"><div class="detail-label">نوع العضوية</div><div class="detail-value">${escapeHtml(m.type||'—')}</div></div>
+      </div>
+      <div class="photo">${photo}</div>
+    </section>
+    <div class="watermark"></div>
+    <section class="miqats">
+      <div class="section-head">المواقيت</div>
+      ${mms.length?`<table class="miqat-table"><thead><tr><th>الميقات</th><th>التاريخ</th><th>المساهمة</th></tr></thead><tbody>${miqatRows}</tbody></table>`:`<div class="no-miqats">لا توجد مواقيت مسجّلة لهذا العضو</div>`}
+    </section>
+    <section class="approvals">
+      <div class="approval"><div>ختم الهيئة</div><div class="stamp-space"></div></div>
+      <div class="approval signature"><div>توقيع أمين السر</div><img src="${HAIAA_SIGNATURE}" alt="توقيع أمين السر" /><div class="sig-line"></div></div>
+    </section>
+    <footer class="bottom"><span>هيئة محبي الحسين (ع) — وثيقة رسمية</span><span>تاريخ الطباعة: ${fmtDate(today())}</span></footer>
+  </main>
   </body></html>`);
   w.document.close(); w.focus();
 }
