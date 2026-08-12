@@ -33,7 +33,11 @@ const CLOUD_COLLECTIONS = {
   letters:    () => letters,
   mediaItems: () => mediaItems,
   radoods:    () => radoods,
-  radoodEvals:() => radoodEvals
+  radoodEvals:() => radoodEvals,
+  devIdeas:() => devIdeas,
+  devUpdates:() => devUpdates,
+  devVersions:() => devVersions,
+  memberCandidates:() => memberCandidates
 };
 
 const CloudSync = (() => {
@@ -275,6 +279,10 @@ const CloudSync = (() => {
         case 'mediaItems':  mediaItems=arr;  storage.set('mediaItems',JSON.stringify(arr)); break;
         case 'radoods':     radoods=arr;     storage.set('radoods',JSON.stringify(arr)); break;
         case 'radoodEvals': radoodEvals=arr; storage.set('radoodEvals',JSON.stringify(arr)); break;
+        case 'devIdeas': devIdeas=arr; storage.set('devIdeas',JSON.stringify(arr)); break;
+        case 'devUpdates': devUpdates=arr; storage.set('devUpdates',JSON.stringify(arr)); break;
+        case 'devVersions': devVersions=arr; storage.set('devVersions',JSON.stringify(arr)); break;
+        case 'memberCandidates': memberCandidates=arr; storage.set('memberCandidates',JSON.stringify(arr)); break;
       }
       refreshViews();
     } finally { applyingRemote = false; }
@@ -295,6 +303,7 @@ const CloudSync = (() => {
         if(isVisible('tab-miqatpage') && typeof currentMiqatPageId!=='undefined' && currentMiqatPageId
            && typeof showMiqatDetail==='function') showMiqatDetail(currentMiqatPageId);
         if(isVisible('tab-calendar') && typeof renderCalReminders==='function'){ renderCalReminders(); if(typeof renderCalendar==='function') renderCalendar(); }
+        if(isVisible('tab-devcenter') && typeof renderDevCenter==='function') renderDevCenter();
         if(typeof updateNotifBadge==='function') updateNotifBadge();
       }catch(e){}
     },250);

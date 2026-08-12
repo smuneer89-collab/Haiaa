@@ -115,6 +115,11 @@ let auditLog = []; // سجل التغييرات: {id, at, who, act, cat, what}
 let projects = []; // المشاريع: {id, title, date, description, goal, cost, source('donor'/'budget'), donorName, submitter, committee, viaLink, at}
 let radoods = []; // الرواديد: {id, name, img, note, at}
 let radoodEvals = []; // تقييمات الرواديد (دفعة ٢): {id, radoodId, miqatId, ...}
+let devIdeas = [];
+let devUpdates = [];
+let devVersions = [];
+let memberCandidates = [];
+let pendingCandidateId = null;
 // كل مصروف: {id, section:'miqat', mood:'farah'|'hzn', miqatId, kind:'mawlid'|'ihtifal', type, subType, cost, date, note, at}
 let uiDark = false;
 let settings = {
@@ -256,6 +261,10 @@ async function loadData(){
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
   try { const rd=await storage.get('radoods'); if(rd) radoods=JSON.parse(rd); } catch(e){ radoods=[]; }
   try { const re=await storage.get('radoodEvals'); if(re) radoodEvals=JSON.parse(re); } catch(e){ radoodEvals=[]; }
+  try { const x=await storage.get('devIdeas'); if(x) devIdeas=JSON.parse(x); } catch(e){ devIdeas=[]; }
+  try { const x=await storage.get('devUpdates'); if(x) devUpdates=JSON.parse(x); } catch(e){ devUpdates=[]; }
+  try { const x=await storage.get('devVersions'); if(x) devVersions=JSON.parse(x); } catch(e){ devVersions=[]; }
+  try { const x=await storage.get('memberCandidates'); if(x) memberCandidates=JSON.parse(x); } catch(e){ memberCandidates=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
 }
 function cloudPush(k,v){ if(window.CloudSync) CloudSync.push(k,v); }
@@ -288,6 +297,10 @@ function logAudit(act, cat, what){
 async function saveProjects(){ try{ await storage.set('projects',JSON.stringify(projects)); }catch(e){} cloudPush('projects',projects); }
 async function saveRadoods(){ try{ await storage.set('radoods',JSON.stringify(radoods)); }catch(e){} cloudPush('radoods',radoods); }
 async function saveRadoodEvals(){ try{ await storage.set('radoodEvals',JSON.stringify(radoodEvals)); }catch(e){} cloudPush('radoodEvals',radoodEvals); }
+async function saveDevIdeas(){ try{ await storage.set('devIdeas',JSON.stringify(devIdeas)); }catch(e){ toast('تعذر حفظ الأفكار'); } cloudPush('devIdeas',devIdeas); }
+async function saveDevUpdates(){ try{ await storage.set('devUpdates',JSON.stringify(devUpdates)); }catch(e){ toast('تعذر حفظ التحديثات'); } cloudPush('devUpdates',devUpdates); }
+async function saveDevVersions(){ try{ await storage.set('devVersions',JSON.stringify(devVersions)); }catch(e){ toast('تعذر حفظ النسخ'); } cloudPush('devVersions',devVersions); }
+async function saveMemberCandidates(){ try{ await storage.set('memberCandidates',JSON.stringify(memberCandidates)); }catch(e){ toast('تعذر حفظ المرشحين'); } cloudPush('memberCandidates',memberCandidates); }
 
 /* ═══════════ ألبوم الصور (اللجنة الإعلامية) ═══════════ */
 let albumPhotoData=null;
@@ -501,6 +514,7 @@ function fillHeaderDates(){ $('#dateGregorian').textContent=fmtDate(today()); $(
 
 $$('.tab[data-tab]').forEach(t=>{
   t.addEventListener('click',()=>{
+    if(typeof pendingCandidateId!=='undefined' && t.dataset.tab!=='add') pendingCandidateId=null;
     $$('.tab[data-tab]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
     $$('.tab-content').forEach(c=>c.style.display='none');
     $('#tab-'+t.dataset.tab).style.display='block';
@@ -3479,6 +3493,7 @@ function openAddMember(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function backToMembers(){
+  pendingCandidateId=null;
   if(formMode==='edit'){ const f=$('#addForm'); if(f) f.reset(); resetForm(); }
   $$('.tab-content').forEach(c=>c.style.display='none');
   $('#tab-members').style.display='block';
@@ -3705,6 +3720,11 @@ $('#addForm').addEventListener('submit',async e=>{
   });
 
   await saveMembers(); await saveMiqats(); await persistSettings();
+  if(pendingCandidateId){
+    const candidate=memberCandidates.find(x=>x.id===pendingCandidateId);
+    if(candidate){ candidate.status='تم تحويله إلى عضو'; candidate.memberId=newMember.id; candidate.convertedAt=new Date().toISOString(); candidate.updatedAt=new Date().toISOString(); candidate.archived=false; await saveMemberCandidates(); }
+    pendingCandidateId=null;
+  }
   e.target.reset(); resetForm();
   let msg=`تم تسجيل العضو ${memberCode(newMember)}`;
   if(completed) msg+=` · ${completed} ميقات محجوز`;
@@ -5127,7 +5147,8 @@ async function backupExport(){
     app:'هيئة محبي الحسين', version:10, exportedAt:new Date().toISOString(),
     members, miqats, news, settings, meetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
-    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters, mediaItems
+    radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters, mediaItems,
+    devIdeas, devUpdates, devVersions, memberCandidates
   };
   const counts=`${members.length} عضو · ${miqats.length} ميقات · ${(finance.expenses||[]).length} مصروف · ${radoods.length} رادود · ${projects.length} مشروع`;
   downloadBlob(JSON.stringify(backup,null,2),'application/json;charset=utf-8',`نسخة_احتياطية_${today().replace(/-/g,'')}.json`);
@@ -5171,10 +5192,15 @@ async function backupImport(e){
     if(Array.isArray(backup.revenues)) revenues=backup.revenues;
     if(Array.isArray(backup.letters)) letters=backup.letters;
     if(Array.isArray(backup.mediaItems)) mediaItems=backup.mediaItems;
+    if(Array.isArray(backup.devIdeas)) devIdeas=backup.devIdeas;
+    if(Array.isArray(backup.devUpdates)) devUpdates=backup.devUpdates;
+    if(Array.isArray(backup.devVersions)) devVersions=backup.devVersions;
+    if(Array.isArray(backup.memberCandidates)) memberCandidates=backup.memberCandidates;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
     await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
     await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters(); await saveMediaItems();
+    await saveDevIdeas(); await saveDevUpdates(); await saveDevVersions(); await saveMemberCandidates();
     try{ await storage.set('reminders',JSON.stringify(reminders)); }catch(_){}
     e.target.value=''; toast(`تمت الاستعادة الكاملة — ${members.length} عضو`); renderDashboard(); renderMembers(); fillSettings();
   }catch(err){ alert('خطأ أثناء الاستعادة: '+(err&&err.message?err.message:err)); e.target.value=''; }
@@ -9804,6 +9830,72 @@ function printAssemblyReport(){
   w.document.close(); w.focus();
 }
 /* ═══════════════ نهاية وحدة الجمعية العمومية ═══════════════ */
+
+/* ═══════════ مركز التطوير والمتابعة ═══════════ */
+let devCurrentTab='dashboard', devEditId=null, devShowArchived=false, devSearchQ='', devStatusQ='';
+const DEV_COMMITTEES=['عام','أمانة السر','اللجنة المالية','اللجنة الإعلامية','لجنة العزاء','الأعضاء','الإدارة','أخرى'];
+const DEV_PRIORITIES=['عاجلة','مهمة','عادية','مستقبلية'];
+const DEV_IDEA_STATUS=['مجرد فكرة','تحتاج إلى دراسة','معتمدة للتنفيذ','قيد التنفيذ','مكتملة','مؤجلة','ملغاة'];
+const DEV_CANDIDATE_STATUS=['اسم جديد','جارٍ البحث عن الرقم','تم الحصول على الرقم','تم التواصل معه','يرغب في التسجيل','اعتذر','تم تحويله إلى عضو'];
+function devId(p){ return p+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
+function devFmt(iso){ if(!iso) return '—'; try{return new Date(iso).toLocaleString('ar-BH');}catch(e){return iso;} }
+function devOpts(list,val){ return list.map(x=>`<option value="${escapeHtml(x)}"${x===val?' selected':''}>${escapeHtml(x)}</option>`).join(''); }
+function devVal(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function openDevCenter(tab='dashboard'){ openFullPage('devcenter'); devSwitch(tab); }
+function devSwitch(tab){ devCurrentTab=tab; devEditId=null; devShowArchived=false; devSearchQ=''; devStatusQ=''; $$('.dev-tab').forEach(b=>b.classList.toggle('active',b.dataset.devtab===tab)); renderDevCenter(); }
+function renderDevCenter(){
+  const root=$('#devContent'); if(!root) return;
+  if(devCurrentTab==='dashboard') return renderDevDashboard(root);
+  if(devCurrentTab==='ideas') return renderDevIdeas(root);
+  if(devCurrentTab==='updates') return renderDevUpdates(root);
+  if(devCurrentTab==='versions') return renderDevVersions(root);
+  renderCandidates(root);
+}
+function renderDevDashboard(root){
+  const open=devIdeas.filter(x=>!x.archived&&!['مكتملة','ملغاة'].includes(x.status)).length;
+  const doing=devIdeas.filter(x=>!x.archived&&x.status==='قيد التنفيذ').length;
+  const active=memberCandidates.filter(x=>!x.archived&&!['تم تحويله إلى عضو','اعتذر'].includes(x.status));
+  const ready=active.filter(x=>x.phone&&['تم الحصول على الرقم','تم التواصل معه','يرغب في التسجيل'].includes(x.status)).length;
+  const approved=devVersions.find(x=>x.approved&&!x.archived);
+  const cells=[[open,'الأفكار المفتوحة'],[doing,'أفكار قيد التنفيذ'],[devUpdates.filter(x=>!x.archived).length,'التحديثات المسجلة'],[active.length,'المرشحون النشطون'],[active.filter(x=>!x.phone).length,'بلا أرقام هواتف'],[ready,'جاهزون للتحويل']];
+  root.innerHTML=`<div class="dev-kpis">${cells.map(x=>`<div class="dev-kpi"><div class="v">${x[0]}</div><div class="l">${x[1]}</div></div>`).join('')}</div><div class="dev-item ${approved?'dev-approved':''}"><h3>آخر نسخة مشروع معتمدة</h3>${approved?`<div class="dev-approved-mark">✓ النسخة الحالية المعتمدة</div><div class="dev-meta">${escapeHtml(approved.name||approved.zipName||'بدون اسم')} · الإصدار ${escapeHtml(approved.version)}<br>اعتمدت في ${devFmt(approved.approvedAt)}</div>`:'<div class="dev-meta">لا توجد نسخة معتمدة حتى الآن</div>'}</div>`;
+}
+function devFormShell(title,body,saveFn){ return `<div class="dev-form"><h3>${title}</h3><div class="dev-form-grid">${body}</div><div class="dev-actions"><button class="btn btn-primary" onclick="${saveFn}()">حفظ</button><button class="btn btn-ghost" onclick="devCancelEdit()">إلغاء</button></div></div>`; }
+function devCancelEdit(){ devEditId=null; renderDevCenter(); }
+function devNew(){ devEditId='new'; renderDevCenter(); }
+function devSetSearch(v){devSearchQ=v;renderDevCenter();const e=$('#devSearch');if(e){e.focus();e.setSelectionRange(v.length,v.length);}}
+function devSetStatus(v){devStatusQ=v;renderDevCenter();}
+function devToolbar(extra=''){ return `<div class="dev-toolbar"><input id="devSearch" value="${escapeHtml(devSearchQ)}" placeholder="بحث…" oninput="devSetSearch(this.value)"><label class="btn btn-ghost btn-sm"><input type="checkbox" ${devShowArchived?'checked':''} onchange="devShowArchived=this.checked;renderDevCenter()"> الأرشيف</label>${extra}</div>`; }
+function renderDevIdeas(root){
+  const item=devEditId==='new'?{}:devIdeas.find(x=>x.id===devEditId);
+  const form=item?devFormShell(item.id?'تعديل الفكرة':'إضافة فكرة',`<div class="field full"><label>عنوان الفكرة *</label><input id="diTitle" value="${escapeHtml(item.title||'')}"></div><div class="field full"><label>الشرح والملاحظات</label><textarea id="diNotes" rows="4">${escapeHtml(item.notes||'')}</textarea></div><div class="field"><label>اللجنة</label><select id="diCommittee">${devOpts(DEV_COMMITTEES,item.committee||'عام')}</select></div><div class="field"><label>الأولوية</label><select id="diPriority">${devOpts(DEV_PRIORITIES,item.priority||'عادية')}</select></div><div class="field"><label>الحالة</label><select id="diStatus">${devOpts(DEV_IDEA_STATUS,item.status||'مجرد فكرة')}</select></div><div class="field"><label>رابط ملف أو صورة</label><input id="diLink" type="url" value="${escapeHtml(item.link||'')}"></div>`,'saveDevIdea'):`<button class="btn btn-primary" onclick="devNew()">+ إضافة فكرة</button>`;
+  root.innerHTML=form+devToolbar(`<select id="devStatusFilter" onchange="devSetStatus(this.value)"><option value="">كل الحالات</option>${devOpts(DEV_IDEA_STATUS,devStatusQ)}</select>`)+`<div class="dev-list" id="devList"></div>`;
+  const q=devSearchQ.toLowerCase(), st=devStatusQ;
+  const list=devIdeas.filter(x=>!!x.archived===devShowArchived&&(!q||(x.title+' '+(x.notes||'')).toLowerCase().includes(q))&&(!st||x.status===st)).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+  $('#devList').innerHTML=list.length?list.map(x=>`<div class="dev-item"><div class="dev-item-head"><h3>${escapeHtml(x.title)}</h3><span class="dev-badge">${escapeHtml(x.status)}</span></div><div>${['اللجنة: '+x.committee,'الأولوية: '+x.priority].map(v=>`<span class="dev-badge">${escapeHtml(v)}</span>`).join('')}</div>${x.notes?`<div class="dev-notes">${escapeHtml(x.notes)}</div>`:''}<div class="dev-meta">أضيفت: ${devFmt(x.createdAt)} · آخر تعديل: ${devFmt(x.updatedAt)}</div><div class="dev-actions">${x.link?`<button class="btn btn-ghost btn-sm" onclick="window.open('${escapeHtml(x.link)}','_blank','noopener')">فتح المرفق</button>`:''}<button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button><button class="btn btn-ghost btn-sm" onclick="devArchive('idea','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button></div></div>`).join(''):'<div class="empty"><div class="txt">لا توجد أفكار</div></div>';
+}
+async function saveDevIdea(){ const title=devVal('diTitle'); if(!title){toast('عنوان الفكرة مطلوب');return;} const now=new Date().toISOString(); let x=devIdeas.find(v=>v.id===devEditId); if(!x){x={id:devId('idea'),createdAt:now,archived:false};devIdeas.push(x);} Object.assign(x,{title,notes:devVal('diNotes'),committee:devVal('diCommittee'),priority:devVal('diPriority'),status:devVal('diStatus'),link:devVal('diLink'),updatedAt:now}); await saveDevIdeas(); devEditId=null; renderDevCenter(); toast('تم حفظ الفكرة'); }
+function renderDevUpdates(root){
+  const item=devEditId==='new'?{}:devUpdates.find(x=>x.id===devEditId); const form=item?devFormShell(item.id?'تعديل التحديث':'إضافة تحديث',`<div class="field"><label>عنوان التحديث *</label><input id="duTitle" value="${escapeHtml(item.title||'')}"></div><div class="field"><label>رقم الإصدار *</label><input id="duVersion" value="${escapeHtml(item.version||'')}"></div><div class="field"><label>تاريخ التحديث</label><input id="duDate" type="date" value="${escapeHtml(item.date||today())}"></div><div class="field"><label>اللجنة</label><select id="duCommittee">${devOpts(DEV_COMMITTEES,item.committee||'عام')}</select></div><div class="field"><label>الحالة</label><select id="duStatus">${devOpts(['تحت التجربة','معتمد'],item.status||'تحت التجربة')}</select></div><div class="field"><label>الملفات المعدلة</label><input id="duFiles" value="${escapeHtml(item.files||'')}" placeholder="app.js, index.html"></div><div class="field full"><label>الإضافات والإصلاحات</label><textarea id="duNotes" rows="4">${escapeHtml(item.notes||'')}</textarea></div>`,'saveDevUpdate'):`<button class="btn btn-primary" onclick="devNew()">+ إضافة تحديث</button>`;
+  root.innerHTML=form+devToolbar()+`<div class="dev-list" id="devList"></div>`; const q=devSearchQ.toLowerCase(); const list=devUpdates.filter(x=>!!x.archived===devShowArchived&&(!q||(x.title+' '+x.version+' '+(x.notes||'')).toLowerCase().includes(q))).sort((a,b)=>(b.date||b.createdAt).localeCompare(a.date||a.createdAt));
+  $('#devList').innerHTML=list.length?list.map(x=>`<div class="dev-item"><div class="dev-item-head"><h3>${escapeHtml(x.title)}</h3><span class="dev-badge">الإصدار ${escapeHtml(x.version)}</span></div><div class="dev-meta">${escapeHtml(x.status)} · ${escapeHtml(x.committee)} · ${fmtDate(x.date)}<br>الملفات: ${escapeHtml(x.files||'—')}<br>آخر تعديل: ${devFmt(x.updatedAt)}</div>${x.notes?`<div class="dev-notes">${escapeHtml(x.notes)}</div>`:''}<div class="dev-actions"><button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button><button class="btn btn-ghost btn-sm" onclick="devArchive('update','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button></div></div>`).join(''):'<div class="empty"><div class="txt">لا توجد تحديثات</div></div>';
+}
+async function saveDevUpdate(){ const title=devVal('duTitle'),version=devVal('duVersion');if(!title||!version){toast('العنوان ورقم الإصدار مطلوبان');return;}const now=new Date().toISOString();let x=devUpdates.find(v=>v.id===devEditId);if(!x){x={id:devId('update'),createdAt:now,archived:false};devUpdates.push(x);}Object.assign(x,{title,version,date:devVal('duDate'),committee:devVal('duCommittee'),status:devVal('duStatus'),files:devVal('duFiles'),notes:devVal('duNotes'),updatedAt:now});await saveDevUpdates();devEditId=null;renderDevCenter();toast('تم حفظ التحديث');}
+function renderDevVersions(root){
+  const item=devEditId==='new'?{}:devVersions.find(x=>x.id===devEditId);const form=item?devFormShell(item.id?'تعديل سجل النسخة':'إضافة سجل نسخة',`<div class="field"><label>رقم الإصدار *</label><input id="dvVersion" value="${escapeHtml(item.version||'')}"></div><div class="field"><label>اسم النسخة</label><input id="dvName" value="${escapeHtml(item.name||'')}"></div><div class="field"><label>اسم ملف ZIP</label><input id="dvZip" value="${escapeHtml(item.zipName||'')}"></div><div class="field"><label>رابط الملف</label><input id="dvLink" type="url" value="${escapeHtml(item.link||'')}"></div><div class="field full"><label>ملاحظات النسخة</label><textarea id="dvNotes" rows="4">${escapeHtml(item.notes||'')}</textarea></div>`,'saveDevVersion'):`<div class="dev-actions"><button class="btn btn-primary" onclick="devNew()">+ إضافة سجل نسخة</button><button class="btn btn-ghost" onclick="downloadProjectZip()">تنزيل ملفات المشروع الحالية ZIP</button></div>`;
+  root.innerHTML=form+devToolbar()+`<div class="dev-list" id="devList"></div>`;const q=devSearchQ.toLowerCase();const list=devVersions.filter(x=>!!x.archived===devShowArchived&&(!q||(x.version+' '+(x.name||'')+' '+(x.zipName||'')).toLowerCase().includes(q))).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  $('#devList').innerHTML=list.length?list.map(x=>`<div class="dev-item ${x.approved?'dev-approved':''}"><div class="dev-item-head"><h3>${escapeHtml(x.name||x.zipName||'نسخة مشروع')}</h3><span class="dev-badge">${escapeHtml(x.version)}</span></div>${x.approved?'<div class="dev-approved-mark">✓ النسخة الحالية المعتمدة</div>':''}<div class="dev-meta">أضيفت: ${devFmt(x.createdAt)}${x.approved?`<br>اعتمدت: ${devFmt(x.approvedAt)}`:''}<br>ملف ZIP: ${escapeHtml(x.zipName||'—')}</div>${x.notes?`<div class="dev-notes">${escapeHtml(x.notes)}</div>`:''}<div class="dev-actions">${x.link?`<button class="btn btn-ghost btn-sm" onclick="window.open('${escapeHtml(x.link)}','_blank','noopener')">فتح ملف ZIP</button>`:''}<button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button>${!x.approved&&!x.archived?`<button class="btn btn-primary btn-sm" onclick="approveDevVersion('${x.id}')">اعتماد هذه النسخة</button>`:''}<button class="btn btn-ghost btn-sm" onclick="devArchive('version','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button></div></div>`).join(''):'<div class="empty"><div class="txt">لا توجد نسخ مسجلة</div></div>';
+}
+async function saveDevVersion(){const version=devVal('dvVersion');if(!version){toast('رقم الإصدار مطلوب');return;}const now=new Date().toISOString();let x=devVersions.find(v=>v.id===devEditId);if(!x){x={id:devId('version'),createdAt:now,approved:false,approvedAt:null,archived:false};devVersions.push(x);}Object.assign(x,{version,name:devVal('dvName'),zipName:devVal('dvZip'),link:devVal('dvLink'),notes:devVal('dvNotes'),updatedAt:now});await saveDevVersions();devEditId=null;renderDevCenter();toast('تم حفظ سجل النسخة');}
+async function approveDevVersion(id){if(!confirm('اعتماد هذه النسخة وإلغاء اعتماد النسخة السابقة؟'))return;const now=new Date().toISOString();devVersions.forEach(x=>{x.approved=x.id===id;x.approvedAt=x.id===id?now:null;});await saveDevVersions();renderDevCenter();toast('تم اعتماد النسخة');}
+function renderCandidates(root){
+  const item=devEditId==='new'?{}:memberCandidates.find(x=>x.id===devEditId);const form=item?devFormShell(item.id?'تعديل المرشح':'إضافة مرشح',`<div class="field"><label>الاسم *</label><input id="dcName" value="${escapeHtml(item.name||'')}"></div><div class="field"><label>رقم الهاتف</label><div class="phone-wrap"><select id="dcCode" class="country-select">${countryOptions((splitPhone(item.phone||'').code)||'973')}</select><input id="dcPhone" inputmode="numeric" value="${escapeHtml((splitPhone(item.phone||'').local)||'')}"></div></div><div class="field"><label>المنطقة</label><input id="dcArea" value="${escapeHtml(item.area||'')}"></div><div class="field"><label>المسؤول عن المتابعة</label><input id="dcOwner" value="${escapeHtml(item.owner||'')}"></div><div class="field"><label>حالة المتابعة</label><select id="dcStatus">${devOpts(DEV_CANDIDATE_STATUS,item.status||'اسم جديد')}</select></div><div class="field full"><label>الملاحظات</label><textarea id="dcNotes" rows="4">${escapeHtml(item.notes||'')}</textarea></div>`,'saveCandidate'):`<button class="btn btn-primary" onclick="devNew()">+ إضافة مرشح</button>`;
+  root.innerHTML=form+devToolbar(`<select id="devStatusFilter" onchange="devSetStatus(this.value)"><option value="">كل الحالات</option>${devOpts(DEV_CANDIDATE_STATUS,devStatusQ)}</select>`)+`<div class="dev-list" id="devList"></div>`;const q=devSearchQ.toLowerCase(),st=devStatusQ;const list=memberCandidates.filter(x=>!!x.archived===devShowArchived&&(!q||(x.name+' '+(x.phone||'')+' '+(x.area||'')).toLowerCase().includes(q))&&(!st||x.status===st)).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+  $('#devList').innerHTML=list.length?list.map(x=>`<div class="dev-item"><div class="dev-item-head"><h3>${escapeHtml(x.name)}</h3><span class="dev-badge">${escapeHtml(x.status)}</span></div><div class="dev-meta">${x.phone?`<span dir="ltr">${escapeHtml(x.phone)}</span>`:'بلا رقم هاتف'} · ${escapeHtml(x.area||'المنطقة غير محددة')}<br>المتابعة: ${escapeHtml(x.owner||'—')} · آخر تعديل: ${devFmt(x.updatedAt)}${x.memberId?`<br>رقم العضو المرتبط: ${escapeHtml(x.memberId)} · التحويل: ${devFmt(x.convertedAt)}`:''}</div>${x.notes?`<div class="dev-notes">${escapeHtml(x.notes)}</div>`:''}<div class="dev-actions"><button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button>${x.phone&&x.status!=='تم تحويله إلى عضو'&&!x.archived?`<button class="btn btn-primary btn-sm" onclick="convertCandidate('${x.id}')">استكمال البيانات وتحويله إلى عضو</button>`:''}<button class="btn btn-ghost btn-sm" onclick="devArchive('candidate','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button></div></div>`).join(''):'<div class="empty"><div class="txt">لا يوجد مرشحون</div></div>';
+}
+async function saveCandidate(){const name=devVal('dcName');if(!name){toast('اسم المرشح مطلوب');return;}const raw=toEnglishDigits(devVal('dcPhone')).replace(/\D/g,'');const phone=raw?'+'+(devVal('dcCode')||'973')+raw:'';if(phone){const dup=members.find(m=>normalizePhone(m.phone)===normalizePhone(phone));if(dup){toast(`الرقم موجود في ملف العضو: ${dup.name}`);return;}const other=memberCandidates.find(x=>x.id!==devEditId&&x.phone&&normalizePhone(x.phone)===normalizePhone(phone));if(other){toast(`الرقم موجود لدى المرشح: ${other.name}`);return;}}const now=new Date().toISOString();let x=memberCandidates.find(v=>v.id===devEditId);if(!x){x={id:devId('candidate'),createdAt:now,archived:false,memberId:null,convertedAt:null};memberCandidates.push(x);}let status=devVal('dcStatus');if(phone&&status==='اسم جديد')status='تم الحصول على الرقم';Object.assign(x,{name,phone,area:devVal('dcArea'),owner:devVal('dcOwner'),notes:devVal('dcNotes'),status,updatedAt:now});await saveMemberCandidates();devEditId=null;renderDevCenter();toast('تم حفظ المرشح');}
+function convertCandidate(id){const x=memberCandidates.find(v=>v.id===id);if(!x||!x.phone)return;const dup=members.find(m=>normalizePhone(m.phone)===normalizePhone(x.phone));if(dup){toast(`الرقم موجود في ملف العضو: ${dup.name}`);return;}openAddMember();pendingCandidateId=id;const f=$('#addForm');if(f){f.elements.name.value=x.name||'';f.elements.area.value=x.area||'';const p=splitPhone(x.phone);const cc=$('#addCountryCode');if(cc)cc.value=p.code||'973';f.elements.phone.value=p.local||'';}toast('أكمل البيانات ثم احفظ العضو');}
+async function devArchive(kind,id){let arr,save;if(kind==='idea'){arr=devIdeas;save=saveDevIdeas;}else if(kind==='update'){arr=devUpdates;save=saveDevUpdates;}else if(kind==='version'){arr=devVersions;save=saveDevVersions;}else{arr=memberCandidates;save=saveMemberCandidates;}const x=arr.find(v=>v.id===id);if(!x)return;if(kind==='version'&&x.approved&&!x.archived){toast('اعتمد نسخة أخرى قبل أرشفة النسخة الحالية');return;}x.archived=!x.archived;x.updatedAt=new Date().toISOString();await save();renderDevCenter();toast(x.archived?'تمت الأرشفة':'تمت الإعادة من الأرشيف');}
 
 /* ═══════════ Init ═══════════ */
 function fillCountrySelects(){

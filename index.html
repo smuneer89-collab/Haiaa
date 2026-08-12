@@ -1926,6 +1926,19 @@
   body.dark .mtg-att-toggle button.on-absent { color:#0b1712; }
   body.dark .mtg-count { color:#0b1712; }
   body.dark .stat-card.active .num { color:var(--ok); }
+  /* مركز التطوير والمتابعة */
+  .dev-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .dev-tabs{display:flex;gap:7px;overflow-x:auto;padding:3px 0 10px;scrollbar-width:thin}
+  .dev-tab{white-space:nowrap;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px 13px;font:inherit;font-weight:700;cursor:pointer}
+  .dev-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .dev-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:14px}
+  .dev-kpi{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:15px}.dev-kpi .v{font-size:25px;font-weight:800;color:var(--primary)}.dev-kpi .l{font-size:12px;color:var(--muted);margin-top:4px}
+  .dev-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.dev-toolbar input,.dev-toolbar select{flex:1;min-width:150px}
+  .dev-list{display:grid;gap:10px}.dev-item{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface)}
+  .dev-item-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.dev-item h3{font-size:15px;margin:0 0 5px}.dev-meta{font-size:12px;color:var(--muted);line-height:1.8}.dev-notes{white-space:pre-wrap;margin:9px 0;font-size:13px}.dev-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+  .dev-badge{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--soft);color:var(--primary);margin:2px}.dev-approved{border-color:#29a36a;box-shadow:inset 4px 0 #29a36a}.dev-approved-mark{color:#168451;font-weight:800}
+  .dev-form{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;background:var(--surface)}.dev-form h3{margin:0 0 12px}.dev-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dev-form-grid .full{grid-column:1/-1}
+  @media(max-width:650px){.dev-form-grid{grid-template-columns:1fr}.dev-form-grid .full{grid-column:auto}}
 </style>
 </head>
 <body>
@@ -2394,6 +2407,7 @@
         <div><h2 class="panel-title">سجل الأعضاء</h2><div class="panel-sub" id="membersCount">0 عضو</div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="openAddMember()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة عضو</button>
+          <button class="btn btn-ghost" onclick="openDevCenter('candidates')">مرشحو العضوية</button>
           <button class="btn btn-ghost" onclick="openBulkMessage()">رسالة جماعية</button>
         </div>
       </div>
@@ -2561,6 +2575,11 @@
             <div class="ic-ico"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16.5 7.2a2.8 2.8 0 0 1 0 5.6"/><path d="M18 19.8c0-2.4-.9-4.2-2.4-5.3"/></svg></div>
             <div class="ic-name">أعضاء الإدارة</div>
             <div class="ic-sub" id="idaraAdminsCount">0 إداري</div>
+          </div>
+          <div class="idara-card" onclick="openDevCenter('dashboard')">
+            <div class="ic-ico">💡</div>
+            <div class="ic-name">مركز التطوير والمتابعة</div>
+            <div class="ic-sub">الأفكار · التحديثات · النسخ · مرشحو العضوية</div>
           </div>
         </div>
       </div>
@@ -2730,6 +2749,21 @@
   </section>
 
   <!-- Settings -->
+  <section id="tab-devcenter" class="tab-content" style="display:none">
+    <button class="btn btn-ghost btn-sm idara-back" onclick="switchTab('meetings')">← رجوع للإدارة</button>
+    <div class="panel">
+      <div class="dev-head"><div><h2 class="panel-title">مركز التطوير والمتابعة</h2><div class="panel-sub">الأفكار · التحديثات · النسخ · مرشحو العضوية</div></div></div>
+      <div class="dev-tabs">
+        <button class="dev-tab" data-devtab="dashboard" onclick="devSwitch('dashboard')">لوحة المتابعة</button>
+        <button class="dev-tab" data-devtab="ideas" onclick="devSwitch('ideas')">الأفكار والمسودات</button>
+        <button class="dev-tab" data-devtab="updates" onclick="devSwitch('updates')">سجل التحديثات</button>
+        <button class="dev-tab" data-devtab="versions" onclick="devSwitch('versions')">نسخ المشروع</button>
+        <button class="dev-tab" data-devtab="candidates" onclick="devSwitch('candidates')">مرشحو العضوية</button>
+      </div>
+      <div id="devContent"></div>
+    </div>
+  </section>
+
   <section id="tab-settings" class="tab-content" style="display:none">
 
     <!-- ① النسخ الاحتياطي — بالأعلى للانتباه -->
