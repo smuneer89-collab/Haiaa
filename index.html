@@ -1938,6 +1938,8 @@
   .dev-item-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.dev-item h3{font-size:15px;margin:0 0 5px}.dev-meta{font-size:12px;color:var(--muted);line-height:1.8}.dev-notes{white-space:pre-wrap;margin:9px 0;font-size:13px}.dev-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
   .dev-badge{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--soft);color:var(--primary);margin:2px}.dev-approved{border-color:#29a36a;box-shadow:inset 4px 0 #29a36a}.dev-approved-mark{color:#168451;font-weight:800}
   .dev-form{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;background:var(--surface)}.dev-form h3{margin:0 0 12px}.dev-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dev-form-grid .full{grid-column:1/-1}
+  .dev-form input,.dev-form select,.dev-form textarea{position:relative;z-index:1;pointer-events:auto!important;touch-action:manipulation;-webkit-user-select:text;user-select:text}
+  .dev-form textarea{min-height:110px;line-height:1.8;resize:vertical}
   @media(max-width:650px){.dev-form-grid{grid-template-columns:1fr}.dev-form-grid .full{grid-column:auto}}
 </style>
 </head>
@@ -2752,11 +2754,11 @@
   <section id="tab-devcenter" class="tab-content" style="display:none">
     <button class="btn btn-ghost btn-sm idara-back" onclick="switchTab('meetings')">← رجوع للإدارة</button>
     <div class="panel">
-      <div class="dev-head"><div><h2 class="panel-title">مركز التطوير والمتابعة</h2><div class="panel-sub">الأفكار · المسودات والملاحظات · التحديثات · النسخ · الأسماء والبيانات</div></div></div>
+      <div class="dev-head"><div><h2 class="panel-title">مركز التطوير والمتابعة</h2><div class="panel-sub">الأفكار · التعديل في الموقع · التحديثات · النسخ · الأسماء والبيانات</div></div></div>
       <div class="dev-tabs">
         <button class="dev-tab" data-devtab="dashboard" onclick="devSwitch('dashboard')">لوحة المتابعة</button>
         <button class="dev-tab" data-devtab="ideas" onclick="devSwitch('ideas')">الأفكار</button>
-        <button class="dev-tab" data-devtab="drafts" onclick="devSwitch('drafts')">المسودات والملاحظات</button>
+        <button class="dev-tab" data-devtab="drafts" onclick="devSwitch('drafts')">التعديل في الموقع</button>
         <button class="dev-tab" data-devtab="updates" onclick="devSwitch('updates')">سجل التحديثات</button>
         <button class="dev-tab" data-devtab="versions" onclick="devSwitch('versions')">نسخ المشروع</button>
         <button class="dev-tab" data-devtab="candidates" onclick="devSwitch('candidates')">الأسماء والبيانات</button>

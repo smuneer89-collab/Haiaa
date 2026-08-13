@@ -305,7 +305,11 @@ const CloudSync = (() => {
         if(isVisible('tab-miqatpage') && typeof currentMiqatPageId!=='undefined' && currentMiqatPageId
            && typeof showMiqatDetail==='function') showMiqatDetail(currentMiqatPageId);
         if(isVisible('tab-calendar') && typeof renderCalReminders==='function'){ renderCalReminders(); if(typeof renderCalendar==='function') renderCalendar(); }
-        if(isVisible('tab-devcenter') && typeof renderDevCenter==='function') renderDevCenter();
+        // لا تعِد رسم نموذج المركز أثناء الكتابة؛ إعادة الرسم كانت تقطع لوحة
+        // مفاتيح الهاتف وتفقد النص الجاري. سيظهر التحديث بعد الحفظ أو الخروج من الحقل.
+        const active=document.activeElement;
+        const writingInDev=active && active.closest && active.closest('#devContent') && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName);
+        if(isVisible('tab-devcenter') && !writingInDev && typeof renderDevCenter==='function') renderDevCenter();
         if(typeof updateNotifBadge==='function') updateNotifBadge();
       }catch(e){}
     },250);
