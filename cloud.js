@@ -35,6 +35,7 @@ const CLOUD_COLLECTIONS = {
   radoods:    () => radoods,
   radoodEvals:() => radoodEvals,
   devIdeas:() => devIdeas,
+  devDrafts:() => devDrafts,
   devUpdates:() => devUpdates,
   devVersions:() => devVersions,
   memberCandidates:() => memberCandidates
@@ -280,6 +281,7 @@ const CloudSync = (() => {
         case 'radoods':     radoods=arr;     storage.set('radoods',JSON.stringify(arr)); break;
         case 'radoodEvals': radoodEvals=arr; storage.set('radoodEvals',JSON.stringify(arr)); break;
         case 'devIdeas': devIdeas=arr; storage.set('devIdeas',JSON.stringify(arr)); break;
+        case 'devDrafts': devDrafts=arr; storage.set('devDrafts',JSON.stringify(arr)); break;
         case 'devUpdates': devUpdates=arr; storage.set('devUpdates',JSON.stringify(arr)); break;
         case 'devVersions': devVersions=arr; storage.set('devVersions',JSON.stringify(arr)); break;
         case 'memberCandidates': memberCandidates=arr; storage.set('memberCandidates',JSON.stringify(arr)); break;
