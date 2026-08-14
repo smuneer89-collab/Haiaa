@@ -625,7 +625,6 @@ function printMemberProfile(id){
   .approvals{position:absolute;right:14mm;left:14mm;bottom:24mm;height:49mm;border-top:1.2px solid #07543a;display:grid;grid-template-columns:1fr 1fr;direction:rtl;}
   .approval{position:relative;text-align:center;padding-top:6mm;color:#07543a;font-weight:800;font-size:15px;}
   .approval:first-child{border-left:1px solid #c7ceca;}
-  .stamp-space{width:31mm;height:31mm;border:1.5px dotted #07543a;border-radius:50%;margin:3mm auto 0;}
   .signature img{display:block;max-width:42mm;max-height:23mm;margin:0 auto -1mm;object-fit:contain;}
   .sig-line{width:48mm;border-top:1px solid #84928b;margin:0 auto;}
   .bottom{position:absolute;right:0;left:0;bottom:0;height:14mm;padding:0 12mm;background:linear-gradient(105deg,#063d2e,#08784a);color:#fff;display:flex;align-items:center;justify-content:space-between;font-size:10px;}
@@ -653,7 +652,7 @@ function printMemberProfile(id){
       ${mms.length?`<table class="miqat-table"><thead><tr><th>الميقات</th><th>التاريخ</th><th>المساهمة</th></tr></thead><tbody>${miqatRows}</tbody></table>`:`<div class="no-miqats">لا توجد مواقيت مسجّلة لهذا العضو</div>`}
     </section>
     <section class="approvals">
-      <div class="approval"><div>ختم الهيئة</div><div class="stamp-space"></div></div>
+      <div class="approval" aria-label="مكان الختم فارغ"></div>
       <div class="approval signature"><div>توقيع أمين السر</div><img src="${HAIAA_SIGNATURE}" alt="توقيع أمين السر" /><div class="sig-line"></div></div>
     </section>
     <footer class="bottom"><span>هيئة محبي الحسين (ع) — وثيقة رسمية</span><span>تاريخ الطباعة: ${fmtDate(today())}</span></footer>
@@ -3826,7 +3825,7 @@ function showDetail(id){
     </div>
     <div class="member-modern-grid">
       <div class="member-modern-panel">
-        <div class="member-modern-panel-title">البيانات الشخصية <span>${memberCode(m)}</span></div>
+        <div class="member-modern-panel-title">رقم العضوية <span>${memberCode(m)}</span></div>
         <div class="detail-rows">
           ${m.isMinor&&m.birthdate?detailRow('تاريخ الميلاد', fmtDate(m.birthdate)):''}
           ${m.isMinor&&m.age!=null?detailRow('العمر', m.age):''}
@@ -6433,7 +6432,9 @@ async function loadRadoodSessions(radoodId){
     host.innerHTML=`<div class="els-title">${icon('chart',17,'ico-btn')} جلسات التقييم السابقة</div>`+mine.map(s=>`
       <div class="els-row">
         <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
-          <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلقة':'· 🟢 مفتوحة'}</div></div>
+          <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلقة':'· 🟢 مفتوحة'}</div>
+          ${s.closed?'':`<div class="elb-url" style="margin-top:7px;">${escapeHtml(evalPageURL(s._id))}</div>`}</div>
+        ${s.closed?'':`<button class="btn btn-sm" onclick="copyEvalLink('${escapeHtml(evalPageURL(s._id))}')">${icon('doc',17,'ico-btn')} نسخ الرابط</button>`}
         <button class="btn btn-sm" onclick="viewEvalResults('${s._id}','${escapeHtml(s.miqatName||'')}')">${icon('search',17,'ico-btn')} النتائج</button>
       </div>`).join('');
   }catch(e){ console.error(e); host.innerHTML='<div class="eval-link-err">تعذّر تحميل الجلسات.</div>'; }
@@ -10017,6 +10018,7 @@ function renderCandidates(root){
   const item=devEditId==='new'?{}:memberCandidates.find(x=>x.id===devEditId);const form=item?devFormShell(item.id?'تعديل الاسم والبيانات':'إضافة اسم وبيانات',`<div class="field"><label>الاسم *</label><input id="dcName" value="${escapeHtml(item.name||'')}"></div><div class="field"><label>رقم الهاتف</label><div class="phone-wrap"><select id="dcCode" class="country-select">${countryOptions((splitPhone(item.phone||'').code)||'973')}</select><input id="dcPhone" inputmode="numeric" value="${escapeHtml((splitPhone(item.phone||'').local)||'')}"></div></div><div class="field"><label>المنطقة</label><input id="dcArea" value="${escapeHtml(item.area||'')}"></div><div class="field"><label>البريد الإلكتروني</label><input id="dcEmail" type="email" value="${escapeHtml(item.email||'')}"></div><div class="field full"><label>العنوان</label><input id="dcAddress" value="${escapeHtml(item.address||'')}"></div><div class="field"><label>نوع العضوية المقترح</label><select id="dcType">${devOpts(['عادي','شرفي','كادر'],item.type||'عادي')}</select></div><div class="field"><label>المسؤول عن المتابعة</label><input id="dcOwner" value="${escapeHtml(item.owner||'')}"></div><div class="field"><label>حالة المتابعة</label><select id="dcStatus">${devOpts(DEV_CANDIDATE_STATUS,item.status||'اسم جديد')}</select></div><div class="field full"><label>الملاحظات</label><textarea id="dcNotes" rows="4">${escapeHtml(item.notes||'')}</textarea></div>`,'saveCandidate'):`<button class="btn btn-primary" onclick="devNew()">+ تسجيل اسم جديد</button>`;
   root.innerHTML=form+devToolbar(`<select id="devStatusFilter" onchange="devSetStatus(this.value)"><option value="">كل الحالات</option>${devOpts(DEV_CANDIDATE_STATUS,devStatusQ)}</select>`)+`<div class="dev-list" id="devList"></div>`;const q=devSearchQ.toLowerCase(),st=devStatusQ;const list=memberCandidates.filter(x=>!!x.archived===devShowArchived&&(!q||(x.name+' '+(x.phone||'')+' '+(x.area||'')).toLowerCase().includes(q))&&(!st||x.status===st)).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   $('#devList').innerHTML=list.length?list.map(x=>`<div class="dev-item"><div class="dev-item-head"><h3>${escapeHtml(x.name)}</h3><span class="dev-badge">${escapeHtml(x.status)}</span></div><div class="dev-meta">${x.phone?`<span dir="ltr">${escapeHtml(x.phone)}</span>`:'بلا رقم هاتف'} · ${escapeHtml(x.area||'المنطقة غير محددة')} · ${escapeHtml(x.type||'نوع العضوية غير محدد')}<br>${x.email?escapeHtml(x.email)+' · ':''}${x.address?escapeHtml(x.address)+'<br>':''}المتابعة: ${escapeHtml(x.owner||'—')} · آخر تعديل: ${devFmt(x.updatedAt)}${x.memberId?`<br>رقم العضو المرتبط: ${escapeHtml(x.memberId)} · التحويل: ${devFmt(x.convertedAt)}`:''}</div>${x.notes?`<div class="dev-notes">${escapeHtml(x.notes)}</div>`:''}<div class="dev-actions"><button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button>${x.phone&&x.status!=='تم تحويله إلى عضو'&&!x.archived?`<button class="btn btn-primary btn-sm" onclick="convertCandidate('${x.id}')">استكمال البيانات وإضافته كعضو رسمي</button>`:''}<button class="btn btn-ghost btn-sm" onclick="devArchive('candidate','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button></div></div>`).join(''):'<div class="empty"><div class="txt">لا توجد أسماء مسجلة</div></div>';
+  $$('#devList .dev-item').forEach((card,i)=>{ const x=list[i]; if(x&&(x.memberId||x.status==='تم تحويله إلى عضو')){ card.style.background='var(--ok-soft)'; card.style.borderColor='var(--ok)'; } });
 }
 async function saveCandidate(){const name=devVal('dcName');if(!name){toast('الاسم مطلوب');return;}const raw=toEnglishDigits(devVal('dcPhone')).replace(/\D/g,'');const phone=raw?'+'+(devVal('dcCode')||'973')+raw:'';if(phone){const dup=members.find(m=>normalizePhone(m.phone)===normalizePhone(phone));if(dup){toast(`الرقم موجود في ملف العضو: ${dup.name}`);return;}const other=memberCandidates.find(x=>x.id!==devEditId&&x.phone&&normalizePhone(x.phone)===normalizePhone(phone));if(other){toast(`الرقم موجود لدى الاسم: ${other.name}`);return;}}const now=new Date().toISOString();let x=memberCandidates.find(v=>v.id===devEditId);if(!x){x={id:devId('candidate'),createdAt:now,archived:false,memberId:null,convertedAt:null};memberCandidates.push(x);}let status=devVal('dcStatus');if(phone&&status==='اسم جديد')status='تم الحصول على الرقم';Object.assign(x,{name,phone,area:devVal('dcArea'),email:devVal('dcEmail'),address:devVal('dcAddress'),type:devVal('dcType')||'عادي',owner:devVal('dcOwner'),notes:devVal('dcNotes'),status,updatedAt:now});await saveMemberCandidates();devEditId=null;renderDevCenter();toast('تم حفظ الاسم والبيانات');}
 function convertCandidate(id){const x=memberCandidates.find(v=>v.id===id);if(!x||!x.phone){toast('أضف رقم الهاتف أولاً');return;}const dup=members.find(m=>normalizePhone(m.phone)===normalizePhone(x.phone));if(dup){toast(`الرقم موجود في ملف العضو: ${dup.name}`);return;}openAddMember();pendingCandidateId=id;const f=$('#addForm');if(f){f.elements.name.value=x.name||'';f.elements.area.value=x.area||'';f.elements.email.value=x.email||'';f.elements.address.value=x.address||'';if(x.type)f.elements.type.value=x.type;const p=splitPhone(x.phone);const cc=$('#addCountryCode');if(cc)cc.value=p.code||'973';f.elements.phone.value=p.local||'';}toast('أكمل البيانات ثم احفظ العضو الرسمي');}
