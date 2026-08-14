@@ -1940,6 +1940,12 @@
   .dev-form{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;background:var(--surface)}.dev-form h3{margin:0 0 12px}.dev-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dev-form-grid .full{grid-column:1/-1}
   .dev-form input,.dev-form select,.dev-form textarea{position:relative;z-index:1;pointer-events:auto!important;touch-action:manipulation;-webkit-user-select:text;user-select:text}
   .dev-form textarea{min-height:110px;line-height:1.8;resize:vertical}
+  .idea-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .idea-page-head h3{margin:0 0 4px;font-size:18px}.idea-page-head p{margin:0;color:var(--muted);font-size:13px}
+  .idea-view-switch{display:flex;gap:7px;flex-wrap:wrap}.idea-view-switch .btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .idea-route{margin-top:9px;padding:9px 11px;border-radius:10px;background:var(--soft);color:var(--primary);font-size:12px;line-height:1.7}
+  .idea-route.admin{background:var(--warn-soft);color:var(--warn)}.idea-route.committee{background:var(--accent-soft);color:var(--accent)}
+  .idea-registry-note{border:1px dashed var(--accent);background:var(--accent-soft);color:var(--ink);border-radius:12px;padding:11px 13px;margin-bottom:12px;font-size:13px}
   @media(max-width:650px){.dev-form-grid{grid-template-columns:1fr}.dev-form-grid .full{grid-column:auto}}
 </style>
 </head>
@@ -2581,7 +2587,7 @@
           <div class="idara-card" onclick="openDevCenter('dashboard')">
             <div class="ic-ico">💡</div>
             <div class="ic-name">مركز التطوير والمتابعة</div>
-            <div class="ic-sub">الأفكار · التحديثات · النسخ · مرشحو العضوية</div>
+            <div class="ic-sub">الأفكار والاقتراحات · التحديثات · النسخ · مرشحو العضوية</div>
           </div>
         </div>
       </div>
@@ -2754,10 +2760,10 @@
   <section id="tab-devcenter" class="tab-content" style="display:none">
     <button class="btn btn-ghost btn-sm idara-back" onclick="switchTab('meetings')">← رجوع للإدارة</button>
     <div class="panel">
-      <div class="dev-head"><div><h2 class="panel-title">مركز التطوير والمتابعة</h2><div class="panel-sub">الأفكار · التعديل في الموقع · التحديثات · النسخ · الأسماء والبيانات</div></div></div>
+      <div class="dev-head"><div><h2 class="panel-title">مركز التطوير والمتابعة</h2><div class="panel-sub">الأفكار والاقتراحات · التعديل في الموقع · التحديثات · النسخ · الأسماء والبيانات</div></div></div>
       <div class="dev-tabs">
         <button class="dev-tab" data-devtab="dashboard" onclick="devSwitch('dashboard')">لوحة المتابعة</button>
-        <button class="dev-tab" data-devtab="ideas" onclick="devSwitch('ideas')">الأفكار</button>
+        <button class="dev-tab" data-devtab="ideas" onclick="devSwitch('ideas')">الأفكار والاقتراحات</button>
         <button class="dev-tab" data-devtab="drafts" onclick="devSwitch('drafts')">التعديل في الموقع</button>
         <button class="dev-tab" data-devtab="updates" onclick="devSwitch('updates')">سجل التحديثات</button>
         <button class="dev-tab" data-devtab="versions" onclick="devSwitch('versions')">نسخ المشروع</button>

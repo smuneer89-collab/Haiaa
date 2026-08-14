@@ -9836,11 +9836,13 @@ function printAssemblyReport(){
 /* ═══════════════ نهاية وحدة الجمعية العمومية ═══════════════ */
 
 /* ═══════════ مركز التطوير والمتابعة ═══════════ */
-let devCurrentTab='dashboard', devEditId=null, devShowArchived=false, devSearchQ='', devStatusQ='';
+let devCurrentTab='dashboard', devEditId=null, devShowArchived=false, devSearchQ='', devStatusQ='', devIdeaView='all';
 let devDraftSaveTimer=null;
 const DEV_COMMITTEES=['عام','أمانة السر','اللجنة المالية','اللجنة الإعلامية','لجنة العزاء','الأعضاء','الإدارة','أخرى'];
 const DEV_PRIORITIES=['عاجلة','مهمة','عادية','مستقبلية'];
 const DEV_IDEA_STATUS=['مجرد فكرة','تحتاج إلى دراسة','معتمدة للتنفيذ','قيد التنفيذ','مكتملة','مؤجلة','ملغاة'];
+const DEV_IDEA_SOURCES=['من آخرين','فكرة شخصية'];
+const DEV_IDEA_TYPES=['إداري','يخص لجنة','عامة/تطويرية'];
 const DEV_CANDIDATE_STATUS=['اسم جديد','جارٍ البحث عن الرقم','تم الحصول على الرقم','تم التواصل معه','يرغب في التسجيل','اعتذر','تم تحويله إلى عضو'];
 const DEV_SITE_AREAS=['الصفحة الرئيسية','الأعضاء','المواقيت','الإدارة','أمانة السر','اللجنة المالية','اللجنة الإعلامية','لجنة العزاء','التقارير والطباعة','الإعدادات','مركز التطوير والمتابعة','مكان آخر'];
 function devId(p){ return p+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
@@ -9848,7 +9850,7 @@ function devFmt(iso){ if(!iso) return '—'; try{return new Date(iso).toLocaleSt
 function devOpts(list,val){ return list.map(x=>`<option value="${escapeHtml(x)}"${x===val?' selected':''}>${escapeHtml(x)}</option>`).join(''); }
 function devVal(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
 function openDevCenter(tab='dashboard'){ openFullPage('devcenter'); devSwitch(tab); }
-function devSwitch(tab){ devCurrentTab=tab; devEditId=null; devShowArchived=false; devSearchQ=''; devStatusQ=''; $$('.dev-tab').forEach(b=>b.classList.toggle('active',b.dataset.devtab===tab)); renderDevCenter(); }
+function devSwitch(tab){ devCurrentTab=tab; devEditId=null; devShowArchived=false; devSearchQ=''; devStatusQ=''; if(tab==='ideas')devIdeaView='all'; $$('.dev-tab').forEach(b=>b.classList.toggle('active',b.dataset.devtab===tab)); renderDevCenter(); }
 function renderDevCenter(){
   const root=$('#devContent'); if(!root) return;
   if(devCurrentTab==='dashboard') return renderDevDashboard(root);
@@ -9864,7 +9866,7 @@ function renderDevDashboard(root){
   const active=memberCandidates.filter(x=>!x.archived&&!['تم تحويله إلى عضو','اعتذر'].includes(x.status));
   const ready=active.filter(x=>x.phone&&['تم الحصول على الرقم','تم التواصل معه','يرغب في التسجيل'].includes(x.status)).length;
   const approved=devVersions.find(x=>x.approved&&!x.archived);
-  const cells=[[open,'الأفكار المفتوحة'],[doing,'أفكار قيد التنفيذ'],[devDrafts.filter(x=>!x.archived).length,'تعديلات الموقع'],[devUpdates.filter(x=>!x.archived).length,'التحديثات المسجلة'],[active.length,'الأسماء النشطة'],[active.filter(x=>!x.phone).length,'بلا أرقام هواتف'],[ready,'جاهزون للتحويل']];
+  const cells=[[open,'الأفكار والاقتراحات المفتوحة'],[doing,'أفكار قيد التنفيذ'],[devDrafts.filter(x=>!x.archived).length,'تعديلات الموقع'],[devUpdates.filter(x=>!x.archived).length,'التحديثات المسجلة'],[active.length,'الأسماء النشطة'],[active.filter(x=>!x.phone).length,'بلا أرقام هواتف'],[ready,'جاهزون للتحويل']];
   root.innerHTML=`<div class="dev-kpis">${cells.map(x=>`<div class="dev-kpi"><div class="v">${x[0]}</div><div class="l">${x[1]}</div></div>`).join('')}</div><div class="dev-item ${approved?'dev-approved':''}"><h3>آخر نسخة مشروع معتمدة</h3>${approved?`<div class="dev-approved-mark">✓ النسخة الحالية المعتمدة</div><div class="dev-meta">${escapeHtml(approved.name||approved.zipName||'بدون اسم')} · الإصدار ${escapeHtml(approved.version)}<br>اعتمدت في ${devFmt(approved.approvedAt)}</div>`:'<div class="dev-meta">لا توجد نسخة معتمدة حتى الآن</div>'}</div>`;
 }
 function devFormShell(title,body,saveFn){ return `<div class="dev-form"><h3>${title}</h3><div class="dev-form-grid">${body}</div><div class="dev-actions"><button class="btn btn-primary" onclick="${saveFn}()">حفظ</button><button class="btn btn-ghost" onclick="devCancelEdit()">إلغاء</button></div></div>`; }
@@ -9873,15 +9875,53 @@ function devNew(){ devEditId='new'; renderDevCenter(); }
 function devSetSearch(v){devSearchQ=v;renderDevCenter();const e=$('#devSearch');if(e){e.focus();e.setSelectionRange(v.length,v.length);}}
 function devSetStatus(v){devStatusQ=v;renderDevCenter();}
 function devToolbar(extra=''){ return `<div class="dev-toolbar"><input id="devSearch" value="${escapeHtml(devSearchQ)}" placeholder="بحث…" oninput="devSetSearch(this.value)"><label class="btn btn-ghost btn-sm"><input type="checkbox" ${devShowArchived?'checked':''} onchange="devShowArchived=this.checked;renderDevCenter()"> الأرشيف</label>${extra}</div>`; }
+function ideaTypeOf(x){
+  if(x.ideaType) return x.ideaType;
+  if(x.committee==='الإدارة') return 'إداري';
+  if(x.committee && x.committee!=='عام') return 'يخص لجنة';
+  return 'عامة/تطويرية';
+}
+function ideaSourceOf(x){ return x.source||'غير محدد (سجل سابق)'; }
+function ideaCommitteeOf(x){ return x.targetCommittee||((ideaTypeOf(x)==='يخص لجنة'&&x.committee)?x.committee:''); }
+function ideaRouteText(x){
+  const type=ideaTypeOf(x);
+  if(type==='إداري') return 'المسار: تُعرض يدويًا على القائم بإدارة الاجتماعات لإدراجها في جدول أعمال اجتماع الإدارة القادم.';
+  if(type==='يخص لجنة') return `المسار: تُصاغ وتُحال يدويًا إلى ${ideaCommitteeOf(x)||'اللجنة المختصة'}.`;
+  return 'المسار: محفوظة في سجل الأفكار للمراجعة لاحقًا.';
+}
+function ideaTypeChanged(){
+  const wrap=$('#diCommitteeWrap'), type=devVal('diType');
+  if(wrap) wrap.style.display=type==='يخص لجنة'?'block':'none';
+  const hint=$('#diRouteHint'); if(hint) hint.textContent=ideaRouteText({ideaType:type,targetCommittee:devVal('diCommittee')});
+}
+function setIdeaView(view){ devIdeaView=view; devEditId=null; renderDevCenter(); }
 function renderDevIdeas(root){
   const item=devEditId==='new'?{}:devIdeas.find(x=>x.id===devEditId);
-  const form=item?devFormShell(item.id?'تعديل الفكرة':'إضافة فكرة',`<div class="field full"><label>عنوان الفكرة *</label><input id="diTitle" value="${escapeHtml(item.title||'')}"></div><div class="field full"><label>الشرح والملاحظات</label><textarea id="diNotes" rows="4">${escapeHtml(item.notes||'')}</textarea></div><div class="field"><label>اللجنة</label><select id="diCommittee">${devOpts(DEV_COMMITTEES,item.committee||'عام')}</select></div><div class="field"><label>الأولوية</label><select id="diPriority">${devOpts(DEV_PRIORITIES,item.priority||'عادية')}</select></div><div class="field"><label>الحالة</label><select id="diStatus">${devOpts(DEV_IDEA_STATUS,item.status||'مجرد فكرة')}</select></div><div class="field"><label>رابط ملف أو صورة</label><input id="diLink" type="url" value="${escapeHtml(item.link||'')}"></div>`,'saveDevIdea'):`<button class="btn btn-primary" onclick="devNew()">+ إضافة فكرة</button>`;
-  root.innerHTML=form+devToolbar(`<select id="devStatusFilter" onchange="devSetStatus(this.value)"><option value="">كل الحالات</option>${devOpts(DEV_IDEA_STATUS,devStatusQ)}</select>`)+`<div class="dev-list" id="devList"></div>`;
+  const currentType=item?ideaTypeOf(item):'عامة/تطويرية', currentCommittee=item?ideaCommitteeOf(item):'أمانة السر';
+  const sourceOpts=`<option value="">— اختر المصدر —</option>`+devOpts(DEV_IDEA_SOURCES,item&&item.source||'');
+  const form=item?devFormShell(item.id?'تعديل الفكرة أو الاقتراح':'إضافة فكرة أو اقتراح',`<div class="field full"><label>عنوان الفكرة *</label><input id="diTitle" value="${escapeHtml(item.title||'')}"></div><div class="field"><label>المصدر *</label><select id="diSource">${sourceOpts}</select></div><div class="field"><label>نوع الفكرة *</label><select id="diType" onchange="ideaTypeChanged()">${devOpts(DEV_IDEA_TYPES,currentType)}</select></div><div class="field" id="diCommitteeWrap" style="display:${currentType==='يخص لجنة'?'block':'none'}"><label>اللجنة المختصة *</label><select id="diCommittee" onchange="ideaTypeChanged()">${devOpts(DEV_COMMITTEES.filter(x=>!['عام','الإدارة'].includes(x)),currentCommittee)}</select></div><div class="field"><label>الأولوية</label><select id="diPriority">${devOpts(DEV_PRIORITIES,item.priority||'عادية')}</select></div><div class="field full"><label>تفاصيل الفكرة *</label><textarea id="diNotes" rows="5" placeholder="اكتب الفكرة أو الملاحظة كاملة…">${escapeHtml(item.notes||'')}</textarea></div><div class="field"><label>الحالة</label><select id="diStatus">${devOpts(DEV_IDEA_STATUS,item.status||'مجرد فكرة')}</select></div><div class="field"><label>رابط ملف أو صورة</label><input id="diLink" type="url" value="${escapeHtml(item.link||'')}"></div><div class="field full"><div class="idea-route ${currentType==='إداري'?'admin':currentType==='يخص لجنة'?'committee':''}" id="diRouteHint">${escapeHtml(ideaRouteText({ideaType:currentType,targetCommittee:currentCommittee}))}</div></div>`,'saveDevIdea'):`<button class="btn btn-primary" onclick="devNew()">+ إضافة فكرة أو اقتراح</button>`;
+  root.innerHTML=`<div class="idea-page-head"><div><h3>الأفكار والاقتراحات</h3><p>مساحة لتوثيق كل فكرة فور ورودها، ثم توجيهها حسب نوعها.</p></div><div class="idea-view-switch"><button class="btn btn-ghost btn-sm ${devIdeaView==='all'?'active':''}" onclick="setIdeaView('all')">جميع الأفكار</button><button class="btn btn-ghost btn-sm ${devIdeaView==='registry'?'active':''}" onclick="setIdeaView('registry')">سجل الأفكار</button></div></div>`+form+(devIdeaView==='registry'?'<div class="idea-registry-note"><b>سجل الأفكار:</b> يضم الأفكار العامة والتطويرية المحفوظة للمراجعة لاحقًا.</div>':'')+devToolbar(`<select id="devStatusFilter" onchange="devSetStatus(this.value)"><option value="">كل الحالات</option>${devOpts(DEV_IDEA_STATUS,devStatusQ)}</select>`)+`<div class="dev-list" id="devList"></div>`;
   const q=devSearchQ.toLowerCase(), st=devStatusQ;
-  const list=devIdeas.filter(x=>!!x.archived===devShowArchived&&(!q||(x.title+' '+(x.notes||'')).toLowerCase().includes(q))&&(!st||x.status===st)).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
-  $('#devList').innerHTML=list.length?list.map(x=>`<div class="dev-item"><div class="dev-item-head"><h3>${escapeHtml(x.title)}</h3><span class="dev-badge">${escapeHtml(x.status)}</span></div><div>${['اللجنة: '+x.committee,'الأولوية: '+x.priority].map(v=>`<span class="dev-badge">${escapeHtml(v)}</span>`).join('')}</div>${x.notes?`<div class="dev-notes">${escapeHtml(x.notes)}</div>`:''}<div class="dev-meta">أضيفت: ${devFmt(x.createdAt)} · آخر تعديل: ${devFmt(x.updatedAt)}</div><div class="dev-actions">${x.link?`<button class="btn btn-ghost btn-sm" onclick="window.open('${escapeHtml(x.link)}','_blank','noopener')">فتح المرفق</button>`:''}<button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button><button class="btn btn-ghost btn-sm" onclick="devArchive('idea','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button></div></div>`).join(''):'<div class="empty"><div class="txt">لا توجد أفكار</div></div>';
+  const list=devIdeas.filter(x=>!!x.archived===devShowArchived&&(devIdeaView!=='registry'||ideaTypeOf(x)==='عامة/تطويرية')&&(!q||((x.title||'')+' '+(x.notes||'')+' '+ideaSourceOf(x)+' '+ideaTypeOf(x)+' '+ideaCommitteeOf(x)).toLowerCase().includes(q))&&(!st||x.status===st)).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+  $('#devList').innerHTML=list.length?list.map(x=>{const type=ideaTypeOf(x), committee=ideaCommitteeOf(x);return `<div class="dev-item"><div class="dev-item-head"><h3>${escapeHtml(x.title||'فكرة بلا عنوان')}</h3><span class="dev-badge">${escapeHtml(x.status||'مجرد فكرة')}</span></div><div><span class="dev-badge">المصدر: ${escapeHtml(ideaSourceOf(x))}</span><span class="dev-badge">النوع: ${escapeHtml(type)}</span>${committee?`<span class="dev-badge">اللجنة: ${escapeHtml(committee)}</span>`:''}<span class="dev-badge">الأولوية: ${escapeHtml(x.priority||'عادية')}</span></div>${x.notes?`<div class="dev-notes">${escapeHtml(x.notes)}</div>`:''}<div class="idea-route ${type==='إداري'?'admin':type==='يخص لجنة'?'committee':''}">${escapeHtml(ideaRouteText(x))}</div><div class="dev-meta">أضيفت: ${devFmt(x.createdAt)} · آخر تعديل: ${devFmt(x.updatedAt)}</div><div class="dev-actions">${x.link?`<button class="btn btn-ghost btn-sm" onclick="window.open('${escapeHtml(x.link)}','_blank','noopener')">فتح المرفق</button>`:''}<button class="btn btn-accent btn-sm" onclick="printDevIdea('${x.id}')">طباعة PDF</button><button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button><button class="btn btn-ghost btn-sm" onclick="devArchive('idea','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button></div></div>`;}).join(''):`<div class="empty"><div class="txt">${devIdeaView==='registry'?'لا توجد أفكار عامة أو تطويرية في السجل':'لا توجد أفكار أو اقتراحات'}</div></div>`;
 }
-async function saveDevIdea(){ const title=devVal('diTitle'); if(!title){toast('عنوان الفكرة مطلوب');return;} const now=new Date().toISOString(); let x=devIdeas.find(v=>v.id===devEditId); if(!x){x={id:devId('idea'),createdAt:now,archived:false};devIdeas.push(x);} Object.assign(x,{title,notes:devVal('diNotes'),committee:devVal('diCommittee'),priority:devVal('diPriority'),status:devVal('diStatus'),link:devVal('diLink'),updatedAt:now}); await saveDevIdeas(); devEditId=null; renderDevCenter(); toast('تم حفظ الفكرة'); }
+async function saveDevIdea(){
+  const title=devVal('diTitle'), source=devVal('diSource'), ideaType=devVal('diType'), notes=devVal('diNotes');
+  if(!title){toast('عنوان الفكرة مطلوب');return;} if(!source){toast('اختر مصدر الفكرة');return;} if(!ideaType){toast('اختر نوع الفكرة');return;} if(!notes){toast('اكتب تفاصيل الفكرة');return;}
+  const targetCommittee=ideaType==='يخص لجنة'?devVal('diCommittee'):''; if(ideaType==='يخص لجنة'&&!targetCommittee){toast('اختر اللجنة المختصة');return;}
+  const now=new Date().toISOString(); let x=devIdeas.find(v=>v.id===devEditId); if(!x){x={id:devId('idea'),createdAt:now,archived:false};devIdeas.push(x);}
+  Object.assign(x,{title,source,ideaType,targetCommittee,committee:targetCommittee||(ideaType==='إداري'?'الإدارة':'عام'),notes,priority:devVal('diPriority'),status:devVal('diStatus'),link:devVal('diLink'),updatedAt:now});
+  await saveDevIdeas(); devEditId=null; renderDevCenter(); toast(ideaType==='عامة/تطويرية'?'تم حفظ الفكرة في سجل الأفكار':'تم حفظ الفكرة وتحديد مسارها');
+}
+function printDevIdea(id){
+  const x=devIdeas.find(v=>v.id===id); if(!x)return; const type=ideaTypeOf(x), committee=ideaCommitteeOf(x);
+  const w=window.open('','_blank'); if(!w){toast('اسمح بالنوافذ المنبثقة للطباعة');return;}
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>فكرة أو اقتراح</title><style>
+  @page{size:A4;margin:18mm}*{box-sizing:border-box}body{font-family:'IBM Plex Sans Arabic',Tahoma,Arial,sans-serif;color:#17352b;line-height:1.8;margin:0}.head{text-align:center;border-bottom:3px double #c19a3e;padding-bottom:14px;margin-bottom:22px}.logo{max-width:190px;max-height:72px}.head h1{font-size:22px;margin:8px 0 0}.row{display:grid;grid-template-columns:145px 1fr;border:1px solid #d9e2dd;border-bottom:0}.row:last-of-type{border-bottom:1px solid #d9e2dd}.label{background:#eef5f1;font-weight:700;padding:9px 12px}.value{padding:9px 12px;white-space:pre-wrap}.route{margin-top:18px;padding:13px;border:1px solid #c19a3e;background:#fffaf0;border-radius:9px}.foot{text-align:center;color:#6c7d75;font-size:11px;margin-top:28px}@media print{.no-print{display:none!important}}
+  ${PRINT_BAR_CSS}</style></head><body>${PRINT_BAR}<div class="head"><img class="logo" src="${HAIAA_LOGO}" alt=""><h1>الأفكار والاقتراحات</h1></div>
+  <div class="row"><div class="label">عنوان الفكرة</div><div class="value">${escapeHtml(x.title||'—')}</div></div><div class="row"><div class="label">المصدر</div><div class="value">${escapeHtml(ideaSourceOf(x))}</div></div><div class="row"><div class="label">نوع الفكرة</div><div class="value">${escapeHtml(type)}</div></div>${committee?`<div class="row"><div class="label">اللجنة المختصة</div><div class="value">${escapeHtml(committee)}</div></div>`:''}<div class="row"><div class="label">الأولوية</div><div class="value">${escapeHtml(x.priority||'عادية')}</div></div><div class="row"><div class="label">الحالة</div><div class="value">${escapeHtml(x.status||'مجرد فكرة')}</div></div><div class="row"><div class="label">التفاصيل</div><div class="value">${escapeHtml(x.notes||'—')}</div></div><div class="row"><div class="label">تاريخ التسجيل</div><div class="value">${escapeHtml(devFmt(x.createdAt))}</div></div><div class="route"><b>التوجيه:</b> ${escapeHtml(ideaRouteText(x))}</div><div class="foot">هيئة محبي الحسين (ع) — مركز التطوير والمتابعة</div></body></html>`);
+  w.document.close(); w.focus();
+}
 function renderDevDrafts(root){
   const item=devEditId==='new'?{}:devDrafts.find(x=>x.id===devEditId);
   const oldProblem=item?(item.problem||item.body||''):'';
