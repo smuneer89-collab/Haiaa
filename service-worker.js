@@ -4,7 +4,7 @@
    • طلبات Firebase والخطوط: تمر مباشرة بلا تخزين ← لا تتعطّل المزامنة
    • بلا إنترنت: يرجع لآخر نسخة مخزّنة تلقائياً
 */
-const CACHE = 'husain-v8-ideas-suggestions';
+const CACHE = 'husain-v9-aza-messages-links-icons';
 
 const APP_SHELL = [
   './',

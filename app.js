@@ -517,13 +517,14 @@ function fillHeaderDates(){ $('#dateGregorian').textContent=fmtDate(today()); $(
 
 $$('.tab[data-tab]').forEach(t=>{
   t.addEventListener('click',()=>{
+    const repeated=t.classList.contains('active');
     if(typeof pendingCandidateId!=='undefined' && t.dataset.tab!=='add') pendingCandidateId=null;
     $$('.tab[data-tab]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
     $$('.tab-content').forEach(c=>c.style.display='none');
     $('#tab-'+t.dataset.tab).style.display='block';
     if(t.dataset.tab==='dashboard') renderDashboard();
-    if(t.dataset.tab==='members'){ renderMembers(); restoreListPos('members'); }
-    if(t.dataset.tab==='miqats'){ renderMiqats(); restoreListPos('miqats'); }
+    if(t.dataset.tab==='members'){ renderMembers(); if(repeated) listMemory.members=null; else restoreListPos('members'); }
+    if(t.dataset.tab==='miqats'){ renderMiqats(); if(repeated) listMemory.miqats=null; else restoreListPos('miqats'); }
     if(t.dataset.tab==='meetings') idaraHome();
     if(t.dataset.tab==='settings') fillSettings();
     window.scrollTo({top:0,behavior:'smooth'});
@@ -5356,7 +5357,7 @@ function renderMeetings(){ renderMeetingStats(); populateMeetingFilters(); rende
 
 /* ─── التنقل داخل قسم الإدارة ─── */
 function idaraShow(view){
-  ['hub','sec','finance','media','aza','archive','admins'].forEach(v=>{
+  ['hub','sec','finance','media','aza','azamessages','archive','admins'].forEach(v=>{
     const el=document.getElementById('idara-'+v); if(el) el.style.display = (v===view)?'block':'none';
   });
 }
@@ -5381,7 +5382,62 @@ function openIdara(which){
     idaraShow('archive'); renderArchive();
   }
   else if(which==='aza'){ idaraShow('aza'); renderRadoods(); markAzaSeen(); checkNewAzaSubmissions().then(()=>renderRadoods()); }
+  else if(which==='azamessages'){ idaraShow('azamessages'); buildAzaMessage(); }
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ══════════ مسجات إعلانات لجنة العزاء ══════════ */
+function azaMessageValue(id){ return (document.getElementById(id)?.value||'').trim(); }
+function formatAdDate(value){
+  if(!value) return '';
+  const d=new Date(value+'T12:00:00');
+  if(Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString('ar-BH',{day:'numeric',month:'long',year:'numeric'});
+}
+function buildAzaMessage(){
+  const occasion=azaMessageValue('adOccasion'), night=azaMessageValue('adNight');
+  const hijri=azaMessageValue('adHijri'), greg=formatAdDate(azaMessageValue('adGregorian'));
+  const preacher=azaMessageValue('adNightPreacher'), preacherTime=azaMessageValue('adNightPreacherTime');
+  const radood=azaMessageValue('adRadood'), radoodTime=azaMessageValue('adRadoodTime'), place=azaMessageValue('adPlace');
+  const dayTitle=azaMessageValue('adDayTitle'), dayPreacher=azaMessageValue('adDayPreacher');
+  const weekday=azaMessageValue('adWeekday'), dayGreg=formatAdDate(azaMessageValue('adDayGregorian')), dayTime=azaMessageValue('adDayTime');
+  const blocks=[], nightLines=[];
+  if(occasion) nightLines.push(`*${occasion}*  ✨`);
+  if(night) nightLines.push(` 🏴 *${night}*`);
+  if(preacher){
+    nightLines.push('',`🎙️ *${preacher}*`);
+    if(night) nightLines.push(`🌑 *الليلة:* ${night}`);
+    if(hijri) nightLines.push(`🗓️ *التاريخ الهجري:* ${hijri}`);
+    if(greg) nightLines.push(`📆 *التاريخ الميلادي:* ${greg}`);
+    if(preacherTime) nightLines.push(`🕰️ *التوقيت:* ${preacherTime}`);
+  } else {
+    if(hijri) nightLines.push(`🗓️ *التاريخ الهجري:* ${hijri}`);
+    if(greg) nightLines.push(`📆 *التاريخ الميلادي:* ${greg}`);
+  }
+  if(radood){ nightLines.push('',`🎙️ *${radood}*`); if(radoodTime) nightLines.push(`🕰️ *التوقيت:* ${radoodTime}`); }
+  if(place && (preacher||radood||night||occasion)) nightLines.push(`📍 *المكان:* ${place}`);
+  if(nightLines.length) blocks.push(nightLines.join('\n'));
+  if(dayTitle||dayPreacher||weekday||dayGreg){
+    const day=['=================='];
+    if(dayTitle) day.push(`🏴 *${dayTitle}*`);
+    if(dayPreacher) day.push(`🎙️ *${dayPreacher}*`);
+    if(weekday) day.push(`🌝 *اليوم:* ${weekday}`);
+    if(dayGreg) day.push(`📆 *التاريخ الميلادي:* ${dayGreg}`);
+    if(dayTime) day.push(`🕰️ *التوقيت:* ${dayTime}`);
+    blocks.push(day.join('\n'));
+  }
+  if(blocks.length) blocks.push(`====================\nانستقرام هيئة محبي الحسين\n\nhttps://www.instagram.com/alhaiaa\n\n🔸للــنـشر\n🔸نسألكم الدعاء 🔸`);
+  const text=blocks.join('\n\n');
+  const preview=document.getElementById('azaMessagePreview');
+  if(preview) preview.textContent=text||'ابدأ بكتابة اسم المناسبة لتظهر معاينة الرسالة هنا.';
+  return text;
+}
+async function copyAzaMessage(){ const text=buildAzaMessage(); if(!text){ toast('أدخل بيانات المناسبة أولاً'); return; } await copyToClipboard(text); toast('تم نسخ رسالة الإعلان'); }
+function clearAzaMessage(){
+  ['adOccasion','adNight','adHijri','adGregorian','adNightPreacher','adNightPreacherTime','adRadood','adRadoodTime','adDayTitle','adDayPreacher','adWeekday','adDayGregorian'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const place=document.getElementById('adPlace'); if(place) place.value='مسجد الإمام علي (ع) - بني جمرة';
+  const dayTime=document.getElementById('adDayTime'); if(dayTime) dayTime.value='بعد صلاة الظهرين مباشرة';
+  buildAzaMessage(); toast('تم تفريغ الحقول');
 }
 
 /* ═══════════ لجنة العزاء — الرواديد ═══════════ */
@@ -5431,7 +5487,7 @@ function renderRadoods(){
     const pct=Math.round(avg/3*100);
     return `<div class="radood-card">
       <div class="radood-open" onclick="openRadoodRecord('${r.id}')">
-        <div class="radood-avatar">${r.img?`<img class="radood-avatar" src="${r.img}" alt="" style="border:none">`:'🎤'}</div>
+        <div class="radood-avatar">${r.img?`<img class="radood-avatar" src="${r.img}" alt="" style="border:none">`:icon('mic',25,'ico-btn')}</div>
         <div class="radood-info">
           <div class="radood-name">${escapeHtml(r.name)}</div>
           <div class="radood-meta">${nPart} مشاركة${nPart?` · متوسط ${pct}%`:''}${r.note?' · '+escapeHtml(r.note):''} · اضغط للسجل ›</div>
@@ -5446,18 +5502,18 @@ function renderRadoods(){
 }
 function openAddRadood(){
   editingRadoodId=null; radoodPhotoData=null;
-  $('#radoodModalTitle').textContent='➕ إضافة رادود';
+  $('#radoodModalTitle').innerHTML=icon('plus',17,'ico-btn')+' إضافة رادود';
   $('#radoodName').value=''; $('#radoodNote').value='';
-  $('#radoodPhotoPreview').innerHTML='🎤';
+  $('#radoodPhotoPreview').innerHTML=icon('mic',25,'ico-btn');
   $('#radoodPhotoPickLabel').textContent='اختر صورة';
   $('#radoodModal').classList.add('open');
 }
 function openEditRadood(id){
   const r=radoods.find(x=>x.id===id); if(!r) return;
   editingRadoodId=id; radoodPhotoData=null;
-  $('#radoodModalTitle').textContent='✏️ تعديل رادود';
+  $('#radoodModalTitle').innerHTML=icon('edit',17,'ico-btn')+' تعديل رادود';
   $('#radoodName').value=r.name||''; $('#radoodNote').value=r.note||'';
-  $('#radoodPhotoPreview').innerHTML=r.img?`<img src="${r.img}" alt="" />`:'🎤';
+  $('#radoodPhotoPreview').innerHTML=r.img?`<img src="${r.img}" alt="" />`:icon('mic',25,'ico-btn');
   $('#radoodPhotoPickLabel').textContent='تغيير الصورة (اختياري)';
   $('#radoodModal').classList.add('open');
 }
@@ -6001,7 +6057,9 @@ async function loadRecordSessions(radoodId){
     host.innerHTML=mine.map(s=>`
       <div class="els-row">
         <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
-          <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلقة':'· 🟢 مفتوحة'}</div></div>
+          <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} · ${s.closed?'مغلقة':'مفتوحة'}</div>
+          ${s.closed?'':`<div class="elb-url" style="margin-top:7px;">${escapeHtml(evalPageURL(s._id))}</div>`}</div>
+        ${s.closed?'':`<button class="btn btn-sm" onclick="copyEvalLink('${escapeHtml(evalPageURL(s._id))}')">${icon('doc',17,'ico-btn')} نسخ الرابط</button>`}
         <button class="btn btn-sm" onclick="viewRecordResults('${s._id}','${escapeHtml(s.miqatName||'')}')">${icon('search',17,'ico-btn')} النتائج</button>
         <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteEvalSessionRec('${s._id}')">${icon('trash',17,'ico-btn')}</button>
       </div>
@@ -6023,7 +6081,9 @@ async function loadRecordSurveys(radoodId){
     host.innerHTML=mine.map(s=>`
       <div class="els-row">
         <div class="els-body"><div class="els-name">${escapeHtml(s.miqatName||'—')}</div>
-          <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} ${s.closed?'· 🔒 مغلق':'· 🟢 مفتوح'}</div></div>
+          <div class="els-meta">${s.at?new Date(s.at).toLocaleDateString('ar'):''} · ${s.closed?'مغلق':'مفتوح'}</div>
+          ${s.closed?'':`<div class="elb-url" style="margin-top:7px;">${escapeHtml(surveyPageURL(s._id))}</div>`}</div>
+        ${s.closed?'':`<button class="btn btn-sm" onclick="copyEvalLink('${escapeHtml(surveyPageURL(s._id))}')">${icon('doc',17,'ico-btn')} نسخ الرابط</button>`}
         <button class="btn btn-sm" onclick="viewSurveyResults('${s._id}','${escapeHtml(s.miqatName||'')}')">${icon('search',17,'ico-btn')} الإجابات</button>
         <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none;" onclick="deleteSurveySession('${s._id}')">${icon('trash',17,'ico-btn')}</button>
       </div>
