@@ -268,6 +268,8 @@ async function loadData(){
   try { const x=await storage.get('devVersions'); if(x) devVersions=JSON.parse(x); } catch(e){ devVersions=[]; }
   try { const x=await storage.get('memberCandidates'); if(x) memberCandidates=JSON.parse(x); } catch(e){ memberCandidates=[]; }
   try { uiDark = (await storage.get('ui_dark'))==='1'; } catch(e){ uiDark=false; }
+  const freshAudit=pruneAuditEntries(auditLog);
+  if(freshAudit.length!==auditLog.length){ auditLog=freshAudit; try{ await storage.set('auditLog',JSON.stringify(auditLog)); }catch(e){} }
 }
 function cloudPush(k,v){ if(window.CloudSync) CloudSync.push(k,v); }
 async function saveMembers(){ try{ await storage.set('members',JSON.stringify(members)); }catch(e){ toast('تعذر الحفظ'); } cloudPush('members',members); }
@@ -287,6 +289,13 @@ async function saveRevenues(){ try{ await storage.set('revenues',JSON.stringify(
 async function saveArchives(){ try{ await storage.set('archives',JSON.stringify(archives)); }catch(e){} cloudPush('archives',archives); }
 async function saveRadoodParts(){ try{ await storage.set('radoodParts',JSON.stringify(radoodParts)); }catch(e){} cloudPush('radoodParts',radoodParts); }
 async function saveAuditLog(){ try{ await storage.set('auditLog',JSON.stringify(auditLog)); }catch(e){} cloudPush('auditLog',auditLog); }
+const AUDIT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+function pruneAuditEntries(list, now=Date.now()){
+  return (Array.isArray(list)?list:[]).filter(item=>{
+    const addedAt=Date.parse(item&&item.at);
+    return !Number.isFinite(addedAt) || (now-addedAt)<AUDIT_RETENTION_MS;
+  });
+}
 /* تسجيل عملية في سجل التغييرات */
 function logAudit(act, cat, what){
   try{
@@ -2465,15 +2474,11 @@ function renderStats(){
   <div class="stats-grid">
     ${card('','👥',totalMembers,'إجمالي الأعضاء', minors?`منهم ${minors} تحت السن`:'', "switchTab('members')")}
     ${card('ok','💳',paidMembers,'دفعوا الاشتراك', `${totalMembers-paidMembers} لم يدفعوا`, "switchTab('members')")}
-    ${card('ok','💰',finMoney(subsCollected),'محصّل من الاشتراكات','','')}
   </div>
 
   <div class="stats-sec-title">${icon('money',17,'ico-btn')} المالية</div>
   <div class="stats-grid">
-    ${card('ok','🏦',finMoney(balance),'رصيد الهيئة','',"enterFinance()")}
-    ${card('warn','📤',finMoney(expenses),'إجمالي المصروفات',`${expCount} بند`,"enterFinance()")}
-    ${card('','🎫',finMoney(receivedAmount),'مستلم من الحجوزات','','')}
-    ${card(pendingAmount>0?'danger':'ok','⏳',finMoney(pendingAmount),'متبقٍّ على الحجوزات','','')}
+    ${card('warn wide','📤',finMoney(expenses),'إجمالي المصروفات',`${expCount} بند`,"enterFinance()")}
   </div>
 
   <div class="stats-sec-title">${icon('candle',17,'ico-btn')} لجنة العزاء</div>
@@ -3485,7 +3490,7 @@ function showNewsDetail(id){
 function memberRowHTML(m){
   const status=isActive(m)?'active':'inactive';
   return `<div class="member-row compact ${status}" data-row-id="${m.id}" onclick="showDetail('${m.id}')">
-    <div class="name">${escapeHtml(m.name)}</div>
+    <div class="name">${escapeHtml(m.name)} <small style="font-size:10.5px;font-weight:500;color:var(--muted);">${escapeHtml(memberCode(m))}</small></div>
     <span class="mr-caret">‹</span>
   </div>`;
 }
@@ -5385,7 +5390,7 @@ function openIdara(which){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-/* ══════════ مسجات إعلانات لجنة العزاء ══════════ */
+/* ══════════ مسجات إعلانات اللجنة الإعلامية ══════════ */
 function azaMessageValue(id){ return (document.getElementById(id)?.value||'').trim(); }
 function formatAdDate(value){
   if(!value) return '';

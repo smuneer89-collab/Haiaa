@@ -272,7 +272,12 @@ const CloudSync = (() => {
         case 'financeLog': financeLog=arr; storage.set('financeLog',JSON.stringify(arr)); break;
         case 'paidThawab':  paidThawab=arr;  storage.set('paidThawab',JSON.stringify(arr)); break;
         case 'projects':    projects=arr;    storage.set('projects',JSON.stringify(arr)); break;
-        case 'auditLog':    auditLog=arr;    storage.set('auditLog',JSON.stringify(arr)); break;
+        case 'auditLog': {
+          const fresh = (typeof pruneAuditEntries==='function') ? pruneAuditEntries(arr) : arr;
+          auditLog=fresh; storage.set('auditLog',JSON.stringify(fresh));
+          if(fresh.length!==(arr||[]).length) setTimeout(()=>doPush('auditLog',fresh),100);
+          break;
+        }
         case 'radoodParts': radoodParts=arr; storage.set('radoodParts',JSON.stringify(arr)); break;
         case 'archives':    archives=arr;    storage.set('archives',JSON.stringify(arr)); break;
         case 'revenues':    revenues=arr;    storage.set('revenues',JSON.stringify(arr)); break;
@@ -327,7 +332,7 @@ const CloudSync = (() => {
     // حماية: لا نسمح بحذف أكثر من نصف السجلات دفعة واحدة (يمنع المسح العرضي)
     const known = Object.keys(writeCache[name]||{}).length;
     const incoming = (arr||[]).length;
-    if(known >= 5 && incoming < known/2 && !allowBigDelete){
+    if(name!=='auditLog' && known >= 5 && incoming < known/2 && !allowBigDelete){
       console.warn('cloud: تم منع حذف جماعي في '+name+' ('+known+' → '+incoming+')');
       return;
     }
