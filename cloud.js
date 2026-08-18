@@ -593,12 +593,16 @@ const CloudSync = (() => {
     if(!db) throw new Error('cloud not ready');
     await db.collection('membershipRequests').doc(id).update(Object.assign({},patch,{updatedAt:new Date().toISOString()}));
   }
+  async function deleteRegistrationRequest(id){
+    if(!db) throw new Error('cloud not ready');
+    await db.collection('membershipRequests').doc(String(id)).delete();
+  }
 
   return { init, signIn, signOut, push, pushSettings, pushFinance, deleteRecord, migrate, reapply, uploadLocal,
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
-           setRegistrationOpen, fetchRegistrationOpen, fetchRegistrationRequests, updateRegistrationRequest,
+           setRegistrationOpen, fetchRegistrationOpen, fetchRegistrationRequests, updateRegistrationRequest, deleteRegistrationRequest,
            createElection, updateElection, fetchElection, fetchBallots, deleteElection,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };

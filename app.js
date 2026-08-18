@@ -5062,7 +5062,7 @@ function approveRegistrationRequest(id){
   const r=registrationRequests.find(x=>x._id===id);if(!r)return;
   const dup=members.find(m=>normalizePhone(m.phone)===normalizePhone(r.phone));if(dup){toast(`الرقم موجود في ملف العضو: ${dup.name}`);return;}
   openAddMember();pendingRegistrationRequestId=id;
-  const f=$('#addForm');if(f){f.elements.name.value=r.name||'';f.elements.area.value=r.area||'';f.elements.email.value=r.email||'';f.elements.address.value=r.address||'';if(r.type)f.elements.type.value=r.type;const adult=$('#isAdultToggle'),birthWrap=$('#minorBirthWrap'),birth=$('#minorBirthdate');if(adult)adult.checked=!r.isMinor;if(birthWrap)birthWrap.style.display=r.isMinor?'block':'none';if(birth)birth.value=r.birthdate||'';const p=splitPhone(r.phone||'');const cc=$('#addCountryCode');if(cc)cc.value=p.code||'973';f.elements.phone.value=p.local||'';}
+  const f=$('#addForm');if(f){f.elements.name.value=r.name||'';f.elements.area.value=r.area||'';f.elements.email.value=r.email||'';f.elements.address.value=r.address||'';if(r.type)f.elements.type.value=r.type;const adult=$('#isAdultToggle'),birthWrap=$('#minorBirthWrap'),birth=$('#minorBirthdate');if(adult)adult.checked=!r.isMinor;if(birthWrap)birthWrap.style.display=r.isMinor?'block':'none';if(birth)birth.value=r.birthdate||'';if(r.photoData){currentPhoto=r.photoData;const preview=$('#photoPreview');if(preview)preview.innerHTML=`<img src="${r.photoData}" alt="" />`;}const p=splitPhone(r.phone||'');const cc=$('#addCountryCode');if(cc)cc.value=p.code||'973';f.elements.phone.value=p.local||'';}
   toast('راجع البيانات ثم احفظ العضو لاعتماد الطلب');
 }
 async function rejectRegistrationRequest(id){if(!confirm('رفض طلب التسجيل؟'))return;await CloudSync.updateRegistrationRequest(id,{status:'rejected',rejectedAt:new Date().toISOString()});logAudit('رفض','الأعضاء','طلب تسجيل عضوية');await loadRegistrationRequests();}
@@ -10099,6 +10099,17 @@ function fillCountrySelects(){
   const edit=$('#editCountryCode'); if(edit) edit.innerHTML=opts;
   const fam=$('#famCountryCode'); if(fam){ fam.innerHTML=opts; fam.value='973'; }
 }
+async function openRegistrationRequestFromURL(){
+  const id=new URLSearchParams(location.search).get('registrationRequest');
+  if(!id||!window.CloudSync||!CloudSync.isReady)return;
+  try{
+    registrationRequests=await CloudSync.fetchRegistrationRequests();
+    if(!registrationRequests.some(x=>x._id===id)){toast('طلب التسجيل غير موجود أو تم حذفه');return;}
+    history.replaceState({},document.title,location.pathname+location.hash);
+    approveRegistrationRequest(id);
+  }catch(e){console.error(e);toast('تعذّر فتح طلب التسجيل');}
+}
+window.addEventListener('cloud-ready',openRegistrationRequestFromURL);
 (async ()=>{
   await loadData();
   if(window.CloudSync) CloudSync.reapply();   // بيانات السحابة لها الأولوية
@@ -10109,6 +10120,7 @@ function fillCountrySelects(){
   renderMembers();
   fillSettings();
   updateNotifBadge();
+  if(location.hash==='#settings') switchTab('settings');
 })();
 
 /* Service worker for offline use */
