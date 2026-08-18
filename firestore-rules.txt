@@ -22,6 +22,27 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/evalSessions/$(d.sessionId)).data.closed != true;
     }
 
+    // التحقق من طلب العضوية العام قبل حفظه
+    function isValidMembershipRequest() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'name', 'phone', 'area', 'email', 'address', 'type',
+          'isMinor', 'birthdate', 'notes', 'status', 'createdAt', 'source'
+        ])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.phone is string && d.phone.size() >= 8 && d.phone.size() <= 20
+        && d.area is string && d.area.size() <= 120
+        && d.email is string && d.email.size() <= 180
+        && d.address is string && d.address.size() <= 300
+        && d.type is string && d.type in ['عادي', 'شرفي', 'كادر']
+        && d.isMinor is bool
+        && d.birthdate is string && d.birthdate.size() <= 20
+        && d.notes is string && d.notes.size() <= 1000
+        && d.status == 'pending'
+        && d.createdAt is string && d.createdAt.size() <= 40
+        && d.source == 'public-registration';
+    }
+
     // ═══ التقييم العام عبر الرابط (معزول) ═══
 
     // جلسات التقييم: العامة تقرأ فقط (لعرض اسم الرادود والمناسبة)،
@@ -35,6 +56,21 @@ service cloud.firestore {
     // والإدارة وحدها تقرأ النتائج وتحذف.
     match /publicEvals/{evalId} {
       allow create: if isValidPublicEval();
+      allow read, update, delete: if allowed();
+    }
+
+    // حالة فتح رابط التسجيل: العامة تقرأها، والإدارة وحدها تغيّرها.
+    match /publicSettings/{docId} {
+      allow read: if docId == 'registration';
+      allow create, update, delete: if allowed();
+    }
+
+    // طلب العضوية: العامة تنشئ طلباً مضبوطاً فقط عند فتح التسجيل.
+    // قراءة الطلبات واعتمادها وحذفها محصور بالإدارة.
+    match /membershipRequests/{requestId} {
+      allow create: if isValidMembershipRequest()
+        && exists(/databases/$(database)/documents/publicSettings/registration)
+        && get(/databases/$(database)/documents/publicSettings/registration).data.enabled == true;
       allow read, update, delete: if allowed();
     }
 

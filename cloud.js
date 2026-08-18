@@ -49,6 +49,8 @@ const CloudSync = (() => {
   let allowBigDelete = false;
   let pendingPush = {};
   const uploadedOnce = {};   // منع تكرار الرفع التلقائي لكل مجموعة
+  const protectedCenter = new Set(['devIdeas','devDrafts','devUpdates','devVersions','memberCandidates']);
+  const protectedInitialized = {};
   const ADMIN_EMAILS = ['smuneer89@gmail.com', 'abuyusufjoud@gmail.com'];
   const LINK_TIMEOUT_MS = 15000;
 
@@ -247,7 +249,24 @@ const CloudSync = (() => {
     Object.keys(lastRemote).forEach(n => applyRemote(n, lastRemote[n]));
   }
   function applyRemote(name, arr){
+    // في أول اتصال فقط: ادمج سجلات المركز المحلية مع السحابة حسب المعرّف
+    // واختر الأحدث. هذا يمنع جهازاً قديماً أو دفعة سحابية متأخرة من مسح الإضافات الجديدة.
+    if(protectedCenter.has(name) && !protectedInitialized[name]){
+      protectedInitialized[name]=true;
+      try{
+        const local=((CLOUD_COLLECTIONS[name]&&CLOUD_COLLECTIONS[name]())||[]);
+        const map=new Map();
+        [...(arr||[]),...local].forEach(x=>{
+          if(!x||!x.id)return; const old=map.get(String(x.id));
+          if(!old || String(x.updatedAt||x.createdAt||'')>=String(old.updatedAt||old.createdAt||'')) map.set(String(x.id),x);
+        });
+        const merged=[...map.values()];
+        if(merged.length>(arr||[]).length) setTimeout(()=>doPush(name,merged),350);
+        arr=merged;
+      }catch(e){}
+    }
     lastRemote[name] = arr;
+    if(pendingPush[name]){ clearTimeout(pendingPush[name]); delete pendingPush[name]; }
     // ── حماية: السحابة فاضية والجهاز فيه بيانات ⇒ لا تمسح، بل ارفع المحلي ──
     try{
       const localArr = (CLOUD_COLLECTIONS[name] && CLOUD_COLLECTIONS[name]()) || [];
@@ -351,8 +370,9 @@ const CloudSync = (() => {
         cache[id] = j;
         if(++ops >= 400){ await batch.commit(); batch = db.batch(); ops = 0; }
       }
-      // المحذوفات
-      for(const id of Object.keys(cache)){
+      // مجموعات مركز التطوير لا تُحذف ضمن حفظ مصفوفة عادي؛ الحذف فيها صريح فقط.
+      // هذا يمنع نسخة قديمة على جهاز آخر من حذف سجلات جديدة.
+      if(!protectedCenter.has(name)) for(const id of Object.keys(cache)){
         if(seen.has(id)) continue;
         batch.delete(db.collection(name).doc(id));
         delete cache[id];
@@ -371,6 +391,11 @@ const CloudSync = (() => {
     if(!ready || applyingRemote || !db) return;
     try{ await db.collection('meta').doc('finance').set({ j: JSON.stringify(finance) }); }
     catch(e){ console.error('push finance', e); }
+  }
+  async function deleteRecord(name,id){
+    if(!ready||!db||!protectedCenter.has(name)) throw new Error('cloud not ready');
+    await db.collection(name).doc(String(id)).delete();
+    if(writeCache[name]) delete writeCache[name][String(id)];
   }
 
   /* ── رفع آمن: يرفع بيانات هذا الجهاز بلا حذف أي شيء من السحابة ── */
@@ -549,10 +574,31 @@ const CloudSync = (() => {
     await db.collection('publicProjects').doc(id).delete();
   }
 
-  return { init, signIn, signOut, push, pushSettings, pushFinance, migrate, reapply, uploadLocal,
+  // ═══ طلبات تسجيل العضوية عبر الرابط ═══
+  async function setRegistrationOpen(enabled){
+    if(!db) throw new Error('cloud not ready');
+    await db.collection('publicSettings').doc('registration').set({enabled:!!enabled,updatedAt:new Date().toISOString()},{merge:true});
+  }
+  async function fetchRegistrationOpen(){
+    if(!db) return false; const d=await db.collection('publicSettings').doc('registration').get();
+    return !!(d.exists&&d.data().enabled===true);
+  }
+  async function fetchRegistrationRequests(){
+    if(!db) throw new Error('cloud not ready');
+    const snap=await db.collection('membershipRequests').get();
+    const arr=snap.docs.map(d=>Object.assign({_id:d.id},d.data()));
+    arr.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')); return arr;
+  }
+  async function updateRegistrationRequest(id,patch){
+    if(!db) throw new Error('cloud not ready');
+    await db.collection('membershipRequests').doc(id).update(Object.assign({},patch,{updatedAt:new Date().toISOString()}));
+  }
+
+  return { init, signIn, signOut, push, pushSettings, pushFinance, deleteRecord, migrate, reapply, uploadLocal,
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
+           setRegistrationOpen, fetchRegistrationOpen, fetchRegistrationRequests, updateRegistrationRequest,
            createElection, updateElection, fetchElection, fetchBallots, deleteElection,
            get isReady(){ return ready; },
            get email(){ return user ? user.email : ''; } };

@@ -121,10 +121,12 @@ let devUpdates = [];
 let devVersions = [];
 let memberCandidates = [];
 let pendingCandidateId = null;
+let pendingRegistrationRequestId = null;
+let registrationRequests = [];
 // كل مصروف: {id, section:'miqat', mood:'farah'|'hzn', miqatId, kind:'mawlid'|'ihtifal', type, subType, cost, date, note, at}
 let uiDark = false;
 let settings = {
-  fee: 30, year: 1448,
+  fee: 30, year: 1448, registrationEnabled:false,
   counters: { 'عادي': 1, 'شرفي': 1, 'كادر': 1 },
   templates: {
     reminder: 'السلام عليكم ورحمة الله،\nنذكّركم بدفع اشتراك العضوية السنوي في هيئة محبي الحسين. قيمة الاشتراك {fee} د.ب.\nيمكنكم التواصل مع أمانة السر للترتيب.\nبارك الله فيكم.',
@@ -528,6 +530,7 @@ $$('.tab[data-tab]').forEach(t=>{
   t.addEventListener('click',()=>{
     const repeated=t.classList.contains('active');
     if(typeof pendingCandidateId!=='undefined' && t.dataset.tab!=='add') pendingCandidateId=null;
+    if(typeof pendingRegistrationRequestId!=='undefined' && t.dataset.tab!=='add') pendingRegistrationRequestId=null;
     $$('.tab[data-tab]').forEach(x=>x.classList.remove('active')); t.classList.add('active');
     $$('.tab-content').forEach(c=>c.style.display='none');
     $('#tab-'+t.dataset.tab).style.display='block';
@@ -3502,6 +3505,7 @@ function openAddMember(){
 }
 function backToMembers(){
   pendingCandidateId=null;
+  pendingRegistrationRequestId=null;
   if(formMode==='edit'){ const f=$('#addForm'); if(f) f.reset(); resetForm(); }
   $$('.tab-content').forEach(c=>c.style.display='none');
   $('#tab-members').style.display='block';
@@ -3733,6 +3737,14 @@ $('#addForm').addEventListener('submit',async e=>{
     if(candidate){ candidate.status='تم تحويله إلى عضو'; candidate.memberId=newMember.id; candidate.convertedAt=new Date().toISOString(); candidate.updatedAt=new Date().toISOString(); candidate.archived=false; await saveMemberCandidates(); }
     pendingCandidateId=null;
   }
+  let approvedFromRequest=false;
+  if(pendingRegistrationRequestId){
+    try{
+      await CloudSync.updateRegistrationRequest(pendingRegistrationRequestId,{status:'approved',approvedAt:new Date().toISOString(),memberId:newMember.id,memberCode:memberCode(newMember)});
+      logAudit('موافقة','الأعضاء',`طلب تسجيل ${newMember.name} — ${memberCode(newMember)}`); approvedFromRequest=true;
+    }catch(err){console.error(err);toast('سُجل العضو، لكن تعذّر تحديث حالة طلب التسجيل');}
+    pendingRegistrationRequestId=null;
+  }
   e.target.reset(); resetForm();
   let msg=`تم تسجيل العضو ${memberCode(newMember)}`;
   if(completed) msg+=` · ${completed} ميقات محجوز`;
@@ -3740,6 +3752,7 @@ $('#addForm').addEventListener('submit',async e=>{
   toast(msg);
   backToMembers();
   openCard(newMember.id);
+  if(approvedFromRequest)setTimeout(()=>{if(confirm('تم اعتماد العضوية. هل تريد فتح واتساب لإرسال رسالة القبول؟'))shareCardWhatsApp();},250);
 });
 
 /* ═══════════ Member detail ═══════════ */
@@ -5026,6 +5039,38 @@ function fillSettings(){
     const me=(window.CloudSync && CloudSync.email)?CloudSync.email.toLowerCase():'';
     acc.style.display = (me==='smuneer89@gmail.com') ? 'block' : 'none';
   }
+  const reg=$('#registrationEnabled'); if(reg) reg.checked=!!settings.registrationEnabled;
+}
+function registrationPageURL(){const base=location.href.substring(0,location.href.lastIndexOf('/')+1);return base+'register.html';}
+async function copyRegistrationLink(){await copyToClipboard(registrationPageURL());toast('تم نسخ رابط التسجيل');}
+async function setRegistrationEnabled(enabled){
+  settings.registrationEnabled=!!enabled; await persistSettings();
+  try{await CloudSync.setRegistrationOpen(!!enabled);toast(enabled?'تم فتح التسجيل':'تم إغلاق التسجيل');}
+  catch(e){toast('تعذّر تحديث حالة الرابط'); const x=$('#registrationEnabled');if(x)x.checked=!enabled;settings.registrationEnabled=!enabled;await persistSettings();}
+}
+async function loadRegistrationRequests(){
+  const box=$('#registrationRequests');if(!box)return;box.innerHTML='<div class="note">جارٍ جلب الطلبات…</div>';
+  try{registrationRequests=await CloudSync.fetchRegistrationRequests();renderRegistrationRequests();}
+  catch(e){box.innerHTML='<div class="note">تعذّر جلب الطلبات — تحقق من الاتصال والصلاحيات.</div>';}
+}
+function renderRegistrationRequests(){
+  const box=$('#registrationRequests');if(!box)return;
+  if(!registrationRequests.length){box.innerHTML='<div class="note">لا توجد طلبات تسجيل.</div>';return;}
+  box.innerHTML=registrationRequests.map(r=>`<div class="reg-request ${r.status==='approved'?'approved':r.status==='rejected'?'rejected':''}"><div class="dev-item-head"><h3>${escapeHtml(r.name||'—')}</h3><span class="dev-badge">${r.status==='approved'?'مقبول':r.status==='rejected'?'مرفوض':'طلب جديد'}</span></div><div class="dev-meta"><span dir="ltr">${escapeHtml(r.phone||'—')}</span> · ${escapeHtml(r.area||'المنطقة غير محددة')} · ${escapeHtml(r.type||'عادي')}<br>${escapeHtml(r.email||'')}${r.createdAt?`<br>أرسل: ${devFmt(r.createdAt)}`:''}${r.memberId?`<br>رقم العضو المرتبط: ${escapeHtml(r.memberCode||r.memberId)}`:''}</div>${r.notes?`<div class="dev-notes">${escapeHtml(r.notes)}</div>`:''}<div class="dev-actions"><button class="btn btn-ghost btn-sm" onclick="printRegistrationRequest('${r._id}')">طباعة الطلب PDF</button>${r.status!=='approved'?`<button class="btn btn-primary btn-sm" onclick="approveRegistrationRequest('${r._id}')">استكمال واعتماد العضوية</button>`:''}${r.status==='pending'||!r.status?`<button class="btn btn-ghost btn-sm" onclick="rejectRegistrationRequest('${r._id}')">رفض</button>`:''}${r.status==='approved'&&r.memberId?`<button class="btn btn-accent btn-sm" onclick="openApprovedRegistration('${r.memberId}')">البطاقة وواتساب</button>`:''}</div></div>`).join('');
+}
+function approveRegistrationRequest(id){
+  const r=registrationRequests.find(x=>x._id===id);if(!r)return;
+  const dup=members.find(m=>normalizePhone(m.phone)===normalizePhone(r.phone));if(dup){toast(`الرقم موجود في ملف العضو: ${dup.name}`);return;}
+  openAddMember();pendingRegistrationRequestId=id;
+  const f=$('#addForm');if(f){f.elements.name.value=r.name||'';f.elements.area.value=r.area||'';f.elements.email.value=r.email||'';f.elements.address.value=r.address||'';if(r.type)f.elements.type.value=r.type;const adult=$('#isAdultToggle'),birthWrap=$('#minorBirthWrap'),birth=$('#minorBirthdate');if(adult)adult.checked=!r.isMinor;if(birthWrap)birthWrap.style.display=r.isMinor?'block':'none';if(birth)birth.value=r.birthdate||'';const p=splitPhone(r.phone||'');const cc=$('#addCountryCode');if(cc)cc.value=p.code||'973';f.elements.phone.value=p.local||'';}
+  toast('راجع البيانات ثم احفظ العضو لاعتماد الطلب');
+}
+async function rejectRegistrationRequest(id){if(!confirm('رفض طلب التسجيل؟'))return;await CloudSync.updateRegistrationRequest(id,{status:'rejected',rejectedAt:new Date().toISOString()});logAudit('رفض','الأعضاء','طلب تسجيل عضوية');await loadRegistrationRequests();}
+function openApprovedRegistration(memberId){const m=members.find(x=>x.id===memberId);if(!m){toast('ملف العضو غير موجود على هذا الجهاز');return;}openCard(m.id);}
+function printRegistrationRequest(id){
+  const r=registrationRequests.find(x=>x._id===id);if(!r)return;const w=window.open('','_blank');if(!w)return;
+  const row=(a,b)=>`<tr><th>${a}</th><td>${escapeHtml(b||'—')}</td></tr>`;
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>طلب تسجيل عضوية</title><style>@page{size:A4;margin:18mm}body{font-family:Tahoma,Arial;color:#17352b}.head{text-align:center;border-bottom:3px double #c19a3e;padding:15px}.head img{max-width:200px;max-height:80px}table{width:100%;border-collapse:collapse;margin-top:22px}th,td{border:1px solid #d8dfdb;padding:11px;text-align:right}th{width:32%;background:#eef5f1}.no-print{margin-bottom:15px}@media print{.no-print{display:none}}</style></head><body><button class="no-print" onclick="print()">طباعة / حفظ PDF</button><div class="head"><img src="${HAIAA_LOGO}"><h2>استمارة طلب تسجيل عضوية</h2></div><table>${row('الاسم',r.name)}${row('الهاتف',r.phone)}${row('المنطقة',r.area)}${row('البريد الإلكتروني',r.email)}${row('العنوان',r.address)}${row('نوع العضوية المقترح',r.type)}${row('تاريخ الميلاد',r.birthdate)}${row('الملاحظات',r.notes)}${row('تاريخ الطلب',devFmt(r.createdAt))}${row('الحالة',r.status==='approved'?'مقبول':r.status==='rejected'?'مرفوض':'قيد المراجعة')}</table></body></html>`);w.document.close();w.focus();
 }
 /* ═══ دليل الأرقام (أعضاء + ممثّلو العوائل) بلا تكرار — يُفضَّل رقم العضو ═══ */
 function buildPhoneDirectory(){
@@ -9915,6 +9960,7 @@ function devId(p){ return p+'_'+Date.now()+'_'+Math.random().toString(36).slice(
 function devFmt(iso){ if(!iso) return '—'; try{return new Date(iso).toLocaleString('ar-BH');}catch(e){return iso;} }
 function devOpts(list,val){ return list.map(x=>`<option value="${escapeHtml(x)}"${x===val?' selected':''}>${escapeHtml(x)}</option>`).join(''); }
 function devVal(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function priorityClass(v){return v==='عاجلة'?'priority-urgent':v==='مهمة'?'priority-important':v==='مستقبلية'?'priority-future':'priority-normal';}
 function openDevCenter(tab='dashboard'){ openFullPage('devcenter'); devSwitch(tab); }
 function devSwitch(tab){ devCurrentTab=tab; devEditId=null; devShowArchived=false; devSearchQ=''; devStatusQ=''; if(tab==='ideas')devIdeaView='all'; $$('.dev-tab').forEach(b=>b.classList.toggle('active',b.dataset.devtab===tab)); renderDevCenter(); }
 function renderDevCenter(){
@@ -9997,7 +10043,7 @@ function renderDevDrafts(root){
   root.innerHTML=form+aiActions+devToolbar()+`<div class="dev-list" id="devList"></div>`;
   const q=devSearchQ.toLowerCase();
   const list=devDrafts.filter(x=>!!x.archived===devShowArchived&&(!q||((x.title||'')+' '+(x.problem||x.body||'')+' '+(x.area||x.category||'')+' '+(x.reason||'')).toLowerCase().includes(q))).sort((a,b)=>(Number(!!b.pinned)-Number(!!a.pinned))||(b.updatedAt||'').localeCompare(a.updatedAt||''));
-  $('#devList').innerHTML=list.length?list.map(x=>`<div class="dev-item"><div class="dev-item-head"><h3>${x.pinned?'📌 ':''}${escapeHtml(x.title||'تعديل بلا عنوان')}</h3><span class="dev-badge">${escapeHtml(x.importance||'عادية')}</span></div><div><span class="dev-badge">المكان: ${escapeHtml(x.area||x.category||'غير محدد')}</span></div><div class="dev-notes">${escapeHtml(x.problem||x.body||'')}</div>${x.reason?`<div class="dev-meta"><b>السبب:</b> ${escapeHtml(x.reason)}</div>`:''}${x.notes?`<div class="dev-meta"><b>ملاحظات:</b> ${escapeHtml(x.notes)}</div>`:''}<div class="dev-meta">آخر تعديل: ${devFmt(x.updatedAt)}</div><div class="dev-actions">${x.link?`<button class="btn btn-ghost btn-sm" onclick="window.open('${escapeHtml(x.link)}','_blank','noopener')">فتح المرفق</button>`:''}<button class="btn btn-ghost btn-sm" onclick="copyStoredDevDraftForAI('${x.id}')">نسخ للذكاء الاصطناعي</button><button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button><button class="btn btn-ghost btn-sm" onclick="devArchive('draft','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button></div></div>`).join(''):'<div class="empty"><div class="txt">لا توجد تعديلات مسجلة</div></div>';
+  $('#devList').innerHTML=list.length?list.map(x=>`<div class="dev-item"><div class="dev-item-head"><h3>${x.pinned?'📌 ':''}${escapeHtml(x.title||'تعديل بلا عنوان')}</h3><span class="priority-badge ${priorityClass(x.importance||'عادية')}">${escapeHtml(x.importance||'عادية')}</span></div><div><span class="dev-badge">المكان: ${escapeHtml(x.area||x.category||'غير محدد')}</span></div><div class="dev-notes">${escapeHtml(x.problem||x.body||'')}</div>${x.reason?`<div class="dev-meta"><b>السبب:</b> ${escapeHtml(x.reason)}</div>`:''}${x.notes?`<div class="dev-meta"><b>ملاحظات:</b> ${escapeHtml(x.notes)}</div>`:''}<div class="dev-meta">آخر تعديل: ${devFmt(x.updatedAt)}</div><div class="dev-actions">${x.link?`<button class="btn btn-ghost btn-sm" onclick="window.open('${escapeHtml(x.link)}','_blank','noopener')">فتح المرفق</button>`:''}<button class="btn btn-ghost btn-sm" onclick="copyStoredDevDraftForAI('${x.id}')">نسخ للذكاء الاصطناعي</button><button class="btn btn-ghost btn-sm" onclick="devEditId='${x.id}';renderDevCenter()">تعديل</button><button class="btn btn-ghost btn-sm" onclick="devArchive('draft','${x.id}')">${x.archived?'إعادة من الأرشيف':'أرشفة'}</button>${x.archived?`<button class="btn btn-danger btn-sm" onclick="devDeleteForever('draft','${x.id}')">حذف نهائي</button>`:''}</div></div>`).join(''):'<div class="empty"><div class="txt">لا توجد تعديلات مسجلة</div></div>';
 }
 function draftFormData(){return {title:devVal('ddTitle'),area:devVal('ddArea')||'مكان آخر',importance:devVal('ddImportance')||'عادية',problem:devVal('ddProblem'),reason:devVal('ddReason'),notes:devVal('ddNotes'),link:devVal('ddLink'),pinned:!!($('#ddPinned')&&$('#ddPinned').checked)};}
 async function saveDevDraft(silent=false){const data=draftFormData();if(!data.problem){if(!silent)toast('اكتب المشكلة أو التعديل المطلوب أولاً');return;}const now=new Date().toISOString();let x=devDrafts.find(v=>v.id===devEditId);if(!x){x={id:devId('draft'),createdAt:now,archived:false};devDrafts.push(x);devEditId=x.id;}Object.assign(x,data,{body:data.problem,updatedAt:now});await saveDevDrafts();if(silent){const s=$('#draftSaveState');if(s)s.textContent='حُفظ تلقائياً: '+devFmt(now);}else{devEditId=null;renderDevCenter();toast('تم حفظ طلب التعديل');}}
@@ -10028,6 +10074,23 @@ function renderCandidates(root){
 async function saveCandidate(){const name=devVal('dcName');if(!name){toast('الاسم مطلوب');return;}const raw=toEnglishDigits(devVal('dcPhone')).replace(/\D/g,'');const phone=raw?'+'+(devVal('dcCode')||'973')+raw:'';if(phone){const dup=members.find(m=>normalizePhone(m.phone)===normalizePhone(phone));if(dup){toast(`الرقم موجود في ملف العضو: ${dup.name}`);return;}const other=memberCandidates.find(x=>x.id!==devEditId&&x.phone&&normalizePhone(x.phone)===normalizePhone(phone));if(other){toast(`الرقم موجود لدى الاسم: ${other.name}`);return;}}const now=new Date().toISOString();let x=memberCandidates.find(v=>v.id===devEditId);if(!x){x={id:devId('candidate'),createdAt:now,archived:false,memberId:null,convertedAt:null};memberCandidates.push(x);}let status=devVal('dcStatus');if(phone&&status==='اسم جديد')status='تم الحصول على الرقم';Object.assign(x,{name,phone,area:devVal('dcArea'),email:devVal('dcEmail'),address:devVal('dcAddress'),type:devVal('dcType')||'عادي',owner:devVal('dcOwner'),notes:devVal('dcNotes'),status,updatedAt:now});await saveMemberCandidates();devEditId=null;renderDevCenter();toast('تم حفظ الاسم والبيانات');}
 function convertCandidate(id){const x=memberCandidates.find(v=>v.id===id);if(!x||!x.phone){toast('أضف رقم الهاتف أولاً');return;}const dup=members.find(m=>normalizePhone(m.phone)===normalizePhone(x.phone));if(dup){toast(`الرقم موجود في ملف العضو: ${dup.name}`);return;}openAddMember();pendingCandidateId=id;const f=$('#addForm');if(f){f.elements.name.value=x.name||'';f.elements.area.value=x.area||'';f.elements.email.value=x.email||'';f.elements.address.value=x.address||'';if(x.type)f.elements.type.value=x.type;const p=splitPhone(x.phone);const cc=$('#addCountryCode');if(cc)cc.value=p.code||'973';f.elements.phone.value=p.local||'';}toast('أكمل البيانات ثم احفظ العضو الرسمي');}
 async function devArchive(kind,id){let arr,save;if(kind==='idea'){arr=devIdeas;save=saveDevIdeas;}else if(kind==='draft'){arr=devDrafts;save=saveDevDrafts;}else if(kind==='update'){arr=devUpdates;save=saveDevUpdates;}else if(kind==='version'){arr=devVersions;save=saveDevVersions;}else{arr=memberCandidates;save=saveMemberCandidates;}const x=arr.find(v=>v.id===id);if(!x)return;if(kind==='version'&&x.approved&&!x.archived){toast('اعتمد نسخة أخرى قبل أرشفة النسخة الحالية');return;}x.archived=!x.archived;x.updatedAt=new Date().toISOString();await save();renderDevCenter();toast(x.archived?'تمت الأرشفة':'تمت الإعادة من الأرشيف');}
+async function devDeleteForever(kind,id){
+  let arr,save,collection;
+  if(kind==='idea'){arr=devIdeas;save=saveDevIdeas;collection='devIdeas';}
+  else if(kind==='draft'){arr=devDrafts;save=saveDevDrafts;collection='devDrafts';}
+  else if(kind==='update'){arr=devUpdates;save=saveDevUpdates;collection='devUpdates';}
+  else if(kind==='version'){arr=devVersions;save=saveDevVersions;collection='devVersions';}
+  else{arr=memberCandidates;save=saveMemberCandidates;collection='memberCandidates';}
+  const x=arr.find(v=>v.id===id); if(!x||!x.archived){toast('يجب أرشفة السجل قبل حذفه');return;}
+  if(kind==='version'&&x.approved){toast('لا يمكن حذف النسخة المعتمدة');return;}
+  if(!confirm('حذف هذا السجل نهائياً؟ لا يمكن التراجع.'))return;
+  const typed=prompt('للتأكيد اكتب: حذف'); if((typed||'').trim()!=='حذف'){toast('أُلغي الحذف');return;}
+  const i=arr.findIndex(v=>v.id===id); if(i<0)return; arr.splice(i,1);
+  await storage.set(collection,JSON.stringify(arr));
+  if(window.CloudSync&&CloudSync.deleteRecord) await CloudSync.deleteRecord(collection,id);
+  logAudit('حذف','مركز التطوير',`${kind}: ${x.title||x.name||id}`);
+  renderDevCenter(); toast('تم الحذف النهائي');
+}
 
 /* ═══════════ Init ═══════════ */
 function fillCountrySelects(){

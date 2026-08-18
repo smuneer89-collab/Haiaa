@@ -1958,6 +1958,10 @@
   .dev-form{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px;background:var(--surface)}.dev-form h3{margin:0 0 12px}.dev-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dev-form-grid .full{grid-column:1/-1}
   .dev-form input,.dev-form select,.dev-form textarea{position:relative;z-index:1;pointer-events:auto!important;touch-action:manipulation;-webkit-user-select:text;user-select:text}
   .dev-form textarea{min-height:110px;line-height:1.8;resize:vertical}
+  .priority-badge{display:inline-block;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;border:1px solid transparent}
+  .priority-urgent{background:#fde8e8;color:#b42318;border-color:#f5b7b1}.priority-important{background:#e8f1ff;color:#175cd3;border-color:#b2ccff}.priority-normal{background:#fff4cc;color:#8a6500;border-color:#f2d675}.priority-future{background:#e5f6ec;color:#177245;border-color:#a6dfbd}
+  .reg-request{border:1px solid var(--line);border-radius:13px;padding:13px;margin-top:10px;background:var(--surface)}
+  .reg-request.approved{border-color:var(--ok);background:var(--ok-soft)}.reg-request.rejected{opacity:.7}
   .idea-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
   .idea-page-head h3{margin:0 0 4px;font-size:18px}.idea-page-head p{margin:0;color:var(--muted);font-size:13px}
   .idea-view-switch{display:flex;gap:7px;flex-wrap:wrap}.idea-view-switch .btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
@@ -2929,7 +2933,21 @@
       </div>
     </details>
 
-    <!-- ⑤ استمارة فارغة -->
+    <!-- ⑤ رابط تسجيل العضوية والطلبات -->
+    <details class="set-acc" id="registrationAcc" ontoggle="if(this.open) loadRegistrationRequests()">
+      <summary class="set-sum"><span class="ss-ic">📝</span><span class="ss-txt"><b>رابط تسجيل العضوية</b><small>تفعيل الرابط، مراجعة الطلبات، الاعتماد والطباعة</small></span><span class="ss-arrow">›</span></summary>
+      <div class="set-body">
+        <label class="switch-row"><span><b>استقبال طلبات التسجيل</b><small>عند التعطيل تظهر رسالة بأن التسجيل مغلق</small></span><label class="switch"><input type="checkbox" id="registrationEnabled" onchange="setRegistrationEnabled(this.checked)"><span class="slider"></span></label></label>
+        <div class="actions-row">
+          <button class="btn btn-primary btn-sm" onclick="copyRegistrationLink()">نسخ رابط التسجيل</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.open(registrationPageURL(),'_blank','noopener')">معاينة الرابط</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadRegistrationRequests()">تحديث الطلبات</button>
+        </div>
+        <div id="registrationRequests"><div class="note">افتح هذا القسم لجلب طلبات التسجيل.</div></div>
+      </div>
+    </details>
+
+    <!-- ⑥ استمارة فارغة -->
     <details class="set-acc">
       <summary class="set-sum"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg></span><span class="ss-txt"><b>استمارة تسجيل عضو (فارغة)</b><small>للتعبئة اليدوية ثم الإدخال لاحقاً</small></span><span class="ss-arrow">›</span></summary>
       <div class="set-body">
@@ -2942,7 +2960,7 @@
       </div>
     </details>
 
-    <!-- ⑥ السحابة — بالأسفل -->
+    <!-- ⑦ السحابة — بالأسفل -->
     <details class="set-acc cloud-acc" id="cloudAcc">
       <summary class="set-sum" onclick="return guardCloudClick(event)"><span class="ss-ic"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><span class="ss-txt"><b>السحابة والمزامنة</b><small>محمية برقم سري — للمسؤول فقط</small></span><span class="cloud-status offline" id="cloudStatus">غير متصل</span><span class="ss-arrow">›</span></summary>
       <div class="set-body" id="cloudBody">
