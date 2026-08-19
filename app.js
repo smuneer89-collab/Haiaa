@@ -10112,6 +10112,8 @@ async function openRegistrationRequestFromURL(){
 window.addEventListener('cloud-ready',openRegistrationRequestFromURL);
 (async ()=>{
   await loadData();
+  window.__appDataReady=true;
+  try{window.dispatchEvent(new CustomEvent('app-data-ready'));}catch(e){}
   if(window.CloudSync) CloudSync.reapply();   // بيانات السحابة لها الأولوية
   applyDarkMode();
   fillHeaderDates();

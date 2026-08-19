@@ -48,11 +48,35 @@ const CloudSync = (() => {
   let applyingRemote = false;
   let allowBigDelete = false;
   let pendingPush = {};
+  let pendingLocal = {};
+  const localRevision = {};
+  const DIRTY_KEY = 'husain_cloud_dirty_v14';
+  let dirtyNames = new Set();
+  try{ dirtyNames = new Set(JSON.parse(localStorage.getItem(DIRTY_KEY)||'[]')); }catch(e){}
+  let rescueMode = true;
+  try{ rescueMode = localStorage.getItem('husain_cloud_rescue_v14')!=='done'; }catch(e){}
   const uploadedOnce = {};   // منع تكرار الرفع التلقائي لكل مجموعة
   const protectedCenter = new Set(['devIdeas','devDrafts','devUpdates','devVersions','memberCandidates']);
   const protectedInitialized = {};
   const ADMIN_EMAILS = ['smuneer89@gmail.com', 'abuyusufjoud@gmail.com'];
   const LINK_TIMEOUT_MS = 15000;
+
+  function cloneData(v){ try{return JSON.parse(JSON.stringify(v));}catch(e){return Array.isArray(v)?v.slice():v;} }
+  function persistDirty(){ try{localStorage.setItem(DIRTY_KEY,JSON.stringify([...dirtyNames]));}catch(e){} }
+  function markDirty(name){ dirtyNames.add(name); persistDirty(); }
+  function clearDirty(name){ dirtyNames.delete(name); persistDirty(); }
+  function mergeRemoteLocal(remote,local,localWins){
+    const map=new Map();
+    (remote||[]).forEach(x=>{if(x&&x.id!=null)map.set(String(x.id),x);});
+    (local||[]).forEach(x=>{
+      if(!x||x.id==null)return; const id=String(x.id),old=map.get(id);
+      if(!old){map.set(id,x);return;}
+      if(localWins){map.set(id,x);return;}
+      const lt=String(x.updatedAt||x.createdAt||''),rt=String(old.updatedAt||old.createdAt||'');
+      if(lt&&lt>rt)map.set(id,x);
+    });
+    return [...map.values()];
+  }
 
   function withTimeout(promise, ms, code){
     let timer;
@@ -159,7 +183,9 @@ const CloudSync = (() => {
     ready = true;
     setStatus('syncing','جارٍ المزامنة…');
     const who=document.getElementById('cloudUser'); if(who) who.textContent=u.email||'';
-    attachListeners();
+    const begin=()=>{ if(ready&&user===u) attachListeners(); };
+    if(window.__appDataReady) begin();
+    else window.addEventListener('app-data-ready',begin,{once:true});
   }
 
   function onSignedOut(){
@@ -192,8 +218,21 @@ const CloudSync = (() => {
           if(item){ arr.push(item); cache[doc.id]=JSON.stringify(item); }
         });
         writeCache[name]=cache;
-        applyRemote(name, arr);
+        const hasLocalWork=dirtyNames.has(name)||rescueMode;
+        if(hasLocalWork){
+          const local=cloneData(pendingLocal[name]||((CLOUD_COLLECTIONS[name]&&CLOUD_COLLECTIONS[name]())||[]));
+          const merged=mergeRemoteLocal(arr,local,dirtyNames.has(name));
+          applyRemote(name,merged);
+          if(JSON.stringify(merged)!==JSON.stringify(arr)){
+            pendingLocal[name]=cloneData(merged); localRevision[name]=(localRevision[name]||0)+1; markDirty(name);
+            const rev=localRevision[name]; clearTimeout(pendingPush[name]); pendingPush[name]=setTimeout(()=>doPush(name,pendingLocal[name],rev),120);
+          }else if(dirtyNames.has(name)){
+            pendingLocal[name]=cloneData(merged); localRevision[name]=(localRevision[name]||0)+1;
+            const rev=localRevision[name]; clearTimeout(pendingPush[name]); pendingPush[name]=setTimeout(()=>doPush(name,pendingLocal[name],rev),120);
+          }
+        }else applyRemote(name, arr);
         if(++firstDone>=total){ setStatus('ok','متصل');
+          if(rescueMode){rescueMode=false;try{localStorage.setItem('husain_cloud_rescue_v14','done');}catch(e){}}
           try{ window.dispatchEvent(new CustomEvent('cloud-ready')); }catch(e){} }
       }, err => { console.error('snapshot '+name, err); setStatus('offline','تعذّر الوصول — تحقّق من الصلاحيات'); });
       unsubs.push(un);
@@ -201,7 +240,7 @@ const CloudSync = (() => {
 
     // المالية: مستند واحد
     const unF = db.collection('meta').doc('finance').onSnapshot(doc => {
-      if(doc.exists){
+      if(doc.exists && !dirtyNames.has('__finance')){
         const d=doc.data();
         try{ const f = d && typeof d.j==='string' ? JSON.parse(d.j) : null;
           if(f){ applyingRemote=true; finance=Object.assign({total:0,yearStart:0,expenses:[]},f);
@@ -209,6 +248,7 @@ const CloudSync = (() => {
             if(typeof refreshFinanceViews==='function') refreshFinanceViews(); }
         }catch(e){}
       }
+      if(dirtyNames.has('__finance')) setTimeout(()=>pushFinance(),80);
     }, err => console.error('snapshot finance', err));
     unsubs.push(unF);
 
@@ -218,7 +258,7 @@ const CloudSync = (() => {
         const d=doc.data();
         try{
           const s = d && typeof d.j==='string' ? JSON.parse(d.j) : null;
-          if(s){
+          if(s && !dirtyNames.has('__settings')){
             applyingRemote=true;
             settings = { ...settings, ...s,
               counters:{...settings.counters, ...(s.counters||{})},
@@ -229,7 +269,9 @@ const CloudSync = (() => {
           }
         }catch(e){}
       }
+      if(dirtyNames.has('__settings')) setTimeout(()=>pushSettings(),80);
       if(++firstDone>=total){ setStatus('ok','متصل');
+        if(rescueMode){rescueMode=false;try{localStorage.setItem('husain_cloud_rescue_v14','done');}catch(e){}}
         try{ window.dispatchEvent(new CustomEvent('cloud-ready')); }catch(e){} }
     }, err => console.error('snapshot settings', err));
     unsubs.push(un2);
@@ -266,7 +308,7 @@ const CloudSync = (() => {
       }catch(e){}
     }
     lastRemote[name] = arr;
-    if(pendingPush[name]){ clearTimeout(pendingPush[name]); delete pendingPush[name]; }
+    // لا نلغي الرفع المحلي المعلّق عند وصول لقطة سحابية؛ الإلغاء كان يفقد آخر تعديل.
     // ── حماية: السحابة فاضية والجهاز فيه بيانات ⇒ لا تمسح، بل ارفع المحلي ──
     try{
       const localArr = (CLOUD_COLLECTIONS[name] && CLOUD_COLLECTIONS[name]()) || [];
@@ -341,12 +383,16 @@ const CloudSync = (() => {
 
   /* ── الدفع إلى السحابة (فروق فقط) ── */
   function push(name, arr){
+    pendingLocal[name]=cloneData(arr||[]);
+    localRevision[name]=(localRevision[name]||0)+1;
+    const rev=localRevision[name]; markDirty(name);
+    setStatus('syncing',ready?'جارٍ حفظ التغييرات…':'محفوظ على الجهاز — بانتظار المزامنة');
     if(!ready || applyingRemote) return;
     clearTimeout(pendingPush[name]);
-    pendingPush[name]=setTimeout(()=>doPush(name, arr), 400);
+    pendingPush[name]=setTimeout(()=>doPush(name, pendingLocal[name], rev), 250);
   }
 
-  async function doPush(name, arr){
+  async function doPush(name, arr, rev=null){
     if(!ready || !db) return;
     // حماية: لا نسمح بحذف أكثر من نصف السجلات دفعة واحدة (يمنع المسح العرضي)
     const known = Object.keys(writeCache[name]||{}).length;
@@ -379,18 +425,26 @@ const CloudSync = (() => {
         if(++ops >= 400){ await batch.commit(); batch = db.batch(); ops = 0; }
       }
       if(ops) await batch.commit();
-    }catch(e){ console.error('push '+name, e); }
+      if(rev!==null && rev===localRevision[name]){ clearDirty(name); delete pendingLocal[name]; delete pendingPush[name]; }
+      setStatus('ok','متصل');
+    }catch(e){
+      console.error('push '+name, e); writeCache[name]={};
+      if(rev!==null && rev===localRevision[name]){ clearTimeout(pendingPush[name]); pendingPush[name]=setTimeout(()=>doPush(name,pendingLocal[name]||arr,rev),3000); }
+      setStatus('offline','تعذّرت المزامنة — ستُعاد المحاولة');
+    }
   }
 
   async function pushSettings(){
+    markDirty('__settings');
     if(!ready || applyingRemote || !db) return;
-    try{ await db.collection('meta').doc('settings').set({ j: JSON.stringify(settings) }); }
-    catch(e){ console.error('push settings', e); }
+    try{ await db.collection('meta').doc('settings').set({ j: JSON.stringify(settings) }); clearDirty('__settings'); }
+    catch(e){ console.error('push settings', e); setTimeout(()=>pushSettings(),3000); }
   }
   async function pushFinance(){
+    markDirty('__finance');
     if(!ready || applyingRemote || !db) return;
-    try{ await db.collection('meta').doc('finance').set({ j: JSON.stringify(finance) }); }
-    catch(e){ console.error('push finance', e); }
+    try{ await db.collection('meta').doc('finance').set({ j: JSON.stringify(finance) }); clearDirty('__finance'); }
+    catch(e){ console.error('push finance', e); setTimeout(()=>pushFinance(),3000); }
   }
   async function deleteRecord(name,id){
     if(!ready||!db||!protectedCenter.has(name)) throw new Error('cloud not ready');
