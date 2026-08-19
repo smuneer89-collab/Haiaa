@@ -1220,11 +1220,15 @@ function renderAsmElection(){
       <div class="el-url">${escapeHtml(url)}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" style="flex:1" onclick="copyElecLink()">${icon('link',15,'ico-btn')} نسخ الرابط</button>
-        <button class="btn btn-sm" style="flex:1;background:#25d366;color:#fff;border:none" onclick="openSendList()">
-          ${icon('mail',15,'ico-btn')} إرسال للحاضرين</button>
+        <button class="btn btn-sm" style="flex:1;background:#25d366;color:#fff;border:none" onclick="copyElecInstructions()">
+          ${icon('mail',15,'ico-btn')} نسخ الرسالة التعليمية</button>
       </div>
     </div>
     <div class="el-live" id="elecLive"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">
+      <button class="btn btn-primary btn-sm" style="flex:1" onclick="openElectionTV('monitor')">فتح شاشة متابعة التصويت</button>
+      ${e.closed?`<button class="btn btn-accent btn-sm" style="flex:1" onclick="openElectionTV('ceremony')">بدء حفل إعلان النتائج</button>`:''}
+    </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-accent btn-sm" style="flex:1" onclick="showAsmResults()">${icon('chart',15,'ico-btn')} النتائج</button>
       <button class="btn btn-sm" style="flex:1;${e.closed?'background:var(--ok);':'background:var(--danger);'}color:#fff;border:none" onclick="toggleElecClosed()">
@@ -1395,6 +1399,38 @@ function copyElecLink(){
     try{ document.execCommand('copy'); done(); }catch(_){} document.body.removeChild(t);
   });
 }
+function electionInstructionText(url){
+  return `📋 *خطوات المشاركة في الانتخابات*
+
+1️⃣ انسخ رقم العضوية المُرسَل إليك مسبقًا.
+
+2️⃣ افتح رابط الانتخابات الموجود أدناه.
+
+3️⃣ الصق رقم العضوية، ثم اضغط على «متابعة».
+
+4️⃣ اختر المرشحين، وتأكد من اختياراتك قبل المتابعة.
+
+5️⃣ اضغط على «إرسال» لإتمام عملية التصويت.
+
+🔗 *وصلة الانتخابات:*
+${url}`;
+}
+function copyTextSafe(text, message){
+  const done=()=>toast(message||'تم النسخ');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>copyTextFallback(text,done));
+  }else copyTextFallback(text,done);
+}
+function copyTextFallback(text,done){
+  const t=document.createElement('textarea'); t.value=text; t.style.position='fixed'; t.style.opacity='0';
+  document.body.appendChild(t); t.select();
+  try{ document.execCommand('copy'); done(); }catch(_){ prompt('انسخ النص:',text); }
+  document.body.removeChild(t);
+}
+function copyElecInstructions(){
+  const e=asmElec(); if(!e||!e.cloudId) return;
+  copyTextSafe(electionInstructionText(electionPageURL(e.cloudId)),'نُسخت الرسالة التعليمية مع الرابط');
+}
 async function toggleElecClosed(){
   const a=getAssembly(); const e=a?a.election:null; if(!e||!e.cloudId) return;
   const next=!e.closed;
@@ -1436,6 +1472,73 @@ function computeResults(e, ballots){
     const tie=rows.filter(r=>r.votes===mx).length>1 && mx>0;
     return { comm:c, acclaim:null, rows, tie, max:mx, skipped: only?!only.includes(c.id):false };
   });
+}
+/* شاشة تلفاز مستقلة: متابعة المشاركة ثم حفل إعلان النتائج */
+let electionTVWindow=null;
+function openElectionTV(mode){
+  const a=getAssembly(), e=a?a.election:null; if(!a||!e||!e.cloudId) return;
+  if(mode==='ceremony'&&!e.closed){ toast('أغلق التصويت قبل إعلان النتائج'); return; }
+  const w=window.open('','election_tv','popup=yes');
+  if(!w){ toast('اسمح بالنوافذ المنبثقة لفتح شاشة التلفاز'); return; }
+  electionTVWindow=w;
+  w.document.open(); w.document.write(electionTVShell(a,e,mode)); w.document.close(); w.focus();
+  w.electionTVContext={assemblyId:a.id,electionId:e.cloudId,mode,lastCount:-1,started:false};
+  w.electionTVRefresh=()=>refreshElectionTV(w);
+  w.electionTVRefresh();
+  w.electionTVTimer=w.setInterval(w.electionTVRefresh,3000);
+}
+function electionTVShell(a,e,mode){
+  const url=electionPageURL(e.cloudId);
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>انتخابات هيئة محبي الحسين</title><style>
+  :root{--green:#123f32;--gold:#d5ad54;--ink:#f8f4e8;--muted:#b9c9c2}*{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0,#245c49 0,#0c2e26 45%,#071d19 100%);color:var(--ink);font-family:Tahoma,Arial,sans-serif;overflow:hidden}
+  body:before{content:'';position:fixed;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(213,173,84,.06),transparent 70%);pointer-events:none}
+  .screen{min-height:100vh;padding:4vh 5vw;display:flex;flex-direction:column;position:relative}.top{display:flex;align-items:center;justify-content:space-between;gap:24px;border-bottom:1px solid rgba(213,173,84,.35);padding-bottom:2.5vh}
+  h1{font-size:clamp(28px,4vw,64px);margin:0}.sub{font-size:clamp(15px,1.6vw,25px);color:var(--gold);margin-top:8px}.qr{width:min(14vw,170px);background:#fff;padding:8px;border-radius:18px}.qr img{width:100%;display:block}.main{flex:1;display:grid;place-items:center}.panel{width:min(1200px,92vw);text-align:center}
+  .status{display:inline-flex;align-items:center;gap:12px;background:rgba(255,255,255,.09);border:1px solid rgba(213,173,84,.35);padding:12px 28px;border-radius:99px;font-size:clamp(18px,2vw,30px);font-weight:700}.pulse{width:13px;height:13px;border-radius:50%;background:#54d795;box-shadow:0 0 0 0 rgba(84,215,149,.65);animation:pulse 1.7s infinite}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin:5vh 0 3vh}.stat{background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.13);border-radius:24px;padding:3vh 18px;box-shadow:0 18px 55px rgba(0,0,0,.2)}.n{font-size:clamp(50px,7vw,112px);font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums}.l{font-size:clamp(15px,1.5vw,24px);color:var(--muted);margin-top:12px}
+  .progress{height:clamp(24px,3.2vh,42px);background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;border:1px solid rgba(255,255,255,.13)}.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#36b87c,#78e7ad);border-radius:inherit;transition:width 1s cubic-bezier(.2,.8,.2,1)}.pct{font-size:clamp(24px,3vw,48px);font-weight:800;color:var(--gold);margin-top:15px}.notice{height:36px;margin-top:14px;color:#8ff0bb;font-size:clamp(16px,1.5vw,24px);opacity:0;transition:.25s}.notice.show{opacity:1}
+  .countdown{font-size:min(32vw,340px);font-weight:900;color:var(--gold);animation:pop .85s both}.result-title{font-size:clamp(34px,5vw,76px);margin:0 0 4vh;color:var(--gold)}.candidate{margin:2vh 0;text-align:right}.ctop{display:flex;justify-content:space-between;align-items:center;font-size:clamp(18px,2.2vw,35px);font-weight:700}.cbar{height:clamp(24px,3.2vh,42px);background:rgba(255,255,255,.11);border-radius:99px;overflow:hidden;margin-top:9px}.cbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#b8913d,#e4c77a);border-radius:inherit;transition:width 1.8s cubic-bezier(.16,1,.3,1)}.candidate.win .ctop{color:#82eeb2}.candidate.win .cbar i{background:linear-gradient(90deg,#259b66,#7be5ae)}.tag{font-size:.55em;background:#269768;color:#fff;border-radius:99px;padding:5px 15px;margin-right:12px}.special{font-size:clamp(25px,4vw,62px);background:rgba(255,255,255,.08);border:1px solid rgba(213,173,84,.4);border-radius:26px;padding:5vh}.final{display:grid;grid-template-columns:1fr 1fr;gap:18px;text-align:right}.winner{font-size:clamp(17px,2vw,30px);padding:18px 22px;border-radius:16px;background:rgba(255,255,255,.08);border-right:5px solid var(--gold)}.foot{display:flex;justify-content:space-between;color:var(--muted);font-size:clamp(12px,1.1vw,18px)}
+  @keyframes pulse{70%{box-shadow:0 0 0 18px rgba(84,215,149,0)}}@keyframes pop{0%{transform:scale(.35);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}@keyframes flash{50%{filter:brightness(1.7)}}.flash{animation:flash .6s}
+  @media(max-width:700px){.stats{gap:8px}.stat{padding:22px 8px}.qr{width:110px}.final{grid-template-columns:1fr}}
+  </style></head><body><main class="screen"><header class="top"><div><h1>انتخابات هيئة محبي الحسين</h1><div class="sub">الجمعية العمومية ${escapeHtml(a.year)}${Number(e.round||1)>1?` · الجولة ${e.round}`:''}</div></div>${mode==='monitor'?`<div class="qr"><img src="${qrImgURL(url,400)}" alt="رمز رابط التصويت"></div>`:''}</header><section class="main"><div class="panel" id="tvBody"><div class="status">جارٍ تحميل البيانات…</div></div></section><footer class="foot"><span>هيئة محبي الحسين (ع)</span><span>${mode==='monitor'?'شاشة متابعة التصويت':'حفل إعلان النتائج'}</span></footer></main></body></html>`;
+}
+async function refreshElectionTV(w){
+  if(!w||w.closed||!w.electionTVContext) return;
+  const ctx=w.electionTVContext, a=assemblies.find(x=>x.id===ctx.assemblyId), e=a&&a.election;
+  if(!a||!e) return;
+  try{
+    const [remote,ballots]=await Promise.all([CloudSync.fetchElection(ctx.electionId),CloudSync.fetchBallots(ctx.electionId,e.round||1)]);
+    const closed=!!(remote&&remote.closed); e.closed=closed;
+    if(ctx.mode==='monitor') renderElectionTVMonitor(w,a,e,ballots,closed);
+    else if(!ctx.started){ ctx.started=true; w.clearInterval(w.electionTVTimer); runElectionCeremony(w,a,e,ballots); }
+  }catch(err){ const b=w.document.getElementById('tvBody'); if(b) b.innerHTML='<div class="special">تعذّر تحديث البيانات<br><small>سيُعاد الاتصال تلقائيًا</small></div>'; }
+}
+function renderElectionTVMonitor(w,a,e,ballots,closed){
+  const b=w.document.getElementById('tvBody'); if(!b) return;
+  if(closed){ b.innerHTML='<div class="special">انتهى التصويت<br><small style="color:var(--muted)">جارٍ اعتماد وفرز النتائج…</small></div>'; return; }
+  const total=(a.attendees||[]).length, voted=ballots.length, remaining=Math.max(0,total-voted), pct=total?Math.min(100,Math.round(voted/total*100)):0;
+  const old=w.electionTVContext.lastCount, isNew=old>=0&&voted>old; w.electionTVContext.lastCount=voted;
+  b.innerHTML=`<div class="status"><span class="pulse"></span> التصويت مفتوح الآن</div><div class="stats"><div class="stat"><div class="n">${total}</div><div class="l">الحاضرون الذين يحق لهم الدخول</div></div><div class="stat ${isNew?'flash':''}"><div class="n">${voted}</div><div class="l">تم التصويت</div></div><div class="stat"><div class="n">${remaining}</div><div class="l">المتبقون</div></div></div><div class="progress ${isNew?'flash':''}"><i style="width:${pct}%"></i></div><div class="pct">نسبة المشاركة ${pct}%</div><div class="notice ${isNew?'show':''}">✓ تم استلام صوت جديد</div>`;
+}
+function tvWait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function runElectionCeremony(w,a,e,ballots){
+  const b=w.document.getElementById('tvBody'); if(!b) return;
+  b.innerHTML='<div class="special">انتهى التصويت<br><small style="color:var(--muted)">جارٍ اعتماد وفرز النتائج…</small></div>'; await tvWait(1800);
+  for(const n of [3,2,1]){ if(w.closed)return; b.innerHTML=`<div class="countdown">${n}</div>`; await tvWait(950); }
+  const res=computeResults(e,ballots).filter(r=>!r.skipped);
+  for(const r of res){
+    if(w.closed)return;
+    if(r.acclaim){ b.innerHTML=`<h2 class="result-title">${escapeHtml(r.comm.name)}</h2><div class="special"><b>${escapeHtml(r.acclaim.name)}</b><br><span style="color:#82eeb2">فائز بالتزكية</span></div>`; await tvWait(4500); continue; }
+    if(r.tie){ b.innerHTML=`<h2 class="result-title">${escapeHtml(r.comm.name)}</h2><div class="special">تعادل في ${escapeHtml(r.comm.name)}<br><span style="color:var(--gold)">يلزم إجراء جولة إعادة</span></div>`; await tvWait(5000); continue; }
+    const mx=Math.max(1,r.max||0);
+    b.innerHTML=`<h2 class="result-title">${escapeHtml(r.comm.name)}</h2>${r.rows.map(x=>`<div class="candidate ${(x.votes===r.max&&r.max>0)?'win':''}"><div class="ctop"><span>${escapeHtml(x.name)}${(x.votes===r.max&&r.max>0)?'<span class="tag">🏆 الفائز</span>':''}</span><b>${x.votes}</b></div><div class="cbar"><i data-width="${Math.round(x.votes/mx*100)}%"></i></div></div>`).join('')}`;
+    await tvWait(200); w.document.querySelectorAll('.cbar i').forEach(x=>x.style.width=x.dataset.width); await tvWait(5200);
+  }
+  const winners=res.filter(r=>r.acclaim||(!r.tie&&r.max>0)).map(r=>({comm:r.comm.name,name:r.acclaim?r.acclaim.name:(r.rows.find(x=>x.votes===r.max)||{}).name}));
+  const valid=ballots.filter(x=>x.valid).length, invalid=ballots.length-valid, total=(a.attendees||[]).length, pct=total?Math.round(ballots.length/total*100):0;
+  b.innerHTML=`<h2 class="result-title">الفائزون في انتخابات الهيئة</h2><div class="final">${winners.map(x=>`<div class="winner"><b>${escapeHtml(x.comm)}</b><br><span style="color:#82eeb2">${escapeHtml(x.name||'—')}</span></div>`).join('')}</div><div class="stats" style="margin-top:4vh"><div class="stat"><div class="n" style="font-size:clamp(35px,5vw,75px)">${ballots.length}</div><div class="l">إجمالي المصوتين</div></div><div class="stat"><div class="n" style="font-size:clamp(35px,5vw,75px)">${valid}</div><div class="l">الأصوات الصحيحة</div></div><div class="stat"><div class="n" style="font-size:clamp(35px,5vw,75px)">${invalid}</div><div class="l">الأصوات الملغاة · المشاركة ${pct}%</div></div></div>`;
 }
 function showAsmResults(){ elecView='results'; renderAsmResults(); }
 function backToElecSetup(){ elecView='setup'; stopElecLive(); renderAsmElection(); }
@@ -9705,10 +9808,24 @@ function renderAsmAttendance(){
   $('#asmDonut').innerHTML=donutSVG(active,inactive);
   $('#asmAttendListCount').textContent=present.length;
   const el=$('#asmAttendList');
+  const codeSent=a.memberCodeSent||[];
   el.innerHTML=present.length?present.map(m=>`<div class="asm-attend-row">
     <div class="nm">${escapeHtml(m.name)}<small class="${isActive(m)?'badge-active':'badge-inactive'}">${isActive(m)?'مفعّل':'غير مفعّل'} · ${memberCode(m)}</small></div>
+    ${m.phone?`<button class="btn btn-sm" style="background:${codeSent.includes(m.id)?'var(--ok)':'#25d366'};color:#fff;border:none" onclick="sendAsmMemberCode('${m.id}')">
+      ${codeSent.includes(m.id)?icon('check',15,'ico-btn')+' أُرسل الرقم':WA_ICON+' إرسال الرقم'}</button>`
+      :'<span style="font-size:11px;color:var(--muted)">لا يوجد رقم هاتف</span>'}
     <button class="btn btn-ghost btn-sm" onclick="toggleAsmPresent('${m.id}')">إزالة</button>
   </div>`).join(''):'<div class="mtg-block-help" style="margin:0">لا حاضرين بعد — ابحث بالأعلى وسجّل الحضور.</div>';
+}
+/* إرسال رقم العضوية فقط للحاضر عبر واتساب */
+async function sendAsmMemberCode(mid){
+  const a=getAssembly(); const m=members.find(x=>x.id===mid);
+  if(!a||!m) return;
+  if(!m.phone){ toast('لا يوجد رقم هاتف لهذا العضو'); return; }
+  a.memberCodeSent=a.memberCodeSent||[];
+  if(!a.memberCodeSent.includes(mid)){ a.memberCodeSent.push(mid); await saveAssemblies(); }
+  window.open(whatsappLink(m.phone, memberCode(m)), '_blank');
+  renderAsmAttendance();
 }
 function renderAsmSearch(){
   const a=getAssembly(); if(!a) return;
