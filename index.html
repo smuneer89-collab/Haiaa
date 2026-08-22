@@ -2745,8 +2745,28 @@
             <div class="panel-sub" id="azaRcount">0 رادود</div></div>
           <button class="btn btn-primary" onclick="openAddRadood()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> إضافة رادود</button>
         </div>
+        <div style="margin:12px 0 14px;padding:14px;border:1px solid var(--line);border-right:3px solid var(--gold);border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div><b style="color:var(--accent)">تقييم الموسم العام</b><div style="font-size:12px;color:var(--muted);margin-top:3px">إنشاء رابط للمعزّين وعرض النتائج الخاصة بالإدارة</div></div>
+          <button class="btn btn-primary btn-sm" onclick="openIdara('seasonEval')"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> فتح تقييم الموسم</button>
+        </div>
         <input type="text" class="tath-search" id="radoodSearch" placeholder="ابحث عن رادود…" oninput="renderRadoods()" />
         <div id="radoodList" class="radood-list"></div>
+      </div>
+    </div>
+
+    <div id="idara-seasonEval" style="display:none">
+      <button class="btn btn-ghost btn-sm idara-back" onclick="openIdara('aza')">← رجوع للجنة العزاء</button>
+      <div class="panel">
+        <div class="panel-header"><div><h2 class="panel-title">تقييم الموسم العام</h2><div class="panel-sub">الرابط من داخل الموقع والنتائج خاصة بالإدارة</div></div></div>
+        <div class="form-grid">
+          <div class="field"><label>سنة الموسم</label><input id="seasonEvalYear" type="number" min="1400" max="1600" inputmode="numeric" placeholder="مثال: 1448"></div>
+          <div class="field" style="display:flex;align-items:end"><button class="btn btn-primary" style="width:100%" onclick="createSeasonEvalLink()">إنشاء رابط الاستمارة</button></div>
+        </div>
+        <div id="seasonEvalLinkResult" style="margin-top:12px"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><div><h2 class="panel-title">روابط المواسم والنتائج</h2><div class="panel-sub">لا تظهر هذه النتائج للعامة</div></div></div>
+        <div id="seasonEvalSessionsList"><div class="eval-link-note">جارٍ التحميل…</div></div>
       </div>
     </div>
 

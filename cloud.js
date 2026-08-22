@@ -578,6 +578,31 @@ const CloudSync = (() => {
     await batch.commit();
   }
 
+
+  // ═══ تقييم الموسم العام عبر الرابط ═══
+  async function createSeasonEvalSession(payload){ return createLinkSession('seasonEvalSessions', payload); }
+  async function fetchSeasonEvalSessions(){
+    if(!db) throw new Error('cloud not ready');
+    const snap=await db.collection('seasonEvalSessions').get();
+    const arr=snap.docs.map(d=>Object.assign({_id:d.id},d.data()));
+    arr.sort((a,b)=>(b.at||'').localeCompare(a.at||'')); return arr;
+  }
+  async function fetchSeasonEvalResponses(sessionId){
+    if(!db) throw new Error('cloud not ready');
+    const snap=await db.collection('seasonEvalResponses').where('sessionId','==',sessionId).get();
+    return snap.docs.map(d=>Object.assign({_id:d.id},d.data()));
+  }
+  async function setSeasonEvalSessionClosed(sessionId,closed){
+    if(!db) throw new Error('cloud not ready');
+    await db.collection('seasonEvalSessions').doc(sessionId).update({closed:!!closed});
+  }
+  async function deleteSeasonEvalSession(sessionId){
+    if(!db) throw new Error('cloud not ready');
+    const snap=await db.collection('seasonEvalResponses').where('sessionId','==',sessionId).get();
+    const batch=db.batch(); snap.docs.forEach(d=>batch.delete(d.ref));
+    batch.delete(db.collection('seasonEvalSessions').doc(sessionId)); await batch.commit();
+  }
+
   // ═══ الانتخابات ═══
   async function createElection(payload){
     if(!db) throw new Error('cloud not ready');
@@ -655,6 +680,7 @@ const CloudSync = (() => {
   return { init, signIn, signOut, push, pushSettings, pushFinance, deleteRecord, migrate, reapply, uploadLocal,
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
+           createSeasonEvalSession, fetchSeasonEvalSessions, fetchSeasonEvalResponses, setSeasonEvalSessionClosed, deleteSeasonEvalSession,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
            setRegistrationOpen, fetchRegistrationOpen, fetchRegistrationRequests, updateRegistrationRequest, deleteRegistrationRequest,
            createElection, updateElection, fetchElection, fetchBallots, deleteElection,

@@ -75,6 +75,23 @@ service cloud.firestore {
       allow read, update, delete: if allowed();
     }
 
+
+    // ═══ تقييم الموسم العام عبر رابط داخلي ═══
+    match /seasonEvalSessions/{sessionId} {
+      allow read: if true;
+      allow create, update, delete: if allowed();
+    }
+
+    match /seasonEvalResponses/{responseId} {
+      allow create: if request.resource.data.sessionId is string
+        && request.resource.data.year is string
+        && request.resource.data.answers is map
+        && request.resource.data.createdAt is string
+        && exists(/databases/$(database)/documents/seasonEvalSessions/$(request.resource.data.sessionId))
+        && get(/databases/$(database)/documents/seasonEvalSessions/$(request.resource.data.sessionId)).data.closed != true;
+      allow read, update, delete: if allowed();
+    }
+
     // ═══ باقي بيانات الهيئة: الإدارة فقط ═══
     match /{document=**} {
       allow read, write: if allowed();
