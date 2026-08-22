@@ -4,7 +4,7 @@
    • طلبات Firebase والخطوط: تمر مباشرة بلا تخزين ← لا تتعطّل المزامنة
    • بلا إنترنت: يرجع لآخر نسخة مخزّنة تلقائياً
 */
-const CACHE = 'husain-v16-season-eval';
+const CACHE = 'husain-v17-season-eval-pdf';
 
 const APP_SHELL = [
   './',

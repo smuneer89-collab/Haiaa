@@ -6471,8 +6471,57 @@ async function viewSeasonEvalResults(id,year){
     const textKeys=[['bestRadood','الرادود الأكثر تميزًا'],['wantedRadoodName','رادود مطلوب للموسم القادم'],['bestPoem','القصيدة الأكثر تأثيرًا'],['preferredTunes','الأطوار المفضلة'],['bestNight','أفضل ليلة ولماذا'],['likedMost','أكثر شيء أعجبهم'],['needsDevelopment','أكثر شيء يحتاج تطويرًا'],['keepNext','ما يتمنون المحافظة عليه']];
     const texts=textKeys.map(([k,l])=>{const vals=rows.map(r=>(r.answers||{})[k]).filter(Boolean);return vals.length?`<div class="box"><b>${l}</b><div style="margin-top:6px">${vals.map(v=>'• '+escapeHtml(v)).join('<br>')}</div></div>`:''}).join('');
     const picks={};rows.forEach(r=>((r.answers||{}).top3||[]).forEach(n=>picks[n]=(picks[n]||0)+1));const top=Object.entries(picks).sort((a,b)=>b[1]-a[1]);
-    box.innerHTML=`<div class="eval-results-box"><div class="erb-main"><div class="erb-pct">${rows.length}</div><div class="erb-sub">مشارك · ${escapeHtml(year)}</div></div>${ratings?`<table class="rep-tbl" style="width:100%;margin-top:12px"><tbody>${ratings}</tbody></table>`:''}${top.length?`<div class="box"><b>أفضل الرواديد حسب اختيار المشاركين</b><div style="margin-top:6px">${top.map(([n,c],i)=>`${i+1}. ${escapeHtml(n)} — ${c} اختيار`).join('<br>')}</div></div>`:''}${texts}</div>`;
+    box.innerHTML=`<div class="eval-results-box"><div class="erb-main"><div class="erb-pct">${rows.length}</div><div class="erb-sub">مشارك · ${escapeHtml(year)}</div></div><div style="display:flex;justify-content:flex-end;margin:10px 0 12px"><button class="btn btn-accent btn-sm" onclick="printSeasonEvalResults('${id}','${escapeHtml(year)}')">${icon('print',15,'ico-btn')} طباعة / حفظ PDF</button></div>${ratings?`<table class="rep-tbl" style="width:100%;margin-top:12px"><tbody>${ratings}</tbody></table>`:''}${top.length?`<div class="box"><b>أفضل الرواديد حسب اختيار المشاركين</b><div style="margin-top:6px">${top.map(([n,c],i)=>`${i+1}. ${escapeHtml(n)} — ${c} اختيار`).join('<br>')}</div></div>`:''}${texts}</div>`;
   }catch(e){console.error(e);box.innerHTML='<div class="eval-link-err">تعذّر جلب النتائج.</div>';}
+}
+
+async function printSeasonEvalResults(id,seasonName){
+  if(!window.CloudSync||!CloudSync.isReady){toast('يجب الاتصال بالسحابة أولاً');return;}
+  let rows=[];
+  try{rows=await CloudSync.fetchSeasonEvalResponses(id);}catch(e){console.error(e);toast('تعذّر جلب النتائج للطباعة');return;}
+  if(!rows.length){toast('لا توجد نتائج للطباعة');return;}
+
+  const countsHtml=Object.keys(SEASON_LABELS).map(k=>{
+    const vals=rows.map(r=>String((r.answers||{})[k]||'')).filter(v=>['سيء','جيد','ممتاز'].includes(v));
+    if(!vals.length)return '';
+    const c={'سيء':0,'جيد':0,'ممتاز':0}; vals.forEach(v=>c[v]++);
+    const pct=v=>vals.length?Math.round((v/vals.length)*100):0;
+    return `<tr><td>${escapeHtml(SEASON_LABELS[k])}</td><td>${c['سيء']} (${pct(c['سيء'])}%)</td><td>${c['جيد']} (${pct(c['جيد'])}%)</td><td>${c['ممتاز']} (${pct(c['ممتاز'])}%)</td></tr>`;
+  }).join('');
+
+  const picks={};
+  rows.forEach(r=>((r.answers||{}).top3||[]).forEach(n=>{if(n)picks[n]=(picks[n]||0)+1;}));
+  const top=Object.entries(picks).sort((a,b)=>b[1]-a[1]);
+  const topHtml=top.length?`<section><h2>أفضل الرواديد حسب اختيار المشاركين</h2><ol>${top.map(([n,c])=>`<li>${escapeHtml(n)} <span>— ${c} اختيار</span></li>`).join('')}</ol></section>`:'';
+
+  const textKeys=[
+    ['bestRadood','الرادود الأكثر تميزًا'],['wantedRadoodName','رادود مطلوب للموسم القادم'],
+    ['bestPoem','القصيدة الأكثر تأثيرًا'],['preferredTunes','الأطوار المفضلة'],
+    ['bestNight','أفضل ليلة ولماذا'],['likedMost','أكثر شيء أعجبهم'],
+    ['needsDevelopment','أكثر شيء يحتاج تطويرًا'],['keepNext','ما يتمنون المحافظة عليه']
+  ];
+  const textHtml=textKeys.map(([k,label])=>{
+    const vals=rows.map(r=>String((r.answers||{})[k]||'').trim()).filter(Boolean);
+    if(!vals.length)return '';
+    return `<section><h2>${escapeHtml(label)}</h2><ul>${vals.map(v=>`<li>${escapeHtml(v)}</li>`).join('')}</ul></section>`;
+  }).join('');
+
+  const when=new Date().toLocaleString('ar-BH');
+  const w=window.open('','_blank');
+  if(!w){toast('اسمح بالنوافذ المنبثقة لإتمام الطباعة');return;}
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>نتائج ${escapeHtml(seasonName||'تقييم الموسم')}</title>
+  <style>
+    @page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;color:#1a2620;margin:0;background:#fff;font-size:12px;line-height:1.7}.head{text-align:center;border-bottom:2px solid #c19a3e;padding-bottom:12px;margin-bottom:16px}.org{font-size:13px;color:#1c4536;font-weight:700}.title{font-size:24px;font-weight:800;margin:5px 0}.season{font-size:16px;color:#555}.meta{margin-top:7px;color:#777}.summary{display:flex;gap:12px;margin:14px 0}.card{flex:1;border:1px solid #ddd;border-radius:10px;padding:12px;text-align:center}.card b{display:block;font-size:24px;color:#1c4536}.card span{color:#777}h2{font-size:15px;color:#1c4536;border-bottom:1px solid #ddd;padding-bottom:5px;margin:18px 0 8px}table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11.5px}th,td{border:1px solid #d9d9d9;padding:7px;text-align:center}th:first-child,td:first-child{text-align:right}th{background:#f4efe6}ul,ol{margin:6px 0;padding-right:22px}li{margin-bottom:5px;break-inside:avoid}.foot{margin-top:22px;padding-top:10px;border-top:1px solid #ddd;text-align:center;color:#888;font-size:10.5px}section{break-inside:avoid}.no-print{display:flex;justify-content:center;gap:8px;margin:0 0 14px}@media print{.no-print{display:none}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body>
+  <div class="no-print"><button onclick="window.print()" style="padding:10px 18px;border:0;border-radius:8px;background:#1c4536;color:#fff;font-size:14px;cursor:pointer">طباعة / حفظ PDF</button></div>
+  <header class="head"><div class="org">هيئة محبي الحسين (ع) · لجنة العزاء</div><div class="title">نتائج تقييم الموسم العام</div><div class="season">${escapeHtml(seasonName||'—')}</div><div class="meta">تاريخ إعداد التقرير: ${escapeHtml(when)}</div></header>
+  <div class="summary"><div class="card"><b>${rows.length}</b><span>عدد المشاركين</span></div></div>
+  ${countsHtml?`<section><h2>ملخص التقييم</h2><table><thead><tr><th>البند</th><th>سيء</th><th>جيد</th><th>ممتاز</th></tr></thead><tbody>${countsHtml}</tbody></table></section>`:''}
+  ${topHtml}${textHtml}
+  <div class="foot">هيئة محبي الحسين (ع) — تقرير نتائج تقييم الموسم العام</div>
+  <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));<\/script>
+  </body></html>`);
+  w.document.close();
 }
 
 /* ═══════════ رابط التقييم الجماعي ═══════════ */
