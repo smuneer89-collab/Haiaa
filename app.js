@@ -6477,51 +6477,52 @@ async function viewSeasonEvalResults(id,year){
 
 async function printSeasonEvalResults(id,seasonName){
   if(!window.CloudSync||!CloudSync.isReady){toast('يجب الاتصال بالسحابة أولاً');return;}
-  let rows=[];
-  try{rows=await CloudSync.fetchSeasonEvalResponses(id);}catch(e){console.error(e);toast('تعذّر جلب النتائج للطباعة');return;}
+  let rows=[], closed=false;
+  try{
+    rows=await CloudSync.fetchSeasonEvalResponses(id);
+    try{const ss=await CloudSync.fetchSeasonEvalSessions();const s=ss.find(x=>x._id===id);closed=!!(s&&s.closed);}catch(_e){}
+  }catch(e){console.error(e);toast('تعذّر جلب النتائج للطباعة');return;}
   if(!rows.length){toast('لا توجد نتائج للطباعة');return;}
 
-  const countsHtml=Object.keys(SEASON_LABELS).map(k=>{
-    const vals=rows.map(r=>String((r.answers||{})[k]||'')).filter(v=>['سيء','جيد','ممتاز'].includes(v));
-    if(!vals.length)return '';
-    const c={'سيء':0,'جيد':0,'ممتاز':0}; vals.forEach(v=>c[v]++);
-    const pct=v=>vals.length?Math.round((v/vals.length)*100):0;
-    return `<tr><td>${escapeHtml(SEASON_LABELS[k])}</td><td>${c['سيء']} (${pct(c['سيء'])}%)</td><td>${c['جيد']} (${pct(c['جيد'])}%)</td><td>${c['ممتاز']} (${pct(c['ممتاز'])}%)</td></tr>`;
-  }).join('');
-
-  const picks={};
-  rows.forEach(r=>((r.answers||{}).top3||[]).forEach(n=>{if(n)picks[n]=(picks[n]||0)+1;}));
+  const ratingKeys=Object.keys(SEASON_LABELS);
+  const statFor=k=>{const vals=rows.map(r=>String((r.answers||{})[k]||'')).filter(v=>['سيء','جيد','ممتاز'].includes(v));const c={'سيء':0,'جيد':0,'ممتاز':0};vals.forEach(v=>c[v]++);return {n:vals.length,c,p:v=>vals.length?Math.round(v*100/vals.length):0};};
+  const totals={'سيء':0,'جيد':0,'ممتاز':0};let totalRatings=0;
+  ratingKeys.forEach(k=>{const s=statFor(k);Object.keys(totals).forEach(v=>totals[v]+=s.c[v]);totalRatings+=s.n;});
+  const overallPct=v=>totalRatings?Math.round(totals[v]*100/totalRatings):0;
+  const satisfaction=totalRatings?Math.round(((totals['ممتاز']+totals['جيد']*.65)/totalRatings)*100):0;
+  const picks={};rows.forEach(r=>((r.answers||{}).top3||[]).forEach(n=>{if(n)picks[n]=(picks[n]||0)+1;}));
   const top=Object.entries(picks).sort((a,b)=>b[1]-a[1]);
-  const topHtml=top.length?`<section><h2>أفضل الرواديد حسب اختيار المشاركين</h2><ol>${top.map(([n,c])=>`<li>${escapeHtml(n)} <span>— ${c} اختيار</span></li>`).join('')}</ol></section>`:'';
-
-  const textKeys=[
-    ['bestRadood','الرادود الأكثر تميزًا'],['wantedRadoodName','رادود مطلوب للموسم القادم'],
-    ['bestPoem','القصيدة الأكثر تأثيرًا'],['preferredTunes','الأطوار المفضلة'],
-    ['bestNight','أفضل ليلة ولماذا'],['likedMost','أكثر شيء أعجبهم'],
-    ['needsDevelopment','أكثر شيء يحتاج تطويرًا'],['keepNext','ما يتمنون المحافظة عليه']
+  const esc=escapeHtml;
+  const bar=(label,pct,cls)=>`<div class="barrow"><span>${label}</span><div class="bar"><i class="${cls}" style="width:${pct}%"></i></div><b>${pct}%</b></div>`;
+  const ratingCard=k=>{const s=statFor(k);if(!s.n)return '';return `<div class="metric"><h3>${esc(SEASON_LABELS[k])}</h3><div class="donut" style="--good:${s.p(s.c['ممتاز'])};--mid:${s.p(s.c['جيد'])}"><b>${s.n}</b><small>إجابة</small></div><div class="mini">${bar('ممتاز',s.p(s.c['ممتاز']),'g')}${bar('جيد',s.p(s.c['جيد']),'m')}${bar('سيء',s.p(s.c['سيء']),'b')}</div></div>`;};
+  const groups=[
+    ['الرادود والأداء',['radoodPerformance','radoodVariety','radoodChoice']],
+    ['القصائد والمحتوى',['poemsLevel','poemsContent','poemsVariety']],
+    ['الأطوار والتفاعل',['tunesVariety','tunesFit','audienceInteraction']],
+    ['الصوت والمكان',['voiceClarity','speakers','ac','space']],
+    ['مدة وتوقيت المجلس',['duration']],
+    ['التقييم النهائي',['muharram','safar']]
   ];
-  const textHtml=textKeys.map(([k,label])=>{
-    const vals=rows.map(r=>String((r.answers||{})[k]||'').trim()).filter(Boolean);
-    if(!vals.length)return '';
-    return `<section><h2>${escapeHtml(label)}</h2><ul>${vals.map(v=>`<li>${escapeHtml(v)}</li>`).join('')}</ul></section>`;
-  }).join('');
+  const groupPages=groups.map(([title,keys],gi)=>`<section class="page detail"><div class="pagehead"><span>0${gi+3}</span><div><small>تفاصيل التقييم</small><h2>${title}</h2></div></div><div class="metrics">${keys.map(ratingCard).join('')}</div><div class="pagefoot">هيئة محبي الحسين (ع) · تقرير تقييم الموسم العام</div></section>`).join('');
+  const textKeys=[['bestRadood','الرادود الأكثر تميزًا'],['wantedRadoodName','رادود مطلوب للموسم القادم'],['bestPoem','القصيدة الأكثر تأثيرًا'],['preferredTunes','الأطوار المفضلة'],['bestNight','أفضل ليلة ولماذا'],['likedMost','أكثر شيء أعجبهم'],['needsDevelopment','أكثر شيء يحتاج تطويرًا'],['keepNext','ما يتمنون المحافظة عليه']];
+  const textBlocks=textKeys.map(([k,l])=>{const vals=rows.map(r=>String((r.answers||{})[k]||'').trim()).filter(Boolean);return vals.length?`<div class="quote"><h3>${esc(l)}</h3>${vals.map(v=>`<p>“ ${esc(v)} ”</p>`).join('')}</div>`:''}).filter(Boolean).join('');
+  const top3=top.slice(0,3).map(([n,c],i)=>`<div class="winner w${i+1}"><div class="medal">${i+1}</div><h3>${esc(n)}</h3><b>${c}</b><small>اختيار</small></div>`).join('');
+  const when=new Date().toLocaleDateString('ar-BH',{year:'numeric',month:'long',day:'numeric'});
+  const html=`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تقرير تقييم الموسم</title><style>
+  @page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#ddd;font-family:'Tahoma','Arial',sans-serif;color:#18352d;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{width:210mm;min-height:297mm;margin:0 auto 8mm;background:#fffdf8;position:relative;overflow:hidden;padding:17mm 15mm;page-break-after:always}.page:last-child{page-break-after:auto}.cover{background:linear-gradient(145deg,#062d24 0 44%,#fffdf8 44.2%);padding:0}.cover:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 12% 75%,rgba(193,154,62,.18),transparent 28%),repeating-linear-gradient(45deg,transparent 0 24px,rgba(193,154,62,.025) 25px 26px)}.goldline{position:absolute;inset:7mm;border:1.5px solid #c19a3e}.covermain{position:absolute;right:46%;left:12mm;top:30mm;text-align:center}.covermain img{max-width:56mm;max-height:28mm}.cover h1{font-size:29px;margin:20mm 0 5mm;color:#123c31}.orn{color:#c19a3e;font-size:26px;letter-spacing:6px}.seasonbox{background:#073c30;color:#fff;border:2px solid #c19a3e;border-radius:18px;padding:5mm;margin:9mm auto;width:92%;font-size:18px;font-weight:700}.covermeta{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;margin-top:15mm;border-top:1px solid #d8ccb6;padding-top:7mm}.covermeta b{display:block;font-size:21px;color:#123c31}.covermeta small{color:#8a7c6b}.darktitle{background:#073c30;color:white;margin:-17mm -15mm 9mm;padding:7mm 15mm;border-bottom:2px solid #c19a3e}.darktitle h2{margin:0;font-size:22px}.darktitle small{color:#e6c56f}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:4mm}.kpi{border:1px solid #e1d6c3;border-radius:12px;padding:5mm 3mm;text-align:center;background:#fff}.kpi b{font-size:24px;display:block;color:#0b5a46}.kpi small{color:#7b756a}.overview{display:grid;grid-template-columns:1.05fr .95fr;gap:6mm;margin-top:8mm}.panel{border:1px solid #e1d6c3;border-radius:14px;padding:6mm;background:#fff}.panel h3{margin:0 0 5mm;font-size:16px}.bigdonut{width:54mm;height:54mm;margin:auto;border-radius:50%;background:conic-gradient(#087b54 0 calc(var(--g)*1%),#c69a35 calc(var(--g)*1%) calc((var(--g) + var(--m))*1%),#b94d45 calc((var(--g) + var(--m))*1%) 100%);display:grid;place-items:center}.bigdonut:after{content:attr(data-total);width:34mm;height:34mm;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:24px;font-weight:bold}.legend{display:flex;justify-content:center;gap:5mm;margin-top:4mm;font-size:11px}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:3px}.gdot{background:#087b54}.mdot{background:#c69a35}.bdot{background:#b94d45}.top3{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;margin-top:8mm}.winner{text-align:center;border:1px solid #e1d6c3;border-radius:14px;padding:7mm 3mm;background:#fff}.winner.w1{transform:translateY(-3mm);border-color:#c69a35}.medal{width:12mm;height:12mm;border-radius:50%;background:#c69a35;color:#fff;display:grid;place-items:center;margin:auto;font-size:17px;font-weight:bold}.winner h3{font-size:13px;min-height:12mm}.winner b{display:block;font-size:21px;color:#0b5a46}.winner small{color:#8a7c6b}.pagehead{display:flex;align-items:center;gap:5mm;border-bottom:2px solid #c19a3e;padding-bottom:4mm;margin-bottom:7mm}.pagehead>span{font-size:28px;color:#c19a3e;font-weight:bold}.pagehead small{color:#8a7c6b}.pagehead h2{margin:0;font-size:21px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:6mm}.metric{border:1px solid #e1d6c3;border-radius:14px;padding:5mm;background:#fff;break-inside:avoid}.metric h3{margin:0 0 4mm;font-size:14px}.donut{float:left;width:34mm;height:34mm;border-radius:50%;background:conic-gradient(#087b54 0 calc(var(--good)*1%),#c69a35 calc(var(--good)*1%) calc((var(--good) + var(--mid))*1%),#b94d45 calc((var(--good) + var(--mid))*1%) 100%);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center}.donut:before{content:'';position:absolute;width:23mm;height:23mm;background:#fff;border-radius:50%}.donut b,.donut small{z-index:1}.donut b{font-size:18px}.donut small{font-size:8px;color:#888}.mini{margin-left:39mm}.barrow{display:grid;grid-template-columns:14mm 1fr 10mm;align-items:center;gap:2mm;font-size:9px;margin:3mm 0}.bar{height:3mm;background:#eee;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%}.bar .g{background:#087b54}.bar .m{background:#c69a35}.bar .b{background:#b94d45}.pagefoot{position:absolute;bottom:8mm;right:15mm;left:15mm;border-top:1px solid #e1d6c3;padding-top:3mm;text-align:center;color:#9a8f7e;font-size:9px}.quotes{display:grid;grid-template-columns:1fr 1fr;gap:5mm}.quote{border-radius:12px;background:#f4f1e8;border-right:4px solid #0b5a46;padding:5mm;break-inside:avoid}.quote h3{font-size:13px;margin:0 0 3mm}.quote p{font-size:10px;line-height:1.7;margin:2mm 0;padding-bottom:2mm;border-bottom:1px dashed #d6cebf}.closing{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:linear-gradient(#fffdf8 0 72%,#073c30 72%);padding-bottom:50mm}.closing img{max-width:60mm;max-height:28mm}.closing h2{font-size:30px;margin:15mm 0 5mm}.closing p{font-size:15px;line-height:2;max-width:130mm}.no-print{position:fixed;z-index:99;bottom:15px;left:15px}.no-print button{border:0;border-radius:10px;background:#073c30;color:#fff;padding:12px 20px;font-size:14px}@media print{body{background:#fff}.page{margin:0}.no-print{display:none}}@media screen and (max-width:800px){.page{transform-origin:top center;max-width:100%;width:100%;min-height:140vw}.no-print{display:none}}
+  </style></head><body><div class="no-print"><button onclick="print()">طباعة / حفظ PDF</button></div>
+  <section class="page cover"><div class="goldline"></div><div class="covermain"><img src="${HAIAA_LOGO}" alt=""><h1>تقرير تقييم الموسم العام</h1><div class="orn">◆ ◇ ◆</div><div class="seasonbox">${esc(seasonName||'—')}</div><div class="covermeta"><div><small>حالة التقييم</small><b>${closed?'مغلق':'مفتوح'}</b></div><div><small>عدد المشاركين</small><b>${rows.length}</b></div><div><small>تاريخ التقرير</small><b style="font-size:13px">${esc(when)}</b></div></div></div></section>
+  <section class="page"><div class="darktitle"><small>نظرة عامة على نتائج الموسم</small><h2>الملخص التنفيذي</h2></div><div class="kpis"><div class="kpi"><small>عدد المشاركين</small><b>${rows.length}</b></div><div class="kpi"><small>محاور التقييم</small><b>${groups.length}</b></div><div class="kpi"><small>مؤشر الرضا</small><b>${satisfaction}%</b></div><div class="kpi"><small>حالة التقييم</small><b style="font-size:18px">${closed?'مغلق':'مفتوح'}</b></div></div><div class="overview"><div class="panel"><h3>التوزيع العام للتقييمات</h3><div class="bigdonut" style="--g:${overallPct(totals['ممتاز'])};--m:${overallPct(totals['جيد'])}" data-total="${totalRatings}"></div><div class="legend"><span><i class="dot gdot"></i>ممتاز ${overallPct(totals['ممتاز'])}%</span><span><i class="dot mdot"></i>جيد ${overallPct(totals['جيد'])}%</span><span><i class="dot bdot"></i>سيء ${overallPct(totals['سيء'])}%</span></div></div><div class="panel"><h3>أبرز المؤشرات</h3>${bar('ممتاز',overallPct(totals['ممتاز']),'g')}${bar('جيد',overallPct(totals['جيد']),'m')}${bar('سيء',overallPct(totals['سيء']),'b')}<p style="font-size:11px;color:#777;margin-top:8mm">يعرض هذا الملخص جميع البنود التقييمية المجمعة، بينما تعرض الصفحات التالية تفاصيل كل محور على حدة.</p></div></div>${top.length?`<h3 style="margin-top:9mm">أفضل 3 رواديد حسب تصويت المشاركين</h3><div class="top3">${top3}</div>`:''}<div class="pagefoot">هيئة محبي الحسين (ع) · الملخص التنفيذي</div></section>
+  ${groupPages}
+  ${textBlocks?`<section class="page"><div class="pagehead"><span>09</span><div><small>صوت المعزّين</small><h2>الإجابات والملاحظات النصية</h2></div></div><div class="quotes">${textBlocks}</div><div class="pagefoot">هيئة محبي الحسين (ع) · آراء المشاركين</div></section>`:''}
+  <section class="page closing"><img src="${HAIAA_LOGO}" alt=""><h2>ختامًا</h2><div class="orn">◆ ◇ ◆</div><p>شكرًا لجميع المعزّين على مشاركتهم وآرائهم الصادقة. تسهم هذه النتائج في تطوير مجالس العزاء والمحافظة على الجوانب المتميزة في المواسم القادمة.</p></section>
+  </body></html>`;
 
-  const when=new Date().toLocaleString('ar-BH');
-  const w=window.open('','_blank');
-  if(!w){toast('اسمح بالنوافذ المنبثقة لإتمام الطباعة');return;}
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>نتائج ${escapeHtml(seasonName||'تقييم الموسم')}</title>
-  <style>
-    @page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;color:#1a2620;margin:0;background:#fff;font-size:12px;line-height:1.7}.head{text-align:center;border-bottom:2px solid #c19a3e;padding-bottom:12px;margin-bottom:16px}.org{font-size:13px;color:#1c4536;font-weight:700}.title{font-size:24px;font-weight:800;margin:5px 0}.season{font-size:16px;color:#555}.meta{margin-top:7px;color:#777}.summary{display:flex;gap:12px;margin:14px 0}.card{flex:1;border:1px solid #ddd;border-radius:10px;padding:12px;text-align:center}.card b{display:block;font-size:24px;color:#1c4536}.card span{color:#777}h2{font-size:15px;color:#1c4536;border-bottom:1px solid #ddd;padding-bottom:5px;margin:18px 0 8px}table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11.5px}th,td{border:1px solid #d9d9d9;padding:7px;text-align:center}th:first-child,td:first-child{text-align:right}th{background:#f4efe6}ul,ol{margin:6px 0;padding-right:22px}li{margin-bottom:5px;break-inside:avoid}.foot{margin-top:22px;padding-top:10px;border-top:1px solid #ddd;text-align:center;color:#888;font-size:10.5px}section{break-inside:avoid}.no-print{display:flex;justify-content:center;gap:8px;margin:0 0 14px}@media print{.no-print{display:none}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-  </style></head><body>
-  <div class="no-print"><button onclick="window.print()" style="padding:10px 18px;border:0;border-radius:8px;background:#1c4536;color:#fff;font-size:14px;cursor:pointer">طباعة / حفظ PDF</button></div>
-  <header class="head"><div class="org">هيئة محبي الحسين (ع) · لجنة العزاء</div><div class="title">نتائج تقييم الموسم العام</div><div class="season">${escapeHtml(seasonName||'—')}</div><div class="meta">تاريخ إعداد التقرير: ${escapeHtml(when)}</div></header>
-  <div class="summary"><div class="card"><b>${rows.length}</b><span>عدد المشاركين</span></div></div>
-  ${countsHtml?`<section><h2>ملخص التقييم</h2><table><thead><tr><th>البند</th><th>سيء</th><th>جيد</th><th>ممتاز</th></tr></thead><tbody>${countsHtml}</tbody></table></section>`:''}
-  ${topHtml}${textHtml}
-  <div class="foot">هيئة محبي الحسين (ع) — تقرير نتائج تقييم الموسم العام</div>
-  <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),250));<\/script>
-  </body></html>`);
-  w.document.close();
+  let frame=document.getElementById('seasonPrintFrame');
+  if(frame)frame.remove();
+  frame=document.createElement('iframe');frame.id='seasonPrintFrame';frame.setAttribute('aria-hidden','true');frame.style.cssText='position:fixed;width:1px;height:1px;right:-9999px;bottom:0;border:0;opacity:0';document.body.appendChild(frame);
+  const doc=frame.contentWindow.document;doc.open();doc.write(html);doc.close();
+  setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print();}catch(e){console.error(e);toast('تعذّر فتح نافذة الطباعة');}},700);
 }
 
 /* ═══════════ رابط التقييم الجماعي ═══════════ */
