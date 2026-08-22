@@ -2648,6 +2648,17 @@ function computeNotifications(){
       action:()=>{ switchTab('meetings'); setTimeout(()=>openIdara('aza'),120); }
     });
   }
+  const seenSeason = Number(window.__seenSeasonEvalCount||0), curSeason = Number(window.__newSeasonEvalCount||0);
+  if(curSeason > seenSeason){
+    const diff = curSeason - seenSeason;
+    list.push({
+      cat:'لجنة العزاء', type:'info', ic:'⭐',
+      title:`وصل ${diff} تقييم موسم جديد`,
+      desc:'تقييمات جديدة للموسم العام بانتظار الاطّلاع.',
+      meta:'اضغط لفتح تقييم الموسم العام',
+      action:()=>{ switchTab('meetings'); setTimeout(()=>openIdara('seasonEval'),120); }
+    });
+  }
 
   // 0-أ) تذكير النسخة الاحتياطية — كل يوم جمعة
   if(todayG.getDay()===5){
@@ -2858,26 +2869,32 @@ function clearAllNotifs(){
 
 /* عند جاهزية السحابة: افحص التقييمات الجديدة */
 window.addEventListener('cloud-ready', ()=>{ setTimeout(checkNewAzaSubmissions, 800); });
+setInterval(()=>{ if(window.CloudSync&&CloudSync.isReady&&!document.hidden) checkNewAzaSubmissions(); },30000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&window.CloudSync&&CloudSync.isReady) checkNewAzaSubmissions(); });
 
 /* فحص التقييمات/الاستبيانات الجديدة من السحابة */
 async function checkNewAzaSubmissions(){
   if(!window.CloudSync || !CloudSync.isReady) return;
   try{
-    const [evSess, svSess] = await Promise.all([
+    const [evSess, svSess, seasonSess] = await Promise.all([
       CloudSync.fetchEvalSessions().catch(()=>[]),
-      CloudSync.fetchSurveySessions().catch(()=>[])
+      CloudSync.fetchSurveySessions().catch(()=>[]),
+      CloudSync.fetchSeasonEvalSessions().catch(()=>[])
     ]);
-    let evTotal=0, svTotal=0;
+    let evTotal=0, svTotal=0, seasonTotal=0;
     const evCounts = await Promise.all(evSess.map(s=>CloudSync.fetchPublicEvals(s._id).catch(()=>[])));
     evCounts.forEach(a=>evTotal+=a.length);
     const svCounts = await Promise.all(svSess.map(s=>CloudSync.fetchPublicSurveys(s._id).catch(()=>[])));
     svCounts.forEach(a=>svTotal+=a.length);
-    window.__newEvalCount=evTotal; window.__newSurveyCount=svTotal;
+    const seasonCounts = await Promise.all(seasonSess.map(s=>CloudSync.fetchSeasonEvalResponses(s._id).catch(()=>[])));
+    seasonCounts.forEach(a=>seasonTotal+=a.length);
+    window.__newEvalCount=evTotal; window.__newSurveyCount=svTotal; window.__newSeasonEvalCount=seasonTotal;
     window.__azaSessions=evSess; window.__azaSurveys=svSess;
     try{ await storage.set('azaSessionsCache', JSON.stringify({ ev:evSess, sv:svSess })); }catch(e){}
     try{
       window.__seenEvalCount = Number(await storage.get('seenEvalCount')||0);
       window.__seenSurveyCount = Number(await storage.get('seenSurveyCount')||0);
+      window.__seenSeasonEvalCount = Number(await storage.get('seenSeasonEvalCount')||0);
     }catch(e){}
     updateNotifBadge();
   }catch(e){ console.warn('aza check', e); }
@@ -2887,6 +2904,12 @@ async function markAzaSeen(){
   try{
     if(window.__newEvalCount!=null){ await storage.set('seenEvalCount', String(window.__newEvalCount)); window.__seenEvalCount=window.__newEvalCount; }
     if(window.__newSurveyCount!=null){ await storage.set('seenSurveyCount', String(window.__newSurveyCount)); window.__seenSurveyCount=window.__newSurveyCount; }
+  }catch(e){}
+  updateNotifBadge();
+}
+async function markSeasonEvalSeen(){
+  try{
+    if(window.__newSeasonEvalCount!=null){ await storage.set('seenSeasonEvalCount', String(window.__newSeasonEvalCount)); window.__seenSeasonEvalCount=window.__newSeasonEvalCount; }
   }catch(e){}
   updateNotifBadge();
 }
@@ -5534,7 +5557,7 @@ function openIdara(which){
     idaraShow('archive'); renderArchive();
   }
   else if(which==='aza'){ idaraShow('aza'); renderRadoods(); markAzaSeen(); checkNewAzaSubmissions().then(()=>renderRadoods()); }
-  else if(which==='seasonEval'){ idaraShow('seasonEval'); const y=$('#seasonEvalYear'); if(y&&!y.value)y.value=settings.year||currentHijriYear(); loadSeasonEvalSessions(); }
+  else if(which==='seasonEval'){ idaraShow('seasonEval'); markSeasonEvalSeen(); loadSeasonEvalSessions(); }
   else if(which==='azamessages'){ idaraShow('azamessages'); buildAzaMessage(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -6418,12 +6441,13 @@ function seasonEvalPageURL(sessionId){
 }
 async function createSeasonEvalLink(){
   if(!window.CloudSync||!CloudSync.isReady){toast('يجب الاتصال بالسحابة أولاً');return;}
-  const year=String(($('#seasonEvalYear')||{}).value||'').trim();
-  if(!/^1[4-6]\d{2}$/.test(year)){toast('أدخل سنة الموسم بشكل صحيح');return;}
+  const seasonName=String((($('#seasonEvalYear')||{}).value||'')).trim();
+  if(!seasonName){toast('اكتب اسم الموسم أولاً');return;}
+  if(seasonName.length>100){toast('اسم الموسم طويل جداً');return;}
   const out=$('#seasonEvalLinkResult'); if(out)out.innerHTML='<div class="eval-link-loading">جارٍ إنشاء الرابط…</div>';
   try{
-    const id=await CloudSync.createSeasonEvalSession({year,title:'تقييم الموسم العام'}), url=seasonEvalPageURL(id);
-    if(out)out.innerHTML=`<div class="eval-link-box"><div class="elb-label">الرابط جاهز — موسم ${escapeHtml(year)} هـ</div><div class="elb-url">${escapeHtml(url)}</div><div class="elb-actions"><button class="btn btn-primary btn-sm" onclick="copyEvalLink('${escapeHtml(url)}')">نسخ الرابط</button><a class="btn btn-sm" style="background:#25d366;color:#fff" target="_blank" href="https://wa.me/?text=${encodeURIComponent('السلام عليكم، نرجو مشاركتكم في تقييم موسم العزاء '+year+' هـ عبر الرابط: '+url)}">واتساب</a></div></div>`;
+    const id=await CloudSync.createSeasonEvalSession({seasonName,title:'تقييم الموسم العام'}), url=seasonEvalPageURL(id);
+    if(out)out.innerHTML=`<div class="eval-link-box"><div class="elb-label">الرابط جاهز — ${escapeHtml(seasonName)}</div><div class="elb-url">${escapeHtml(url)}</div><div class="elb-actions"><button class="btn btn-primary btn-sm" onclick="copyEvalLink('${escapeHtml(url)}')">نسخ الرابط</button><a class="btn btn-sm" style="background:#25d366;color:#fff" target="_blank" href="https://wa.me/?text=${encodeURIComponent('السلام عليكم، نرجو مشاركتكم في تقييم '+seasonName+' عبر الرابط: '+url)}">واتساب</a></div></div>`;
     loadSeasonEvalSessions();
   }catch(e){console.error(e);if(out)out.innerHTML='<div class="eval-link-err">تعذّر إنشاء الرابط. تأكد من الاتصال وقواعد Firebase.</div>';}
 }
@@ -6434,7 +6458,7 @@ async function loadSeasonEvalSessions(){
   try{
     const all=await CloudSync.fetchSeasonEvalSessions();
     if(!all.length){host.innerHTML='<div class="eval-link-note">لا توجد روابط تقييم موسم بعد.</div>';return;}
-    host.innerHTML=all.map(x=>`<div class="els-row"><div class="els-body"><div class="els-name">موسم ${escapeHtml(x.year||'—')} هـ</div><div class="els-meta">${x.at?new Date(x.at).toLocaleDateString('ar-BH'):''} · ${x.closed?'مغلق':'مفتوح'}</div>${x.closed?'':`<div class="elb-url" style="margin-top:7px">${escapeHtml(seasonEvalPageURL(x._id))}</div>`}</div>${x.closed?'':`<button class="btn btn-sm" onclick="copyEvalLink('${escapeHtml(seasonEvalPageURL(x._id))}')">نسخ</button>`}<button class="btn btn-sm" onclick="viewSeasonEvalResults('${x._id}','${escapeHtml(x.year||'')}')">النتائج</button><button class="btn btn-sm" onclick="toggleSeasonEval('${x._id}',${x.closed?'false':'true'})">${x.closed?'فتح':'إغلاق'}</button><button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none" onclick="deleteSeasonEval('${x._id}')">حذف</button></div><div id="seasonRes_${x._id}" class="rec-session-result" style="display:none"></div>`).join('');
+    host.innerHTML=all.map(x=>`<div class="els-row"><div class="els-body"><div class="els-name">${escapeHtml(x.seasonName||x.year||'—')}</div><div class="els-meta">${x.at?new Date(x.at).toLocaleDateString('ar-BH'):''} · ${x.closed?'مغلق':'مفتوح'}</div>${x.closed?'':`<div class="elb-url" style="margin-top:7px">${escapeHtml(seasonEvalPageURL(x._id))}</div>`}</div>${x.closed?'':`<button class="btn btn-sm" onclick="copyEvalLink('${escapeHtml(seasonEvalPageURL(x._id))}')">نسخ</button>`}<button class="btn btn-sm" onclick="viewSeasonEvalResults('${x._id}','${escapeHtml(x.seasonName||x.year||'')}')">النتائج</button><button class="btn btn-sm" onclick="toggleSeasonEval('${x._id}',${x.closed?'false':'true'})">${x.closed?'فتح':'إغلاق'}</button><button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none" onclick="deleteSeasonEval('${x._id}')">حذف</button></div><div id="seasonRes_${x._id}" class="rec-session-result" style="display:none"></div>`).join('');
   }catch(e){console.error(e);host.innerHTML='<div class="eval-link-err">تعذّر تحميل روابط المواسم.</div>';}
 }
 async function toggleSeasonEval(id,closed){try{await CloudSync.setSeasonEvalSessionClosed(id,closed);toast(closed?'تم إغلاق الرابط':'تم فتح الرابط');loadSeasonEvalSessions();}catch(e){toast('تعذّر تحديث الرابط');}}
@@ -6443,11 +6467,11 @@ const SEASON_LABELS={radoodPerformance:'أداء الرواديد',radoodVariety
 async function viewSeasonEvalResults(id,year){
   const box=$('#seasonRes_'+id);if(!box)return;if(box.style.display==='block'){box.style.display='none';return;}box.style.display='block';box.innerHTML='<div class="eval-link-loading">جارٍ جلب النتائج…</div>';
   try{const rows=await CloudSync.fetchSeasonEvalResponses(id);if(!rows.length){box.innerHTML='<div class="eval-link-note">لم تصل أي إجابة بعد.</div>';return;}
-    const ratings=Object.keys(SEASON_LABELS).map(k=>{const a=rows.map(r=>Number((r.answers||{})[k])).filter(v=>v>0),avg=a.length?a.reduce((x,y)=>x+y,0)/a.length:0;return a.length?`<tr><td>${SEASON_LABELS[k]}</td><td><b>${avg.toFixed(1)} / 5</b></td></tr>`:''}).join('');
+    const ratings=Object.keys(SEASON_LABELS).map(k=>{const a=rows.map(r=>String((r.answers||{})[k]||'')).filter(v=>['سيء','جيد','ممتاز'].includes(v));if(!a.length)return '';const c={'سيء':0,'جيد':0,'ممتاز':0};a.forEach(v=>c[v]++);return `<tr><td>${SEASON_LABELS[k]}</td><td><b>سيء: ${c['سيء']} · جيد: ${c['جيد']} · ممتاز: ${c['ممتاز']}</b></td></tr>`;}).join('');
     const textKeys=[['bestRadood','الرادود الأكثر تميزًا'],['wantedRadoodName','رادود مطلوب للموسم القادم'],['bestPoem','القصيدة الأكثر تأثيرًا'],['preferredTunes','الأطوار المفضلة'],['bestNight','أفضل ليلة ولماذا'],['likedMost','أكثر شيء أعجبهم'],['needsDevelopment','أكثر شيء يحتاج تطويرًا'],['keepNext','ما يتمنون المحافظة عليه']];
     const texts=textKeys.map(([k,l])=>{const vals=rows.map(r=>(r.answers||{})[k]).filter(Boolean);return vals.length?`<div class="box"><b>${l}</b><div style="margin-top:6px">${vals.map(v=>'• '+escapeHtml(v)).join('<br>')}</div></div>`:''}).join('');
     const picks={};rows.forEach(r=>((r.answers||{}).top3||[]).forEach(n=>picks[n]=(picks[n]||0)+1));const top=Object.entries(picks).sort((a,b)=>b[1]-a[1]);
-    box.innerHTML=`<div class="eval-results-box"><div class="erb-main"><div class="erb-pct">${rows.length}</div><div class="erb-sub">مشارك · موسم ${escapeHtml(year)} هـ</div></div>${ratings?`<table class="rep-tbl" style="width:100%;margin-top:12px"><tbody>${ratings}</tbody></table>`:''}${top.length?`<div class="box"><b>أفضل الرواديد حسب اختيار المشاركين</b><div style="margin-top:6px">${top.map(([n,c],i)=>`${i+1}. ${escapeHtml(n)} — ${c} اختيار`).join('<br>')}</div></div>`:''}${texts}</div>`;
+    box.innerHTML=`<div class="eval-results-box"><div class="erb-main"><div class="erb-pct">${rows.length}</div><div class="erb-sub">مشارك · ${escapeHtml(year)}</div></div>${ratings?`<table class="rep-tbl" style="width:100%;margin-top:12px"><tbody>${ratings}</tbody></table>`:''}${top.length?`<div class="box"><b>أفضل الرواديد حسب اختيار المشاركين</b><div style="margin-top:6px">${top.map(([n,c],i)=>`${i+1}. ${escapeHtml(n)} — ${c} اختيار`).join('<br>')}</div></div>`:''}${texts}</div>`;
   }catch(e){console.error(e);box.innerHTML='<div class="eval-link-err">تعذّر جلب النتائج.</div>';}
 }
 

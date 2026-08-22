@@ -84,7 +84,13 @@ service cloud.firestore {
 
     match /seasonEvalResponses/{responseId} {
       allow create: if request.resource.data.sessionId is string
-        && request.resource.data.year is string
+        && request.resource.data.seasonName is string
+        && request.resource.data.seasonName.size() > 0
+        && request.resource.data.seasonName.size() <= 100
+        && request.resource.data.voterId is string
+        && request.resource.data.voterId.size() > 0
+        && request.resource.data.voterId.size() <= 80
+        && responseId == request.resource.data.sessionId + '_' + request.resource.data.voterId
         && request.resource.data.answers is map
         && request.resource.data.createdAt is string
         && exists(/databases/$(database)/documents/seasonEvalSessions/$(request.resource.data.sessionId))
