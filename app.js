@@ -2009,6 +2009,7 @@ function renderLetterEditor(){
   const showDate = l ? l.showDate!==false : true;
   const showSubject = l ? l.showSubject!==false : true;
   const showSignature = l ? l.showSignature!==false : true;
+  const showStamp = l ? l.showStamp!==false : true;
   const showGreeting = l ? l.showGreeting!==false : true;
   const bodyHtml=letterBodyHtml(l);
 
@@ -2045,6 +2046,7 @@ function renderLetterEditor(){
       <label class="lt-opt"><input id="ltShowSubject" type="checkbox" ${showSubject?'checked':''} onchange="updateLetterOptionUI()"> إظهار الموضوع</label>
       <label class="lt-opt"><input id="ltShowGreeting" type="checkbox" ${showGreeting?'checked':''}> إظهار التحية</label>
       <label class="lt-opt"><input id="ltShowSignature" type="checkbox" ${showSignature?'checked':''} onchange="updateLetterOptionUI()"> إظهار التوقيع</label>
+      <label class="lt-opt"><input id="ltShowStamp" type="checkbox" ${showStamp?'checked':''}> إظهار الختم الرسمي</label>
     </div>
 
     <input id="ltDateISO" type="hidden" value="${escapeHtml(isoDate)}" />
@@ -2125,6 +2127,7 @@ function renderLetterEditor(){
     <div class="lt-actions">
       <button class="btn btn-primary" onclick="saveLetter()">${icon('check',16,'ico-btn')} حفظ</button>
       <button class="btn btn-accent" onclick="printLetter()">${icon('print',16,'ico-btn')} معاينة / طباعة</button>
+      <button class="btn btn-ghost" onclick="clearLetterFormData()">${icon('trash',16,'ico-btn')} مسح البيانات</button>
       ${l?`<button class="btn" style="background:var(--danger);color:#fff;border:none" onclick="deleteLetter('${l.id}')">${icon('trash',16,'ico-btn')} حذف</button>`:''}
     </div>
   </div>`;
@@ -2194,6 +2197,33 @@ function ltShapeSize(v){
   if(!letterSelectedShape||!n){toast('اضغط على السهم أو الشكل أولاً');return;}
   letterSelectedShape.style.fontSize=n+'px';
 }
+
+function clearLetterFormData(){
+  if(!confirm('مسح جميع البيانات المكتوبة في هذه الرسالة؟\n\nلن تُحذف الرسالة من الأرشيف إلا إذا ضغطت «حذف».')) return;
+
+  const ids=['ltTo','ltToSub','ltSubject','ltDateText','ltSigner','ltRole','ltContact','ltPhone'];
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+
+  const ed=document.getElementById('ltBodyEditor');
+  if(ed) ed.innerHTML='';
+
+  const sd=document.getElementById('ltShowDate');
+  const ss=document.getElementById('ltShowSubject');
+  const sg=document.getElementById('ltShowGreeting');
+  const sig=document.getElementById('ltShowSignature');
+  const st=document.getElementById('ltShowStamp');
+  if(sd) sd.checked=true;
+  if(ss) ss.checked=true;
+  if(sg) sg.checked=true;
+  if(sig) sig.checked=true;
+  if(st) st.checked=true;
+
+  updateLetterOptionUI();
+  letterSelectedMedia=null;
+  letterSelectedShape=null;
+  toast('تم مسح بيانات النموذج');
+}
+
 function readLetterForm(){
   const editor=$('#ltBodyEditor');
   const bodyHtml=sanitizeLetterHtml(editor?editor.innerHTML:'').trim();
@@ -2212,6 +2242,7 @@ function readLetterForm(){
     signer: (($('#ltSigner')||{}).value||'').trim()||'صادق الغسرة',
     role: (($('#ltRole')||{}).value||'').trim()||'أمين السر',
     showSignature: !!(($('#ltShowSignature')||{}).checked),
+    showStamp: !!(($('#ltShowStamp')||{}).checked),
     contact: (($('#ltContact')||{}).value||'').trim(),
     phone: (($('#ltPhone')||{}).value||'').trim()
   };
@@ -2298,7 +2329,7 @@ function printLetter(){
     <div class="body-txt">${safeBody}</div>
     <div class="sign-area">
       ${(f.contact||f.phone)?`<div class="contact-box"><div class="cb-l">للتواصل والمتابعة</div>${f.contact?`<div class="cb-n">${escapeHtml(f.contact)}</div>`:''}${f.phone?`<div class="cb-p" dir="ltr">${escapeHtml(f.phone)}</div>`:''}</div>`:'<div></div>'}
-      <div class="stamp-mid"><div class="ink-stamp"><img src="${HAIAA_LOGO}" alt=""><div class="st-sub">بني جمرة — البحرين</div></div></div>
+      ${f.showStamp?`<div class="stamp-mid"><div class="ink-stamp"><img src="${HAIAA_LOGO}" alt=""><div class="st-sub">بني جمرة — البحرين</div></div></div>`:'<div></div>'}
       ${f.showSignature?`<div class="sign"><img src="${HAIAA_SIGNATURE}" alt="التوقيع"><div class="sign-line"></div><div class="sign-t">${escapeHtml(f.role)}</div><div class="sign-n">${escapeHtml(f.signer)}</div></div>`:'<div></div>'}
     </div>
     <div class="lf">هيئة محبي الحسين (ع) — بني جمرة · وثيقة رسمية صادرة عن أمانة السر</div>
