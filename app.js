@@ -7660,7 +7660,7 @@ function finMemberMiqatRevenueDetailHTML(opts){
           </div>
         </div>
         <div class="tath-card-body">
-          <div class="tcb-row"><span class="tcb-lbl">تفاصيل المساهمة</span><span>${items.length?bookingItemsText(b):finMoney(agreed)}</span></div>
+          <div class="tcb-row"><span class="tcb-lbl">إجمالي المساهمة</span><span>${finMoney(agreed)}</span></div>
           ${b.contributionEditedAt?`<div style="font-size:11px;color:var(--muted);margin-top:7px">آخر تعديل: ${fmtDate(String(b.contributionEditedAt).slice(0,10))}</div>`:''}
         </div>
         <button class="btn btn-primary btn-sm" style="width:100%" onclick="editMemberMiqatContribution('${mq.id}',${i})">${icon('edit',15,'ico-btn')} تعديل المساهمة</button>
@@ -7672,56 +7672,61 @@ async function editMemberMiqatContribution(miqatId, bookingIndex){
   const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
   const b=(mq.bookings||[])[bookingIndex]; if(!b) return;
   const who=bookingName(b);
-  const oldAgreed=bookingAgreed(b);
-  const v=prompt(`تعديل مساهمة ${who}\n\nالمبلغ الحالي: ${finMoney(oldAgreed)}\nأدخل إجمالي المساهمة الجديد (وليس المبلغ الإضافي فقط):`, oldAgreed.toFixed(3));
+  const oldAmount=bookingAgreed(b);
+
+  const v=prompt(
+    `تعديل مساهمة ${who}\n\nالمبلغ الحالي: ${finMoney(oldAmount)}\nأدخل إجمالي المساهمة الجديد:`,
+    oldAmount.toFixed(3)
+  );
   if(v===null) return;
-  const newAgreed=parseFloat(String(v).replace(',','.'));
-  if(isNaN(newAgreed)||newAgreed<0){ toast('أدخل مبلغاً صحيحاً'); return; }
-  const delta=+(newAgreed-oldAgreed).toFixed(3);
-  if(Math.abs(delta)<0.0005){ toast('لم يتغيّر المبلغ'); return; }
 
-  const oldCash=bookingCash(b);
-  b.amount=newAgreed;
+  const newAmount=parseFloat(String(v).replace(',','.'));
+  if(isNaN(newAmount)||newAmount<0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  if(Math.abs(newAmount-oldAmount)<0.0005){ toast('لم يتغيّر المبلغ'); return; }
 
-  // المساهمة المسجّلة من صفحة «مواقيت تقترب»: عدّل النقد المستلم بالفرق نفسه.
+  // المطلوب: المساهمة المسجّلة = المستلمة نقداً.
+  // نحدّث إجمالي المساهمة فقط إلى القيمة الجديدة دون إنشاء أي بند أو فرق إضافي.
+  b.amount=newAmount;
+
   if(Array.isArray(b.rcptItems) && b.rcptItems.length){
-    let cashItem=b.rcptItems.find(it=>isCashItem(it.kind));
-    if(cashItem){
-      cashItem.value=Math.max(0,(Number(cashItem.value)||0)+delta);
-      cashItem.editedAt=new Date().toISOString();
-      cashItem.note=(cashItem.note||'') + (cashItem.note?' · ':'') + 'تعديل لاحق من اللجنة المالية';
-    }else if(delta>0){
-      b.rcptItems.push({kind:'مبلغ نقدي',value:delta,note:'مبلغ إضافي بعد المناسبة — اللجنة المالية',at:new Date().toISOString()});
+    const cashItems=b.rcptItems.filter(it=>isCashItem(it.kind));
+    if(cashItems.length){
+      // أبقِ بنود العيني كما هي، واجعل مجموع البنود النقدية = إجمالي المساهمة الجديد.
+      cashItems[0].value=newAmount;
+      cashItems[0].editedAt=new Date().toISOString();
+      for(let i=1;i<cashItems.length;i++) cashItems[i].value=0;
+    }else{
+      // لا ننشئ بنداً جديداً؛ نستخدم الحقل النقدي المباشر فقط.
+      b.received=newAmount;
+      b.receivedDate=b.receivedDate||today();
     }
   }else if(b.received!=null && b.received!==''){
-    b.received=Math.max(0,(Number(b.received)||0)+delta);
+    b.received=newAmount;
   }else if(Array.isArray(b.payments) && b.payments.length){
-    if(delta>0) b.payments.push({amount:delta,date:today(),at:new Date().toISOString(),note:'مبلغ إضافي بعد المناسبة — اللجنة المالية'});
-    else{
-      // عند التصحيح بالنقص، حافظ على السجل القديم وسجّل فرقاً سالباً.
-      b.payments.push({amount:delta,date:today(),at:new Date().toISOString(),note:'تصحيح مساهمة — اللجنة المالية'});
-    }
-  }else if(newAgreed>0){
-    b.received=newAgreed;
-    b.receivedDate=today();
+    // لا نضيف عملية جديدة؛ اجعل السجل النقدي الحالي يعكس الإجمالي فقط.
+    b.payments=[{
+      amount:newAmount,
+      date:(b.payments[0]&&b.payments[0].date)||today(),
+      at:new Date().toISOString()
+    }];
+  }else{
+    b.received=newAmount;
+    b.receivedDate=b.receivedDate||today();
   }
 
   b.contributionEditedAt=new Date().toISOString();
   b.contributionEditHistory=b.contributionEditHistory||[];
   b.contributionEditHistory.push({
     at:b.contributionEditedAt,
-    oldAmount:oldAgreed,
-    newAmount:newAgreed,
-    delta,
-    oldCash,
-    newCash:Math.max(0,oldCash+delta),
+    oldAmount,
+    newAmount,
     by:(window.CloudSync&&CloudSync.email)||'مستخدم محلي'
   });
   if(b.contributionEditHistory.length>30) b.contributionEditHistory=b.contributionEditHistory.slice(-30);
 
   await saveMiqats();
-  logAudit('تعديل','المالية',`تعديل مساهمة ${who} في «${mq.name}»: ${finMoney(oldAgreed)} ← ${finMoney(newAgreed)} (${delta>0?'+':''}${finMoney(delta)})`);
-  toast(delta>0?'تمت إضافة المبلغ وتحديث التقارير المالية':'تم تعديل المساهمة وتحديث التقارير المالية');
+  logAudit('تعديل','المالية',`تعديل مساهمة ${who} في «${mq.name}»: ${finMoney(oldAmount)} ← ${finMoney(newAmount)}`);
+  toast('تم تعديل المساهمة');
   renderFinancePage('memberMiqatRevenueDetail',{miqatId});
   renderMiqats(); renderDashboard();
 }

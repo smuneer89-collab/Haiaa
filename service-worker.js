@@ -4,7 +4,7 @@
    • طلبات Firebase والخطوط: تمر مباشرة بلا تخزين ← لا تتعطّل المزامنة
    • بلا إنترنت: يرجع لآخر نسخة مخزّنة تلقائياً
 */
-const CACHE = 'husain-v19-miqat-contribution';
+const CACHE = 'husain-v20-miqat-contribution-fix';
 
 const APP_SHELL = [
   './',
