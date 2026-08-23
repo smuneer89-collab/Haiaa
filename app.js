@@ -6939,7 +6939,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','merge','compare','statement','revenue','revMiqat','revEntry','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
+const FIN_PAGES=['home','merge','compare','statement','revenue','revMiqat','revEntry','memberMiqatRevenue','memberMiqatRevenueDetail','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -6970,6 +6970,8 @@ function renderFinancePage(page, opts){
   else if(page==='revenue') host.innerHTML=finRevenueHTML();
   else if(page==='revMiqat') host.innerHTML=finRevMiqatHTML(opts);
   else if(page==='revEntry') host.innerHTML=finRevEntryHTML(opts);
+  else if(page==='memberMiqatRevenue') host.innerHTML=finMemberMiqatRevenueHTML();
+  else if(page==='memberMiqatRevenueDetail') host.innerHTML=finMemberMiqatRevenueDetailHTML(opts);
   else if(page==='expenses') host.innerHTML=finExpensesHTML();
   else if(page==='expMiqat') host.innerHTML=finExpMiqatHTML();
   else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
@@ -7048,6 +7050,8 @@ function finRevenueHTML(){
   <div class="fin-grid">
     ${btns.map(([t,k])=> k==='tathwib'
       ? `<button class="fin-cell" onclick="openFinancePage('tathwib')">${t}</button>`
+      : k==='miqats'
+      ? `<button class="fin-cell" onclick="openFinancePage('memberMiqatRevenue')">${t}</button>`
       : (k==='vows' || k==='donations')
       ? `<button class="fin-cell" onclick="openFinancePage('revMiqat',{kind:'${k==='vows'?'vow':'donation'}'})">${t}</button>`
       : `<button class="fin-cell" onclick="openFinancePage('soon',{title:'${t}'})">${t}</button>`).join('')}
@@ -7607,6 +7611,121 @@ function printCompareReport(){
 }
 
 /* ═══════════ إيرادات المواقيت: النذور والتبرعات ═══════════ */
+
+/* ═══════════ الإيرادات > المواقيت: تعديل مساهمات الأعضاء بعد المناسبة ═══════════ */
+function finMemberMiqatRevenueHTML(){
+  const sorted=miqatsByNearest();
+  return `
+  <div class="fin-ctx">إيرادات المواقيت — اختر الميقات</div>
+  <div class="fin-field">
+    <label>الميقات</label>
+    <select id="memberRevMiqatSel" onchange="finMemberMiqatRevenueGo()">
+      <option value="">— اختر ميقاتاً —</option>
+      ${sorted.map(mq=>{
+        const n=(mq.bookings||[]).length;
+        const total=miqatMembersReceived(mq.id);
+        return `<option value="${mq.id}">${escapeHtml(mq.name)} — ${miqatNearLabel(mq)}${n?` · ${n} مساهم`:''}${total?` · ${finMoney(total)}`:''}</option>`;
+      }).join('')}
+    </select>
+  </div>
+  <div class="fin-hint">${icon('info',15,'ico-btn')} تظهر هنا المساهمات المسجّلة مسبقاً في «مواقيت تقترب». يمكن تعديل المبلغ حتى بعد انتهاء المناسبة.</div>`;
+}
+function finMemberMiqatRevenueGo(){
+  const miqatId=$('#memberRevMiqatSel').value;
+  if(!miqatId) return;
+  openFinancePage('memberMiqatRevenueDetail',{miqatId});
+}
+function finMemberMiqatRevenueDetailHTML(opts){
+  const mq=miqats.find(x=>x.id===opts.miqatId);
+  if(!mq) return `<div class="rep-empty">الميقات غير موجود</div>`;
+  const bookings=mq.bookings||[];
+  const total=miqatMembersReceived(mq.id);
+  return `
+    <div class="fin-ctx">${escapeHtml(mq.name)} · ${fmtMiqatDate(mq)}</div>
+    <div class="rev-box">
+      <div class="rev-head"><span>إجمالي مساهمات الأعضاء المستلمة</span><b>${finMoney(total)}</b></div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:8px">أي تعديل محفوظ هنا ينعكس تلقائياً على إيرادات الميقات والتقارير المالية.</div>
+    </div>
+    ${bookings.length?bookings.map((b,i)=>{
+      const who=bookingName(b);
+      const agreed=bookingAgreed(b);
+      const received=bookingCash(b);
+      const items=receiptItems(b);
+      return `<div class="tath-card">
+        <div class="tath-card-head">
+          <div class="tch-name">${escapeHtml(who)}</div>
+          <div class="tch-amounts">
+            <div class="tch-agreed"><span class="tch-lbl">المساهمة المسجّلة</span><b>${finMoney(agreed)}</b></div>
+            <div class="tch-paid"><span class="tch-lbl">المستلم نقداً</span><b>${finMoney(received)}</b></div>
+          </div>
+        </div>
+        <div class="tath-card-body">
+          <div class="tcb-row"><span class="tcb-lbl">تفاصيل المساهمة</span><span>${items.length?bookingItemsText(b):finMoney(agreed)}</span></div>
+          ${b.contributionEditedAt?`<div style="font-size:11px;color:var(--muted);margin-top:7px">آخر تعديل: ${fmtDate(String(b.contributionEditedAt).slice(0,10))}</div>`:''}
+        </div>
+        <button class="btn btn-primary btn-sm" style="width:100%" onclick="editMemberMiqatContribution('${mq.id}',${i})">${icon('edit',15,'ico-btn')} تعديل المساهمة</button>
+      </div>`;
+    }).join(''):`<div class="rep-empty">لا توجد مساهمات مسجّلة في هذا الميقات</div>`}`;
+}
+/* يغيّر إجمالي المساهمة، ويطبّق الفرق على النقد المستلم حتى تبقى تقارير الإيرادات متطابقة. */
+async function editMemberMiqatContribution(miqatId, bookingIndex){
+  const mq=miqats.find(x=>x.id===miqatId); if(!mq) return;
+  const b=(mq.bookings||[])[bookingIndex]; if(!b) return;
+  const who=bookingName(b);
+  const oldAgreed=bookingAgreed(b);
+  const v=prompt(`تعديل مساهمة ${who}\n\nالمبلغ الحالي: ${finMoney(oldAgreed)}\nأدخل إجمالي المساهمة الجديد (وليس المبلغ الإضافي فقط):`, oldAgreed.toFixed(3));
+  if(v===null) return;
+  const newAgreed=parseFloat(String(v).replace(',','.'));
+  if(isNaN(newAgreed)||newAgreed<0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  const delta=+(newAgreed-oldAgreed).toFixed(3);
+  if(Math.abs(delta)<0.0005){ toast('لم يتغيّر المبلغ'); return; }
+
+  const oldCash=bookingCash(b);
+  b.amount=newAgreed;
+
+  // المساهمة المسجّلة من صفحة «مواقيت تقترب»: عدّل النقد المستلم بالفرق نفسه.
+  if(Array.isArray(b.rcptItems) && b.rcptItems.length){
+    let cashItem=b.rcptItems.find(it=>isCashItem(it.kind));
+    if(cashItem){
+      cashItem.value=Math.max(0,(Number(cashItem.value)||0)+delta);
+      cashItem.editedAt=new Date().toISOString();
+      cashItem.note=(cashItem.note||'') + (cashItem.note?' · ':'') + 'تعديل لاحق من اللجنة المالية';
+    }else if(delta>0){
+      b.rcptItems.push({kind:'مبلغ نقدي',value:delta,note:'مبلغ إضافي بعد المناسبة — اللجنة المالية',at:new Date().toISOString()});
+    }
+  }else if(b.received!=null && b.received!==''){
+    b.received=Math.max(0,(Number(b.received)||0)+delta);
+  }else if(Array.isArray(b.payments) && b.payments.length){
+    if(delta>0) b.payments.push({amount:delta,date:today(),at:new Date().toISOString(),note:'مبلغ إضافي بعد المناسبة — اللجنة المالية'});
+    else{
+      // عند التصحيح بالنقص، حافظ على السجل القديم وسجّل فرقاً سالباً.
+      b.payments.push({amount:delta,date:today(),at:new Date().toISOString(),note:'تصحيح مساهمة — اللجنة المالية'});
+    }
+  }else if(newAgreed>0){
+    b.received=newAgreed;
+    b.receivedDate=today();
+  }
+
+  b.contributionEditedAt=new Date().toISOString();
+  b.contributionEditHistory=b.contributionEditHistory||[];
+  b.contributionEditHistory.push({
+    at:b.contributionEditedAt,
+    oldAmount:oldAgreed,
+    newAmount:newAgreed,
+    delta,
+    oldCash,
+    newCash:Math.max(0,oldCash+delta),
+    by:(window.CloudSync&&CloudSync.email)||'مستخدم محلي'
+  });
+  if(b.contributionEditHistory.length>30) b.contributionEditHistory=b.contributionEditHistory.slice(-30);
+
+  await saveMiqats();
+  logAudit('تعديل','المالية',`تعديل مساهمة ${who} في «${mq.name}»: ${finMoney(oldAgreed)} ← ${finMoney(newAgreed)} (${delta>0?'+':''}${finMoney(delta)})`);
+  toast(delta>0?'تمت إضافة المبلغ وتحديث التقارير المالية':'تم تعديل المساهمة وتحديث التقارير المالية');
+  renderFinancePage('memberMiqatRevenueDetail',{miqatId});
+  renderMiqats(); renderDashboard();
+}
+
 const REV_KINDS = { vow:{ label:'النذور', person:'اسم صاحب النذر', ico:'gift' },
                     donation:{ label:'التبرعات', person:'اسم المتبرّع', ico:'money' } };
 
