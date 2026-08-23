@@ -1964,7 +1964,7 @@ function renderLetters(){
     list.map(l=>`<div class="lt-row" onclick="openLetterEditor('${l.id}')">
       <div style="flex:1;min-width:0">
         <div class="lt-subj">${escapeHtml(l.subject||'بلا موضوع')}</div>
-        <div class="lt-meta">${escapeHtml(l.to||'—')} · ${l.date?fmtDate(l.date):''}</div>
+        <div class="lt-meta">${escapeHtml(l.to||'—')}${l.showDate===false?'':` · ${escapeHtml(l.dateText||(l.date?fmtDate(l.date):''))}`}</div>
       </div>
       <span class="lt-arrow">›</span>
     </div>`).join('');
@@ -1976,65 +1976,259 @@ function openLetterEditor(id){
   openFullPage('letter');
 }
 function closeLetterEditor(){ openLettersPage(); }
+let letterSelectedMedia=null;
+let letterSelectedShape=null;
+
+function letterBodyHtml(l){
+  if(!l) return '';
+  if(l.bodyHtml) return sanitizeLetterHtml(l.bodyHtml);
+  return escapeHtml(l.body||'').replace(/\n/g,'<br>');
+}
+function sanitizeLetterHtml(html){
+  const t=document.createElement('template');
+  t.innerHTML=String(html||'');
+  t.content.querySelectorAll('script,iframe,object,embed,link,meta,style').forEach(n=>n.remove());
+  t.content.querySelectorAll('*').forEach(el=>{
+    [...el.attributes].forEach(a=>{
+      const n=a.name.toLowerCase();
+      const v=String(a.value||'');
+      if(n.startsWith('on')) el.removeAttribute(a.name);
+      if((n==='href'||n==='src') && /^\s*javascript:/i.test(v)) el.removeAttribute(a.name);
+    });
+    if(el.tagName==='IMG'){
+      const src=el.getAttribute('src')||'';
+      if(src && !/^data:image\//i.test(src) && !/^https?:/i.test(src)) el.removeAttribute('src');
+    }
+  });
+  return t.innerHTML;
+}
 function renderLetterEditor(){
   const l = editingLetterId ? letters.find(x=>x.id===editingLetterId) : null;
-  const d = l ? l.date : today();
+  const isoDate = l&&l.date ? l.date : today();
+  const defaultDateText = l&&l.dateText!=null ? l.dateText : `${gregToHijri(isoDate)} · الموافق ${fmtDate(isoDate)}`;
+  const showDate = l ? l.showDate!==false : true;
+  const showSubject = l ? l.showSubject!==false : true;
+  const showSignature = l ? l.showSignature!==false : true;
+  const showGreeting = l ? l.showGreeting!==false : true;
+  const bodyHtml=letterBodyHtml(l);
+
   $('#letterBody').innerHTML=`
+  <style>
+    .lt-editor-shell{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+    .lt-toolbar{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--bg);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:4}
+    .lt-tool{min-width:38px;height:38px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-family:var(--font-sans);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 9px;cursor:pointer}
+    .lt-tool:active{background:var(--accent-soft)}
+    .lt-tool-select{height:38px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-family:var(--font-sans);font-size:12px;padding:0 8px;max-width:118px}
+    .lt-color{width:40px;height:38px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:4px}
+    .lt-rich{min-height:310px;padding:18px 16px;outline:none;font-size:15px;line-height:2;background:#fff;color:#241f1b}
+    .lt-rich:focus{box-shadow:inset 0 0 0 2px var(--accent-soft)}
+    .lt-rich p{margin:0 0 12px}.lt-rich ul,.lt-rich ol{padding-right:24px}
+    .lt-rich figure.lt-media{margin:16px auto;text-align:center;border:1px dashed var(--line);border-radius:10px;padding:10px;max-width:100%;background:#fffdf8}
+    .lt-rich figure.lt-media.selected{outline:2px solid var(--gold)}
+    .lt-rich figure.lt-media img{max-width:100%;height:auto;border-radius:8px;display:block;margin:0 auto}
+    .lt-rich figure.lt-media figcaption{font-size:12px;color:var(--muted);margin-top:8px;outline:none}
+    .lt-rich .lt-shape{cursor:pointer;padding:2px 5px;border-radius:5px}
+    .lt-rich .lt-shape.selected{outline:2px solid var(--gold);background:var(--accent-soft)}
+    .lt-options{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+    .lt-opt{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--surface);font-size:12.5px;color:var(--ink);cursor:pointer}
+    .lt-opt input{width:18px;height:18px;accent-color:var(--accent)}
+    .lt-shape-palette{display:flex;gap:5px;align-items:center}
+    .lt-help{font-size:11px;color:var(--muted);padding:8px 10px;background:var(--accent-soft);border-radius:8px;margin-top:8px;line-height:1.7}
+    @media(max-width:520px){.lt-toolbar{gap:5px}.lt-tool{min-width:36px;padding:0 7px}.lt-tool-select{max-width:102px}.lt-rich{min-height:280px;padding:14px 12px}}
+  </style>
+
   <div class="lt-form">
     <div class="stats-sec-title" style="margin-top:0">${l?'تعديل الرسالة':'رسالة رسمية جديدة'}</div>
-    <div class="lt-date">${icon('calendar',15,'ico-btn')} التاريخ: <b>${gregToHijri(d)}</b> · الموافق ${fmtDate(d)}</div>
-    <div class="lt-fld"><label>التاريخ</label>
-      <input id="ltDate" type="date" value="${d}" onchange="renderLetterEditor()" /></div>
+
+    <div class="lt-options">
+      <label class="lt-opt"><input id="ltShowDate" type="checkbox" ${showDate?'checked':''} onchange="updateLetterOptionUI()"> إظهار التاريخ</label>
+      <label class="lt-opt"><input id="ltShowSubject" type="checkbox" ${showSubject?'checked':''} onchange="updateLetterOptionUI()"> إظهار الموضوع</label>
+      <label class="lt-opt"><input id="ltShowGreeting" type="checkbox" ${showGreeting?'checked':''}> إظهار التحية</label>
+      <label class="lt-opt"><input id="ltShowSignature" type="checkbox" ${showSignature?'checked':''} onchange="updateLetterOptionUI()"> إظهار التوقيع</label>
+    </div>
+
+    <input id="ltDateISO" type="hidden" value="${escapeHtml(isoDate)}" />
+    <div class="lt-fld" id="ltDateWrap"><label>التاريخ <span style="font-weight:400;color:var(--muted)">(يكتب كما تريد)</span></label>
+      <input id="ltDateText" type="text" placeholder="مثال: 15 محرم 1449 هـ" value="${escapeHtml(defaultDateText)}" /></div>
+
     <div class="lt-fld"><label>المرسل إليه</label>
       <input id="ltTo" type="text" placeholder="سعادة الأخ الكريم / رئيس مجلس إدارة …" value="${escapeHtml(l?l.to:'')}" /></div>
     <div class="lt-fld"><label>صفة إضافية <span style="font-weight:400;color:var(--muted)">(اختياري)</span></label>
       <input id="ltToSub" type="text" placeholder="حفظه الله ورعاه" value="${escapeHtml(l?(l.toSub||'حفظه الله ورعاه'):'حفظه الله ورعاه')}" /></div>
-    <div class="lt-fld"><label>الموضوع</label>
+
+    <div class="lt-fld" id="ltSubjectWrap"><label>موضوع الرسالة <span style="font-weight:400;color:var(--muted)">(اختياري)</span></label>
       <input id="ltSubject" type="text" placeholder="موضوع الرسالة" value="${escapeHtml(l?l.subject:'')}" /></div>
+
     <div class="lt-fld"><label>نص الرسالة</label>
-      <textarea id="ltBody" rows="11" placeholder="اكتب نص الرسالة هنا…">${escapeHtml(l?l.body:'')}</textarea>
-      <div class="hint">اترك سطراً فارغاً بين الفقرات — سيظهر التباعد في الطباعة</div></div>
-    <div class="lt-fld"><label>التوقيع</label>
-      <input id="ltSigner" type="text" value="${escapeHtml(l?(l.signer||'صادق الغسرة'):'صادق الغسرة')}" /></div>
-    <div class="lt-fld"><label>الصفة</label>
-      <input id="ltRole" type="text" value="${escapeHtml(l?(l.role||'أمين السر'):'أمين السر')}" /></div>
-    <div class="stats-sec-title">بيانات المتابعة <span style="font-weight:400;font-size:11.5px;color:var(--muted)">(تظهر يمين أسفل الرسالة)</span></div>
+      <div class="lt-editor-shell">
+        <div class="lt-toolbar" aria-label="أدوات تنسيق الرسالة">
+          <button type="button" class="lt-tool" onclick="ltCmd('bold')" title="عريض"><b>B</b></button>
+          <button type="button" class="lt-tool" onclick="ltCmd('italic')" title="مائل"><i>I</i></button>
+          <button type="button" class="lt-tool" onclick="ltCmd('underline')" title="تحته خط"><u>U</u></button>
+
+          <select class="lt-tool-select" onchange="ltCmd('fontSize',this.value);this.selectedIndex=0" title="حجم الخط">
+            <option value="">حجم الخط</option><option value="2">صغير</option><option value="3">عادي</option><option value="4">كبير</option><option value="5">عنوان</option><option value="6">عنوان كبير</option>
+          </select>
+
+          <label class="lt-tool" style="gap:5px;font-weight:600" title="لون الخط">A
+            <input class="lt-color" style="width:25px;height:25px;border:0;padding:0" type="color" value="#1a2620" onchange="ltCmd('foreColor',this.value)">
+          </label>
+          <label class="lt-tool" style="gap:5px;font-weight:600" title="لون التظليل">▰
+            <input class="lt-color" style="width:25px;height:25px;border:0;padding:0" type="color" value="#fff2a8" onchange="ltHighlight(this.value)">
+          </label>
+
+          <button type="button" class="lt-tool" onclick="ltCmd('justifyRight')" title="محاذاة يمين">⇥</button>
+          <button type="button" class="lt-tool" onclick="ltCmd('justifyCenter')" title="توسيط">≡</button>
+          <button type="button" class="lt-tool" onclick="ltCmd('justifyLeft')" title="محاذاة يسار">⇤</button>
+          <button type="button" class="lt-tool" onclick="ltCmd('insertUnorderedList')" title="قائمة نقطية">• قائمة</button>
+          <button type="button" class="lt-tool" onclick="ltCmd('insertOrderedList')" title="قائمة رقمية">1.</button>
+          <button type="button" class="lt-tool" onclick="ltCmd('undo')" title="تراجع">↶</button>
+          <button type="button" class="lt-tool" onclick="ltCmd('redo')" title="إعادة">↷</button>
+          <button type="button" class="lt-tool" onclick="ltCmd('removeFormat')" title="إزالة التنسيق">Tx</button>
+
+          <button type="button" class="lt-tool" onclick="document.getElementById('ltImageInput').click()" title="إرفاق صورة">🖼 صورة</button>
+          <input id="ltImageInput" type="file" accept="image/*" hidden onchange="handleLetterImage(event)">
+
+          <select class="lt-tool-select" onchange="ltMediaSize(this.value);this.selectedIndex=0" title="حجم الصورة">
+            <option value="">حجم الصورة</option><option value="35">35%</option><option value="50">50%</option><option value="75">75%</option><option value="100">100%</option>
+          </select>
+
+          <div class="lt-shape-palette" title="إدراج شكل">
+            <button type="button" class="lt-tool" onclick="ltInsertShape('➜')">➜</button>
+            <button type="button" class="lt-tool" onclick="ltInsertShape('→')">→</button>
+            <button type="button" class="lt-tool" onclick="ltInsertShape('●')">●</button>
+            <button type="button" class="lt-tool" onclick="ltInsertShape('■')">■</button>
+            <button type="button" class="lt-tool" onclick="ltCmd('insertHorizontalRule')">―</button>
+          </div>
+          <select class="lt-tool-select" onchange="ltShapeSize(this.value);this.selectedIndex=0" title="حجم الشكل">
+            <option value="">حجم الشكل</option><option value="20">صغير</option><option value="32">متوسط</option><option value="48">كبير</option><option value="64">كبير جدًا</option>
+          </select>
+        </div>
+        <div id="ltBodyEditor" class="lt-rich" contenteditable="true" spellcheck="true">${bodyHtml}</div>
+      </div>
+      <div class="lt-help">يمكنك تحديد أي نص ثم تنسيقه. اضغط على الصورة ثم اختر حجمها، واضغط على السهم/الشكل ثم اختر حجمه. تعليق الصورة قابل للكتابة مباشرة أسفلها.</div>
+    </div>
+
+    <div id="ltSignatureWrap">
+      <div class="lt-fld"><label>اسم صاحب التوقيع</label>
+        <input id="ltSigner" type="text" value="${escapeHtml(l?(l.signer||'صادق الغسرة'):'صادق الغسرة')}" /></div>
+      <div class="lt-fld"><label>الصفة</label>
+        <input id="ltRole" type="text" value="${escapeHtml(l?(l.role||'أمين السر'):'أمين السر')}" /></div>
+    </div>
+
+    <div class="stats-sec-title">بيانات المتابعة <span style="font-weight:400;font-size:11.5px;color:var(--muted)">(تظهر أسفل الرسالة)</span></div>
     <div class="lt-fld"><label>اسم المسؤول / المتابع</label>
       <input id="ltContact" type="text" placeholder="اسم من يُتواصل معه" value="${escapeHtml(l?(l.contact||''):'')}" /></div>
     <div class="lt-fld"><label>رقم الهاتف</label>
       <input id="ltPhone" type="tel" inputmode="tel" placeholder="+973…" value="${escapeHtml(l?(l.phone||''):'')}" /></div>
+
     <div class="lt-actions">
       <button class="btn btn-primary" onclick="saveLetter()">${icon('check',16,'ico-btn')} حفظ</button>
-      <button class="btn btn-accent" onclick="printLetter()">${icon('print',16,'ico-btn')} طباعة</button>
+      <button class="btn btn-accent" onclick="printLetter()">${icon('print',16,'ico-btn')} معاينة / طباعة</button>
       ${l?`<button class="btn" style="background:var(--danger);color:#fff;border:none" onclick="deleteLetter('${l.id}')">${icon('trash',16,'ico-btn')} حذف</button>`:''}
     </div>
   </div>`;
+
+  updateLetterOptionUI();
+  letterSelectedMedia=null; letterSelectedShape=null;
+  const ed=$('#ltBodyEditor');
+  if(ed){
+    ed.addEventListener('click',e=>{
+      ed.querySelectorAll('.selected').forEach(x=>x.classList.remove('selected'));
+      letterSelectedMedia=null; letterSelectedShape=null;
+      const fig=e.target.closest&&e.target.closest('figure.lt-media');
+      const shape=e.target.closest&&e.target.closest('.lt-shape');
+      if(fig){letterSelectedMedia=fig;fig.classList.add('selected');}
+      else if(shape){letterSelectedShape=shape;shape.classList.add('selected');}
+    });
+  }
+}
+function updateLetterOptionUI(){
+  const sd=$('#ltShowDate'), ss=$('#ltShowSubject'), sg=$('#ltShowSignature');
+  const dw=$('#ltDateWrap'), sw=$('#ltSubjectWrap'), gw=$('#ltSignatureWrap');
+  if(dw&&sd) dw.style.display=sd.checked?'':'none';
+  if(sw&&ss) sw.style.display=ss.checked?'':'none';
+  if(gw&&sg) gw.style.display=sg.checked?'':'none';
+}
+function ltFocus(){
+  const ed=$('#ltBodyEditor'); if(ed) ed.focus(); return ed;
+}
+function ltCmd(cmd,val){
+  const ed=ltFocus(); if(!ed) return;
+  try{ document.execCommand(cmd,false,val||null); }catch(e){}
+}
+function ltHighlight(color){
+  const ed=ltFocus(); if(!ed) return;
+  try{
+    if(!document.execCommand('hiliteColor',false,color)) document.execCommand('backColor',false,color);
+  }catch(e){ try{document.execCommand('backColor',false,color);}catch(_){} }
+}
+function ltInsertHtml(html){
+  const ed=ltFocus(); if(!ed) return;
+  try{ document.execCommand('insertHTML',false,html); }
+  catch(e){ ed.insertAdjacentHTML('beforeend',html); }
+}
+async function handleLetterImage(e){
+  const file=e.target.files&&e.target.files[0]; if(!file) return;
+  if(file.size>15*1024*1024){toast('الصورة كبيرة جداً');e.target.value='';return;}
+  try{
+    let data='';
+    if(typeof processPhoto==='function') data=await processPhoto(file,1200,.78);
+    else data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);});
+    ltInsertHtml(`<figure class="lt-media" style="width:75%"><img src="${data}" alt="صورة مرفقة"><figcaption contenteditable="true">اكتب تعليق الصورة هنا…</figcaption></figure><p><br></p>`);
+    toast('تم إدراج الصورة');
+  }catch(err){console.error(err);toast('تعذّر إدراج الصورة');}
+  e.target.value='';
+}
+function ltMediaSize(v){
+  const n=Math.max(25,Math.min(100,Number(v)||0));
+  if(!letterSelectedMedia||!n){toast('اضغط على الصورة أولاً');return;}
+  letterSelectedMedia.style.width=n+'%';
+}
+function ltInsertShape(ch){
+  const safe={'➜':'➜','→':'→','●':'●','■':'■'}[ch]||'→';
+  ltInsertHtml(`<span class="lt-shape" data-lt-shape="1" style="font-size:32px;display:inline-block;line-height:1">${safe}</span>&nbsp;`);
+}
+function ltShapeSize(v){
+  const n=Math.max(16,Math.min(80,Number(v)||0));
+  if(!letterSelectedShape||!n){toast('اضغط على السهم أو الشكل أولاً');return;}
+  letterSelectedShape.style.fontSize=n+'px';
 }
 function readLetterForm(){
+  const editor=$('#ltBodyEditor');
+  const bodyHtml=sanitizeLetterHtml(editor?editor.innerHTML:'').trim();
+  const bodyText=(editor?editor.innerText:'').trim();
   return {
-    date: $('#ltDate').value||today(),
-    to: ($('#ltTo').value||'').trim(),
-    toSub: ($('#ltToSub').value||'').trim(),
-    subject: ($('#ltSubject').value||'').trim(),
-    body: ($('#ltBody').value||'').trim(),
-    signer: ($('#ltSigner').value||'').trim()||'صادق الغسرة',
-    role: ($('#ltRole').value||'').trim()||'أمين السر',
-    contact: ($('#ltContact').value||'').trim(),
-    phone: ($('#ltPhone').value||'').trim()
+    date: ($('#ltDateISO')||{}).value||today(),
+    dateText: (($('#ltDateText')||{}).value||'').trim(),
+    showDate: !!(($('#ltShowDate')||{}).checked),
+    to: (($('#ltTo')||{}).value||'').trim(),
+    toSub: (($('#ltToSub')||{}).value||'').trim(),
+    subject: (($('#ltSubject')||{}).value||'').trim(),
+    showSubject: !!(($('#ltShowSubject')||{}).checked),
+    showGreeting: !!(($('#ltShowGreeting')||{}).checked),
+    body: bodyText,
+    bodyHtml,
+    signer: (($('#ltSigner')||{}).value||'').trim()||'صادق الغسرة',
+    role: (($('#ltRole')||{}).value||'').trim()||'أمين السر',
+    showSignature: !!(($('#ltShowSignature')||{}).checked),
+    contact: (($('#ltContact')||{}).value||'').trim(),
+    phone: (($('#ltPhone')||{}).value||'').trim()
   };
 }
 async function saveLetter(){
   const f=readLetterForm();
-  if(!f.subject){ toast('اكتب موضوع الرسالة'); return; }
+  if(!f.body && !f.subject && !f.to){ toast('اكتب محتوى الرسالة أولاً'); return; }
+  const label=f.subject||'رسالة بدون موضوع';
   if(editingLetterId){
     const l=letters.find(x=>x.id===editingLetterId);
     if(l) Object.assign(l, f, { updatedAt:new Date().toISOString() });
-    logAudit('تعديل','الرسائل',`رسالة «${f.subject}»`);
+    logAudit('تعديل','الرسائل',`رسالة «${label}»`);
   } else {
     const id='lt_'+Date.now();
     letters.push({ id, ...f, at:new Date().toISOString() });
     editingLetterId=id;
-    logAudit('إضافة','الرسائل',`رسالة «${f.subject}» إلى ${f.to||'—'}`);
+    logAudit('إضافة','الرسائل',`رسالة «${label}» إلى ${f.to||'—'}`);
   }
   await saveLetters();
   toast('حُفظت الرسالة');
@@ -2051,104 +2245,68 @@ async function deleteLetter(id){
 
 /* طباعة الرسالة بالترويسة والختم */
 function printLetter(){
-  const f = readLetterForm();
-  if(!f.subject && !f.body){ toast('اكتب الرسالة أولاً'); return; }
+  const f=readLetterForm();
+  if(!f.body && !f.subject && !f.to){toast('اكتب الرسالة أولاً');return;}
+  const safeBody=sanitizeLetterHtml(f.bodyHtml||escapeHtml(f.body).replace(/\n/g,'<br>'));
+  const title=f.subject||'رسالة رسمية';
   const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(f.subject||'رسالة رسمية')}</title>
+  if(!w){toast('اسمح بالنوافذ المنبثقة لفتح المعاينة');return;}
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-  <style>*{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'IBM Plex Sans Arabic',sans-serif;background:#e9e5dd;padding:20px}
-  .page{width:210mm;min-height:297mm;background:#fff;margin:0 auto;padding:22mm 20mm 18mm;position:relative;
-    box-shadow:0 8px 30px -14px rgba(0,0,0,.3);display:flex;flex-direction:column}
+  <style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'IBM Plex Sans Arabic',sans-serif;background:#e9e5dd;padding:20px;color:#241f1b}
+  .page{width:210mm;min-height:297mm;background:#fff;margin:0 auto;padding:22mm 20mm 18mm;position:relative;box-shadow:0 8px 30px -14px rgba(0,0,0,.3);display:flex;flex-direction:column}
   .lh{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:14px;border-bottom:3px double #c19a3e}
-  .lh-logo{max-width:150px;max-height:62px}
-  .lh-txt{text-align:left;font-size:11px;color:#8a7c6b;line-height:1.9}
+  .lh-logo{max-width:150px;max-height:62px}.lh-txt{text-align:left;font-size:11px;color:#8a7c6b;line-height:1.9}
   .lh-txt b{display:block;font-family:'Amiri',serif;font-size:15px;color:#1c4536;margin-bottom:2px}
-  .meta{font-size:12px;color:#5a5148;margin:14px 0 20px}
-  .meta b{color:#1c4536}
-  .to{font-size:15px;font-weight:700;color:#1c4536;margin-bottom:4px}
-  .to-sub{font-size:12.5px;color:#8a7c6b;margin-bottom:16px}
+  .meta{font-size:12.5px;color:#5a5148;margin:14px 0 20px}.meta b{color:#1c4536}
+  .to{font-size:15px;font-weight:700;color:#1c4536;margin-bottom:4px}.to-sub{font-size:12.5px;color:#8a7c6b;margin-bottom:16px}
   .subj{background:#f6f2ea;border-right:4px solid #c19a3e;border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:18px}
-  .subj span{font-size:11.5px;color:#8a7c6b;display:block;margin-bottom:3px}
-  .subj b{font-size:14.5px;color:#1c4536}
+  .subj span{font-size:11.5px;color:#8a7c6b;display:block;margin-bottom:3px}.subj b{font-size:14.5px;color:#1c4536}
   .salam{font-size:14px;color:#1c4536;font-weight:600;margin-bottom:12px}
-  .body-txt{font-size:14px;line-height:2.15;text-align:justify;color:#241f1b;white-space:pre-wrap;flex:1}
+  .body-txt{font-size:14px;line-height:2.05;text-align:right;color:#241f1b;flex:1;overflow-wrap:anywhere}
+  .body-txt p{margin:0 0 11px}.body-txt ul,.body-txt ol{padding-right:24px;margin:8px 0}
+  .body-txt figure.lt-media{margin:14px auto;text-align:center;break-inside:avoid}
+  .body-txt figure.lt-media img{max-width:100%;height:auto;display:block;margin:0 auto;border-radius:5px}
+  .body-txt figure.lt-media figcaption{font-size:11.5px;color:#746b60;margin-top:6px;text-align:center}
+  .body-txt .lt-shape{display:inline-block;line-height:1}
+  .body-txt hr{border:0;border-top:1px solid #8a7c6b;margin:14px 0}
   .sign-area{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;margin-top:30px;gap:14px}
-  .sign{text-align:center;grid-column:3}
-  .sign img{max-width:150px;display:block;margin:0 auto 2px}
-  .sign-line{border-bottom:1px solid #8a7c6b;margin-bottom:7px}
-  .sign-t{font-size:12px;color:#8a7c6b}
-  .sign-n{font-size:14.5px;font-weight:700;color:#1c4536}
+  .sign{text-align:center;grid-column:3}.sign img{max-width:150px;display:block;margin:0 auto 2px}.sign-line{border-bottom:1px solid #8a7c6b;margin-bottom:7px}
+  .sign-t{font-size:12px;color:#8a7c6b}.sign-n{font-size:14.5px;font-weight:700;color:#1c4536}
   .stamp-mid{grid-column:2;display:flex;justify-content:center;align-items:flex-end;padding-bottom:6px}
-  .contact-box{grid-column:1;text-align:right;padding-bottom:8px}
-  .cb-l{font-size:10.5px;color:#8a7c6b;margin-bottom:5px}
-  .cb-n{font-size:13px;font-weight:700;color:#1c4536}
-  .cb-p{font-size:12.5px;color:#5a5148;margin-top:3px;direction:ltr;unicode-bidi:isolate;font-variant-numeric:lining-nums}
-  .ink-stamp{position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:15px 28px 13px;border:5px solid #123a6b;border-radius:9px;transform:rotate(-8deg);
-    filter:url(#inkRough);opacity:.97;background:transparent}
+  .contact-box{grid-column:1;text-align:right;padding-bottom:8px}.cb-l{font-size:10.5px;color:#8a7c6b;margin-bottom:5px}.cb-n{font-size:13px;font-weight:700;color:#1c4536}
+  .cb-p{font-size:12.5px;color:#5a5148;margin-top:3px;direction:ltr;unicode-bidi:isolate}
+  .ink-stamp{position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;padding:15px 28px 13px;border:5px solid #123a6b;border-radius:9px;transform:rotate(-8deg);opacity:.97;background:transparent}
   .ink-stamp::before{content:'';position:absolute;inset:6px;border:2px solid #123a6b;border-radius:5px}
-  .ink-stamp img{max-width:140px;max-height:52px;display:block;
-    filter:url(#inkRough2) invert(15%) sepia(88%) saturate(2400%) hue-rotate(206deg) brightness(78%) contrast(105%)}
-  .ink-stamp .st-sub{font-size:10px;font-weight:700;color:#123a6b;letter-spacing:.8px;margin-top:6px;filter:url(#inkRough2)}
+  .ink-stamp img{max-width:140px;max-height:52px;display:block;filter:invert(15%) sepia(88%) saturate(2400%) hue-rotate(206deg) brightness(78%) contrast(105%)}
+  .ink-stamp .st-sub{font-size:10px;font-weight:700;color:#123a6b;letter-spacing:.8px;margin-top:6px}
   .lf{margin-top:auto;padding-top:14px;border-top:1px solid #e6ddcb;text-align:center;font-size:10.5px;color:#b3a894}
-  .no-print{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99}
-  .no-print button{border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;color:#fff}
-  @page{ size:A4 portrait; margin:0; }
-  @media print{
-    html,body{background:#fff;padding:0;margin:0;width:210mm}
-    .page{box-shadow:none;margin:0;width:210mm;height:297mm;min-height:297mm;padding:20mm 18mm 15mm;page-break-after:avoid}
-    .no-print{display:none}
-    .ink-stamp,.ink-stamp img,.ink-stamp .st-sub{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  .no-print{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:99}.no-print button{border:none;padding:10px 18px;border-radius:8px;font-family:'IBM Plex Sans Arabic';font-size:14px;cursor:pointer;color:#fff}
+  @page{size:A4 portrait;margin:0}
+  @media print{html,body{background:#fff;padding:0;margin:0;width:210mm}.page{box-shadow:none;margin:0;width:210mm;min-height:297mm;padding:20mm 18mm 15mm}.no-print{display:none}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   </style></head><body>
-  <svg width="0" height="0" style="position:absolute">
-   <filter id="inkRough">
-     <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="7" result="n"/>
-     <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
-     <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="3" result="n2"/>
-     <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0, 0 0 0 0 0, 0 0 0 0 0, 0 0 0 -1.4 1.05" result="mask"/>
-     <feComposite in="d" in2="mask" operator="in"/>
-   </filter>
-   <filter id="inkRough2">
-     <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="12" result="n"/>
-     <feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G" result="d"/>
-     <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="4" seed="9" result="n2"/>
-     <feColorMatrix in="n2" type="matrix" values="0 0 0 0 0, 0 0 0 0 0, 0 0 0 0 0, 0 0 0 -1.6 1.12" result="mask"/>
-     <feComposite in="d" in2="mask" operator="in"/>
-   </filter>
-  </svg>
-  <div class="no-print">
-    <button onclick="window.print()" style="background:#1c4536">🖨️ طباعة / PDF</button>
-    <button onclick="window.close()" style="background:#8a7c6b">↩︎ عودة</button>
-  </div>
+  <div class="no-print"><button onclick="window.print()" style="background:#1c4536">🖨️ طباعة / PDF</button><button onclick="window.close()" style="background:#8a7c6b">↩︎ عودة</button></div>
   <div class="page">
-    <div class="lh"><img class="lh-logo" src="${HAIAA_LOGO}" alt="" />
-      <div class="lh-txt"><b>هيئة محبي الحسين (ع)</b>بني جمرة — مملكة البحرين</div></div>
-    <div class="meta">التاريخ: <b>${escapeHtml(gregToHijri(f.date))}</b> · الموافق ${fmtDate(f.date)}</div>
+    <div class="lh"><img class="lh-logo" src="${HAIAA_LOGO}" alt=""><div class="lh-txt"><b>هيئة محبي الحسين (ع)</b>بني جمرة — مملكة البحرين</div></div>
+    ${f.showDate&&f.dateText?`<div class="meta">التاريخ: <b>${escapeHtml(f.dateText)}</b></div>`:''}
     ${f.to?`<div class="to">${escapeHtml(f.to)}</div>`:''}
     ${f.toSub?`<div class="to-sub">${escapeHtml(f.toSub)}</div>`:''}
-    ${f.subject?`<div class="subj"><span>الموضوع</span><b>${escapeHtml(f.subject)}</b></div>`:''}
-    <div class="salam">السلام عليكم ورحمة الله وبركاته، وبعد؛</div>
-    <div class="body-txt">${escapeHtml(f.body)}</div>
+    ${f.showSubject&&f.subject?`<div class="subj"><span>الموضوع</span><b>${escapeHtml(f.subject)}</b></div>`:''}
+    ${f.showGreeting?`<div class="salam">السلام عليكم ورحمة الله وبركاته، وبعد؛</div>`:''}
+    <div class="body-txt">${safeBody}</div>
     <div class="sign-area">
-      ${(f.contact||f.phone)?`<div class="contact-box">
-        <div class="cb-l">للتواصل والمتابعة</div>
-        ${f.contact?`<div class="cb-n">${escapeHtml(f.contact)}</div>`:''}
-        ${f.phone?`<div class="cb-p" dir="ltr">${escapeHtml(f.phone)}</div>`:''}
-      </div>`:'<div></div>'}
-      <div class="stamp-mid">
-        <div class="ink-stamp"><img src="${HAIAA_LOGO}" alt="" /><div class="st-sub">بني جمرة — البحرين</div></div>
-      </div>
-      <div class="sign"><img src="${HAIAA_SIGNATURE}" alt="" /><div class="sign-line"></div>
-        <div class="sign-t">${escapeHtml(f.role)}</div><div class="sign-n">${escapeHtml(f.signer)}</div></div>
+      ${(f.contact||f.phone)?`<div class="contact-box"><div class="cb-l">للتواصل والمتابعة</div>${f.contact?`<div class="cb-n">${escapeHtml(f.contact)}</div>`:''}${f.phone?`<div class="cb-p" dir="ltr">${escapeHtml(f.phone)}</div>`:''}</div>`:'<div></div>'}
+      <div class="stamp-mid"><div class="ink-stamp"><img src="${HAIAA_LOGO}" alt=""><div class="st-sub">بني جمرة — البحرين</div></div></div>
+      ${f.showSignature?`<div class="sign"><img src="${HAIAA_SIGNATURE}" alt="التوقيع"><div class="sign-line"></div><div class="sign-t">${escapeHtml(f.role)}</div><div class="sign-n">${escapeHtml(f.signer)}</div></div>`:'<div></div>'}
     </div>
     <div class="lf">هيئة محبي الحسين (ع) — بني جمرة · وثيقة رسمية صادرة عن أمانة السر</div>
-  </div></body></html>`);
-  w.document.close(); w.focus();
+  </div>
+  </body></html>`);
+  w.document.close();w.focus();
 }
 
-/* ═══════════ الأرشيف السنوي ═══════════ */
 function renderArchive(){
   const host=$('#archList'); if(!host) return;
   const sub=$('#archSub');
