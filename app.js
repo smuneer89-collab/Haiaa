@@ -6640,30 +6640,145 @@ async function createSeasonEvalLink(){
     loadSeasonEvalSessions();
   }catch(e){console.error(e);if(out)out.innerHTML='<div class="eval-link-err">تعذّر إنشاء الرابط. تأكد من الاتصال وقواعد Firebase.</div>';}
 }
+const SEASON_ADMIN_TIMEOUT_MS=12000;
+function seasonAdminTimeout(promise,ms=SEASON_ADMIN_TIMEOUT_MS){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('season-eval-timeout')),ms))
+  ]);
+}
+async function cacheSeasonAdminSessions(rows){
+  try{await storage.set('seasonEvalAdminSessions',JSON.stringify(rows||[]));}catch(e){}
+}
+async function getCachedSeasonAdminSessions(){
+  try{const x=await storage.get('seasonEvalAdminSessions');return x?JSON.parse(x):[];}catch(e){return [];}
+}
+async function cacheSeasonAdminResponses(id,rows){
+  try{
+    const raw=await storage.get('seasonEvalAdminResponses');
+    const map=raw?JSON.parse(raw):{};
+    map[id]=rows||[];
+    await storage.set('seasonEvalAdminResponses',JSON.stringify(map));
+  }catch(e){}
+}
+async function getCachedSeasonAdminResponses(id){
+  try{
+    const raw=await storage.get('seasonEvalAdminResponses');
+    const map=raw?JSON.parse(raw):{};
+    return Array.isArray(map[id])?map[id]:[];
+  }catch(e){return [];}
+}
+function seasonAdminErrMsg(e){
+  const s=String((e&&e.code)||'')+' '+String((e&&e.message)||e||'');
+  if(s.includes('permission-denied')) return 'تعذّر الوصول إلى النتائج بسبب صلاحيات Firebase.';
+  if(s.includes('season-eval-timeout')) return 'الاتصال بالسحابة بطيء أو متوقف.';
+  if(s.includes('unavailable')||s.includes('network')) return 'تعذّر الاتصال بـ Firebase حالياً.';
+  return 'تعذّر تحميل بيانات تقييم الموسم.';
+}
 async function loadSeasonEvalSessions(){
   const host=$('#seasonEvalSessionsList'); if(!host)return;
-  if(!window.CloudSync||!CloudSync.isReady){host.innerHTML='<div class="eval-link-note">سجّل الدخول للسحابة لعرض الروابط والنتائج.</div>';return;}
-  host.innerHTML='<div class="eval-link-loading">جارٍ التحميل…</div>';
+  if(!window.CloudSync||!CloudSync.isReady){
+    const cached=await getCachedSeasonAdminSessions();
+    if(cached.length){
+      renderSeasonEvalSessionRows(cached,true);
+    }else{
+      host.innerHTML='<div class="eval-link-note">السحابة غير متصلة حالياً.<br><button class="btn btn-sm" style="margin-top:10px" onclick="loadSeasonEvalSessions()">إعادة المحاولة</button></div>';
+    }
+    return;
+  }
+
+  host.innerHTML='<div class="eval-link-loading">جارٍ تحميل روابط المواسم والنتائج…</div>';
   try{
-    const all=await CloudSync.fetchSeasonEvalSessions();
-    if(!all.length){host.innerHTML='<div class="eval-link-note">لا توجد روابط تقييم موسم بعد.</div>';return;}
-    host.innerHTML=all.map(x=>`<div class="els-row"><div class="els-body"><div class="els-name">${escapeHtml(x.seasonName||x.year||'—')}</div><div class="els-meta">${x.at?new Date(x.at).toLocaleDateString('ar-BH'):''} · ${x.closed?'مغلق':'مفتوح'}</div>${x.closed?'':`<div class="elb-url" style="margin-top:7px">${escapeHtml(seasonEvalPageURL(x._id))}</div>`}</div>${x.closed?'':`<button class="btn btn-sm" onclick="copyEvalLink('${escapeHtml(seasonEvalPageURL(x._id))}')">نسخ</button>`}<button class="btn btn-sm" onclick="viewSeasonEvalResults('${x._id}','${escapeHtml(x.seasonName||x.year||'')}')">النتائج</button><button class="btn btn-sm" onclick="toggleSeasonEval('${x._id}',${x.closed?'false':'true'})">${x.closed?'فتح':'إغلاق'}</button><button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none" onclick="deleteSeasonEval('${x._id}')">حذف</button></div><div id="seasonRes_${x._id}" class="rec-session-result" style="display:none"></div>`).join('');
-  }catch(e){console.error(e);host.innerHTML='<div class="eval-link-err">تعذّر تحميل روابط المواسم.</div>';}
+    const all=await seasonAdminTimeout(CloudSync.fetchSeasonEvalSessions());
+    await cacheSeasonAdminSessions(all);
+    renderSeasonEvalSessionRows(all,false);
+  }catch(e){
+    console.error('season eval sessions',e);
+    const cached=await getCachedSeasonAdminSessions();
+    if(cached.length){
+      renderSeasonEvalSessionRows(cached,true);
+      const note=document.createElement('div');
+      note.className='eval-link-note';
+      note.style.marginBottom='10px';
+      note.innerHTML=`يتم عرض آخر بيانات محفوظة على هذا الجهاز لأن الاتصال بالسحابة لم يكتمل.<br><button class="btn btn-sm" style="margin-top:8px" onclick="loadSeasonEvalSessions()">إعادة المحاولة</button>`;
+      host.prepend(note);
+    }else{
+      host.innerHTML=`<div class="eval-link-err">${seasonAdminErrMsg(e)}<br><button class="btn btn-sm" style="margin-top:10px" onclick="loadSeasonEvalSessions()">إعادة المحاولة</button></div>`;
+    }
+  }
+}
+function renderSeasonEvalSessionRows(all,fromCache){
+  const host=$('#seasonEvalSessionsList'); if(!host)return;
+  if(!all||!all.length){
+    host.innerHTML='<div class="eval-link-note">لا توجد روابط تقييم موسم بعد.</div>';
+    return;
+  }
+  host.innerHTML=all.map(x=>`<div class="els-row">
+    <div class="els-body">
+      <div class="els-name">${escapeHtml(x.seasonName||x.year||'—')}</div>
+      <div class="els-meta">${x.at?new Date(x.at).toLocaleDateString('ar-BH'):''} · ${x.closed?'مغلق':'مفتوح'}${fromCache?' · نسخة محفوظة':''}</div>
+      ${x.closed?'':`<div class="elb-url" style="margin-top:7px">${escapeHtml(seasonEvalPageURL(x._id))}</div>`}
+    </div>
+    ${x.closed?'':`<button class="btn btn-sm" onclick="copyEvalLink('${escapeHtml(seasonEvalPageURL(x._id))}')">نسخ</button>`}
+    <button class="btn btn-sm" onclick="viewSeasonEvalResults('${x._id}','${escapeHtml(x.seasonName||x.year||'')}')">النتائج</button>
+    <button class="btn btn-sm" onclick="toggleSeasonEval('${x._id}',${x.closed?'false':'true'})">${x.closed?'فتح':'إغلاق'}</button>
+    <button class="btn btn-sm" style="background:var(--danger);color:#fff;border:none" onclick="deleteSeasonEval('${x._id}')">حذف</button>
+  </div><div id="seasonRes_${x._id}" class="rec-session-result" style="display:none"></div>`).join('');
 }
 async function toggleSeasonEval(id,closed){try{await CloudSync.setSeasonEvalSessionClosed(id,closed);toast(closed?'تم إغلاق الرابط':'تم فتح الرابط');loadSeasonEvalSessions();}catch(e){toast('تعذّر تحديث الرابط');}}
 async function deleteSeasonEval(id){if(!confirm('حذف رابط الموسم وكل الإجابات المرتبطة به؟'))return;try{await CloudSync.deleteSeasonEvalSession(id);toast('تم الحذف');loadSeasonEvalSessions();}catch(e){toast('تعذّر الحذف');}}
 const SEASON_LABELS={radoodPerformance:'أداء الرواديد',radoodVariety:'تنوع الرواديد',radoodChoice:'اختيار الرواديد',poemsLevel:'مستوى القصائد',poemsContent:'كلمات ومضامين القصائد',poemsVariety:'تنوع القصائد',tunesVariety:'تنوع الأطوار',tunesFit:'مناسبة الأطوار',audienceInteraction:'تفاعل الجمهور',voiceClarity:'وضوح الصوت',speakers:'توزيع السماعات',ac:'التكييف والتهوية',space:'مساحة وترتيب المكان',duration:'مدة المجلس',muharram:'مجالس محرم',safar:'مجالس صفر'};
 async function viewSeasonEvalResults(id,year){
-  const box=$('#seasonRes_'+id);if(!box)return;if(box.style.display==='block'){box.style.display='none';return;}box.style.display='block';box.innerHTML='<div class="eval-link-loading">جارٍ جلب النتائج…</div>';
-  try{const rows=await CloudSync.fetchSeasonEvalResponses(id);if(!rows.length){box.innerHTML='<div class="eval-link-note">لم تصل أي إجابة بعد.</div>';return;}
-    const ratings=Object.keys(SEASON_LABELS).map(k=>{const a=rows.map(r=>String((r.answers||{})[k]||'')).filter(v=>['سيء','جيد','ممتاز'].includes(v));if(!a.length)return '';const c={'سيء':0,'جيد':0,'ممتاز':0};a.forEach(v=>c[v]++);return `<tr><td>${SEASON_LABELS[k]}</td><td><b>سيء: ${c['سيء']} · جيد: ${c['جيد']} · ممتاز: ${c['ممتاز']}</b></td></tr>`;}).join('');
-    const textKeys=[['bestRadood','الرادود الأكثر تميزًا'],['wantedRadoodName','رادود مطلوب للموسم القادم'],['bestPoem','القصيدة الأكثر تأثيرًا'],['preferredTunes','الأطوار المفضلة'],['bestNight','أفضل ليلة ولماذا'],['likedMost','أكثر شيء أعجبهم'],['needsDevelopment','أكثر شيء يحتاج تطويرًا'],['keepNext','ما يتمنون المحافظة عليه']];
-    const texts=textKeys.map(([k,l])=>{const vals=rows.map(r=>(r.answers||{})[k]).filter(Boolean);return vals.length?`<div class="box"><b>${l}</b><div style="margin-top:6px">${vals.map(v=>'• '+escapeHtml(v)).join('<br>')}</div></div>`:''}).join('');
-    const picks={};rows.forEach(r=>((r.answers||{}).top3||[]).forEach(n=>picks[n]=(picks[n]||0)+1));const top=Object.entries(picks).sort((a,b)=>b[1]-a[1]);
-    box.innerHTML=`<div class="eval-results-box"><div class="erb-main"><div class="erb-pct">${rows.length}</div><div class="erb-sub">مشارك · ${escapeHtml(year)}</div></div><div style="display:flex;justify-content:flex-end;margin:10px 0 12px"><button class="btn btn-accent btn-sm" onclick="printSeasonEvalResults('${id}','${escapeHtml(year)}')">${icon('print',15,'ico-btn')} طباعة / حفظ PDF</button></div>${ratings?`<table class="rep-tbl" style="width:100%;margin-top:12px"><tbody>${ratings}</tbody></table>`:''}${top.length?`<div class="box"><b>أفضل الرواديد حسب اختيار المشاركين</b><div style="margin-top:6px">${top.map(([n,c],i)=>`${i+1}. ${escapeHtml(n)} — ${c} اختيار`).join('<br>')}</div></div>`:''}${texts}</div>`;
-  }catch(e){console.error(e);box.innerHTML='<div class="eval-link-err">تعذّر جلب النتائج.</div>';}
-}
+  const box=$('#seasonRes_'+id);if(!box)return;
+  if(box.style.display==='block'){box.style.display='none';return;}
+  box.style.display='block';
+  box.innerHTML='<div class="eval-link-loading">جارٍ جلب النتائج من Firebase…</div>';
 
+  let rows=[],fromCache=false;
+  try{
+    rows=await seasonAdminTimeout(CloudSync.fetchSeasonEvalResponses(id));
+    await cacheSeasonAdminResponses(id,rows);
+  }catch(e){
+    console.error('season eval responses',e);
+    rows=await getCachedSeasonAdminResponses(id);
+    fromCache=rows.length>0;
+    if(!rows.length){
+      box.innerHTML=`<div class="eval-link-err">${seasonAdminErrMsg(e)}<br><button class="btn btn-sm" style="margin-top:10px" onclick="this.closest('.rec-session-result').style.display='none';viewSeasonEvalResults('${id}','${escapeHtml(year)}')">إعادة المحاولة</button></div>`;
+      return;
+    }
+  }
+
+  if(!rows.length){
+    box.innerHTML='<div class="eval-link-note">لم تصل أي إجابة بعد.</div>';
+    return;
+  }
+
+  const ratings=Object.keys(SEASON_LABELS).map(k=>{
+    const a=rows.map(r=>String((r.answers||{})[k]||'')).filter(v=>['سيء','جيد','ممتاز'].includes(v));
+    if(!a.length)return '';
+    const c={'سيء':0,'جيد':0,'ممتاز':0};a.forEach(v=>c[v]++);
+    return `<tr><td>${SEASON_LABELS[k]}</td><td><b>سيء: ${c['سيء']} · جيد: ${c['جيد']} · ممتاز: ${c['ممتاز']}</b></td></tr>`;
+  }).join('');
+
+  const textKeys=[['bestRadood','الرادود الأكثر تميزًا'],['wantedRadoodName','رادود مطلوب للموسم القادم'],['bestPoem','القصيدة الأكثر تأثيرًا'],['preferredTunes','الأطوار المفضلة'],['bestNight','أفضل ليلة ولماذا'],['likedMost','أكثر شيء أعجبهم'],['needsDevelopment','أكثر شيء يحتاج تطويرًا'],['keepNext','ما يتمنون المحافظة عليه']];
+  const texts=textKeys.map(([k,l])=>{
+    const vals=rows.map(r=>(r.answers||{})[k]).filter(Boolean);
+    return vals.length?`<div class="box"><b>${l}</b><div style="margin-top:6px">${vals.map(v=>'• '+escapeHtml(v)).join('<br>')}</div></div>`:'';
+  }).join('');
+
+  const picks={};
+  rows.forEach(r=>((r.answers||{}).top3||[]).forEach(n=>picks[n]=(picks[n]||0)+1));
+  const top=Object.entries(picks).sort((a,b)=>b[1]-a[1]);
+
+  box.innerHTML=`${fromCache?`<div class="eval-link-note" style="margin-bottom:10px">هذه آخر نتائج محفوظة على هذا الجهاز. اضغط إعادة المحاولة لجلب الأحدث.<br><button class="btn btn-sm" style="margin-top:7px" onclick="this.closest('.rec-session-result').style.display='none';viewSeasonEvalResults('${id}','${escapeHtml(year)}')">إعادة المحاولة</button></div>`:''}
+  <div class="eval-results-box">
+    <div class="erb-main"><div class="erb-pct">${rows.length}</div><div class="erb-sub">مشارك · ${escapeHtml(year)}</div></div>
+    <div style="display:flex;justify-content:flex-end;margin:10px 0 12px"><button class="btn btn-accent btn-sm" onclick="printSeasonEvalResults('${id}','${escapeHtml(year)}')">${icon('print',15,'ico-btn')} طباعة / حفظ PDF</button></div>
+    ${ratings?`<table class="rep-tbl" style="width:100%;margin-top:12px"><tbody>${ratings}</tbody></table>`:''}
+    ${top.length?`<div class="box"><b>أفضل الرواديد حسب اختيار المشاركين</b><div style="margin-top:6px">${top.map(([n,c],i)=>`${i+1}. ${escapeHtml(n)} — ${c} اختيار`).join('<br>')}</div></div>`:''}
+    ${texts}
+  </div>`;
+}
 async function printSeasonEvalResults(id,seasonName){
   if(!window.CloudSync||!CloudSync.isReady){toast('يجب الاتصال بالسحابة أولاً');return;}
   let rows=[], closed=false;

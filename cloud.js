@@ -581,15 +581,29 @@ const CloudSync = (() => {
 
   // ═══ تقييم الموسم العام عبر الرابط ═══
   async function createSeasonEvalSession(payload){ return createLinkSession('seasonEvalSessions', payload); }
+  async function _seasonGetWithFallback(query){
+    if(!db) throw new Error('cloud not ready');
+    // نحاول الخادم أولاً حتى تظهر أحدث النتائج، ثم نرجع إلى كاش Firestore عند ضعف الاتصال.
+    try{
+      return await query.get({source:'server'});
+    }catch(serverErr){
+      try{
+        const cached=await query.get({source:'cache'});
+        if(cached) return cached;
+      }catch(cacheErr){}
+      throw serverErr;
+    }
+  }
   async function fetchSeasonEvalSessions(){
     if(!db) throw new Error('cloud not ready');
-    const snap=await db.collection('seasonEvalSessions').get();
+    const snap=await _seasonGetWithFallback(db.collection('seasonEvalSessions'));
     const arr=snap.docs.map(d=>Object.assign({_id:d.id},d.data()));
     arr.sort((a,b)=>(b.at||'').localeCompare(a.at||'')); return arr;
   }
   async function fetchSeasonEvalResponses(sessionId){
     if(!db) throw new Error('cloud not ready');
-    const snap=await db.collection('seasonEvalResponses').where('sessionId','==',sessionId).get();
+    const q=db.collection('seasonEvalResponses').where('sessionId','==',sessionId);
+    const snap=await _seasonGetWithFallback(q);
     return snap.docs.map(d=>Object.assign({_id:d.id},d.data()));
   }
   async function setSeasonEvalSessionClosed(sessionId,closed){
