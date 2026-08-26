@@ -2772,7 +2772,15 @@
 
     <div id="idara-azamessages" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="openIdara('media')">← رجوع للجنة الإعلامية</button>
-      <div class="panel">
+      <div class="panel" style="padding:10px;margin-bottom:12px">
+        <div style="font-weight:800;color:var(--accent);margin-bottom:8px">اختر قالب المسج</div>
+        <div class="actions-row" style="margin:0">
+          <button id="azaTplNormalBtn" type="button" class="btn btn-primary" onclick="showAzaMessageTemplate('normal')">مسجات الإعلانات العادية</button>
+          <button id="azaTplCelebrationBtn" type="button" class="btn btn-ghost" onclick="showAzaMessageTemplate('celebration')">✨ مسجات الاحتفالات</button>
+        </div>
+      </div>
+
+      <div id="normalAzaMessagePanel" class="panel">
         <div class="panel-header"><div><h2 class="panel-title"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7l9.5 6 9.5-6"/></svg> مسجات الإعلانات</h2><div class="panel-sub">تُحذف تلقائيًا الأسطر والأقسام التي لم تُملأ بياناتها</div></div></div>
         <div class="ad-section-title">بيانات المناسبة</div>
         <div class="form-grid">
@@ -2803,7 +2811,54 @@
           <button class="btn btn-primary" onclick="copyAzaMessage()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8h11a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h1"/></svg> نسخ الرسالة</button>
           <button class="btn btn-ghost" onclick="clearAzaMessage()"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg> تفريغ الحقول</button>
         </div>
+      </div><!-- قالب مسجات الاحتفالات — متاح لجميع مستخدمي النظام -->
+    <div id="celebrationMessagePanel" class="panel" style="margin-top:16px;display:none;">
+      <div class="panel-header"><div>
+        <h2 class="panel-title">✨ قالب مسجات الاحتفالات</h2>
+        <div class="panel-sub">قالب منفصل للاحتفالات — عبّئ الحقول المتغيرة فقط</div>
+      </div></div>
+
+      <div class="ad-section-title">بيانات الاحتفال</div>
+      <div class="form-grid">
+        <div class="field full"><label>اسم المناسبة (عنوان الاحتفال)</label><input id="celOccasion" placeholder="مثال: مولد الإمام الحسين (ع)" oninput="buildCelebrationMessage()"></div>
       </div>
+
+      <div class="ad-section-title">فقرات الاحتفال</div>
+      <div class="form-grid">
+        <div class="field"><label>اسم الفقرة</label><input id="celSec1" value="عريف الحفل" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم المشارك</label><input id="celName1" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم الفقرة</label><input id="celSec2" value="القرآن الكريم" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم المشارك</label><input id="celName2" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم الفقرة</label><input id="celSec3" value="كلمة الحفل" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم المشارك</label><input id="celName3" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم الفقرة</label><input id="celSec4" value="فقرة الشعر" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم المشارك</label><input id="celName4" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم الفقرة</label><input id="celSec5" value="الجلوات والأهازيج" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>اسم المشارك</label><input id="celName5" oninput="buildCelebrationMessage()"></div>
+      </div>
+
+      <div id="celebrationExtraSections"></div>
+      <div class="actions-row" style="margin-top:10px;">
+        <button type="button" class="btn btn-ghost" onclick="addCelebrationSection()">＋ إضافة فقرة</button>
+      </div>
+
+      <div class="ad-section-title">التاريخ والتوقيت</div>
+      <div class="form-grid">
+        <div class="field"><label>الليلة</label><input id="celNight" placeholder="مثال: ليلة الجمعة" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>التاريخ الهجري</label><input id="celHijri" placeholder="مثال: ٣ شعبان ١٤٤٨هـ" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>التاريخ الميلادي</label><input id="celGregorian" type="date" oninput="buildCelebrationMessage()"></div>
+        <div class="field"><label>التوقيت</label><input id="celTime" placeholder="مثال: ٨:٠٠ مساءً" oninput="buildCelebrationMessage()"></div>
+      </div>
+
+      <div class="ad-section-title">معاينة رسالة الاحتفال</div>
+      <div id="celebrationMessagePreview" class="ad-message-preview"></div>
+      <div class="actions-row" style="margin-top:12px;">
+        <button class="btn btn-primary" onclick="copyCelebrationMessage()">نسخ الرسالة</button>
+        <button class="btn btn-ghost" onclick="clearCelebrationMessage()">تفريغ الحقول</button>
+      </div>
+    </div>
+
+    
     </div>
 
     <!-- ARCHIVE -->

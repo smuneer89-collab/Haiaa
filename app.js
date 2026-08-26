@@ -5810,11 +5810,21 @@ function clearAzaMessage(){
 /* ══════════ قالب مسجات الاحتفالات — منفصل عن القالب الحالي ══════════ */
 let celebrationExtraSections = [];
 
+function showAzaMessageTemplate(which){
+  const normal=document.getElementById('normalAzaMessagePanel');
+  const celebration=document.getElementById('celebrationMessagePanel');
+  const nb=document.getElementById('azaTplNormalBtn');
+  const cb=document.getElementById('azaTplCelebrationBtn');
+  const isCelebration=which==='celebration';
+  if(normal) normal.style.display=isCelebration?'none':'block';
+  if(celebration) celebration.style.display=isCelebration?'block':'none';
+  if(nb) nb.className=isCelebration?'btn btn-ghost':'btn btn-primary';
+  if(cb) cb.className=isCelebration?'btn btn-primary':'btn btn-ghost';
+  if(isCelebration) buildCelebrationMessage(); else buildAzaMessage();
+}
 function updateCelebrationTemplateAccess(){
-  const panel=document.getElementById('celebrationMessagePanel');
-  if(!panel) return;
-  panel.style.display='block';
-  buildCelebrationMessage();
+  // القالبان متاحان لجميع المستخدمين؛ نبدأ بالقالب العادي.
+  showAzaMessageTemplate('normal');
 }
 function celebrationValue(id){ return (document.getElementById(id)?.value||'').trim(); }
 function celebrationEmojiOptions(selected){
