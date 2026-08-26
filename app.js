@@ -5747,7 +5747,7 @@ function openIdara(which){
   }
   else if(which==='aza'){ idaraShow('aza'); renderRadoods(); markAzaSeen(); checkNewAzaSubmissions().then(()=>renderRadoods()); }
   else if(which==='seasonEval'){ idaraShow('seasonEval'); markSeasonEvalSeen(); loadSeasonEvalSessions(); }
-  else if(which==='azamessages'){ idaraShow('azamessages'); buildAzaMessage(); }
+  else if(which==='azamessages'){ idaraShow('azamessages'); buildAzaMessage(); updateCelebrationTemplateAccess(); }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -5803,6 +5803,85 @@ function clearAzaMessage(){
   const place=document.getElementById('adPlace'); if(place) place.value='مسجد الإمام علي (ع) - بني جمرة';
   const dayTime=document.getElementById('adDayTime'); if(dayTime) dayTime.value='بعد صلاة الظهرين مباشرة';
   buildAzaMessage(); toast('تم تفريغ الحقول');
+}
+
+
+
+/* ══════════ قالب مسجات الاحتفالات — منفصل عن القالب الحالي ══════════ */
+let celebrationExtraSections = [];
+
+function updateCelebrationTemplateAccess(){
+  const panel=document.getElementById('celebrationMessagePanel');
+  if(!panel) return;
+  panel.style.display='block';
+  buildCelebrationMessage();
+}
+function celebrationValue(id){ return (document.getElementById(id)?.value||'').trim(); }
+function celebrationEmojiOptions(selected){
+  const opts=['🎙️','📖','🗣️','🎤','🎭','🎶','🎵','✨','🏆','👥'];
+  return opts.map(x=>`<option value="${x}"${x===selected?' selected':''}>${x}</option>`).join('');
+}
+function renderCelebrationExtraSections(){
+  const box=document.getElementById('celebrationExtraSections'); if(!box) return;
+  box.innerHTML=celebrationExtraSections.map((it,i)=>`
+    <div class="panel" style="margin:10px 0;padding:12px;background:var(--bg);">
+      <div class="form-grid">
+        <div class="field"><label>اسم الفقرة</label><input value="${escapeHtml(it.title||'')}" oninput="updateCelebrationExtra(${i},'title',this.value)"></div>
+        <div class="field"><label>اسم المشارك/المشاركين</label><input value="${escapeHtml(it.name||'')}" oninput="updateCelebrationExtra(${i},'name',this.value)"></div>
+        <div class="field"><label>الرمز</label><select onchange="updateCelebrationExtra(${i},'emoji',this.value)">${celebrationEmojiOptions(it.emoji||'🎭')}</select></div>
+        <div class="field" style="display:flex;align-items:end"><button type="button" class="btn btn-ghost" style="width:100%" onclick="removeCelebrationSection(${i})">حذف الفقرة</button></div>
+      </div>
+    </div>`).join('');
+}
+function addCelebrationSection(){
+  celebrationExtraSections.push({title:'',name:'',emoji:'🎭'});
+  renderCelebrationExtraSections(); buildCelebrationMessage();
+}
+function updateCelebrationExtra(i,key,value){
+  if(!celebrationExtraSections[i]) return;
+  celebrationExtraSections[i][key]=value; buildCelebrationMessage();
+}
+function removeCelebrationSection(i){
+  celebrationExtraSections.splice(i,1); renderCelebrationExtraSections(); buildCelebrationMessage();
+}
+function buildCelebrationMessage(){
+  const occasion=celebrationValue('celOccasion');
+  const lines=[];
+  if(occasion) lines.push(`*${occasion}*  ✨`,'');
+  for(let i=1;i<=5;i++){
+    const title=celebrationValue('celSec'+i), name=celebrationValue('celName'+i);
+    if(title&&name) lines.push(`*${title}*`,`🎙️ ${name}`,'');
+  }
+  celebrationExtraSections.forEach(it=>{
+    const title=(it.title||'').trim(), name=(it.name||'').trim();
+    if(title&&name) lines.push(`*${title}*`,`${it.emoji||'🎭'} ${name}`,'');
+  });
+  const night=celebrationValue('celNight'), hijri=celebrationValue('celHijri');
+  const greg=formatAdDate(celebrationValue('celGregorian')), time=celebrationValue('celTime');
+  if(night) lines.push(`🌑 *الليلة:* ${night}`);
+  if(hijri) lines.push(`🗓️ *التاريخ الهجري:* ${hijri}`);
+  if(greg) lines.push(`📆 *التاريخ الميلادي:* ${greg}`);
+  if(time) lines.push(`🕰️ *التوقيت:* ${time}`);
+  const hasContent=lines.some(x=>x.trim());
+  if(hasContent){
+    lines.push('','====================','انستقرام هيئة محبي الحسين','',
+      'https://www.instagram.com/alhaiaa?igsh=MWY3ajU1cWZsaDRpZQ==','',
+      '🔸للــنـشر','🔸نسألكم الدعاء 🔸');
+  }
+  const text=lines.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+  const preview=document.getElementById('celebrationMessagePreview');
+  if(preview) preview.textContent=text||'ابدأ بكتابة بيانات الاحتفال لتظهر معاينة الرسالة هنا.';
+  return text;
+}
+async function copyCelebrationMessage(){
+  const text=buildCelebrationMessage(); if(!text){ toast('أدخل بيانات الاحتفال أولاً'); return; }
+  await copyToClipboard(text); toast('تم نسخ رسالة الاحتفال');
+}
+function clearCelebrationMessage(){
+  ['celOccasion','celName1','celName2','celName3','celName4','celName5','celNight','celHijri','celGregorian','celTime'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const defaults=['عريف الحفل','القرآن الكريم','كلمة الحفل','فقرة الشعر','الجلوات والأهازيج'];
+  defaults.forEach((v,i)=>{const el=document.getElementById('celSec'+(i+1));if(el)el.value=v;});
+  celebrationExtraSections=[]; renderCelebrationExtraSections(); buildCelebrationMessage(); toast('تم تفريغ حقول الاحتفال');
 }
 
 /* ═══════════ لجنة العزاء — الرواديد ═══════════ */
