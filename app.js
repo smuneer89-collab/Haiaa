@@ -10710,7 +10710,7 @@ const DEV_IDEA_STATUS=['مجرد فكرة','تحتاج إلى دراسة','مع�
 const DEV_IDEA_SOURCES=['من آخرين','فكرة شخصية'];
 const DEV_IDEA_TYPES=['إداري','يخص لجنة','عامة/تطويرية'];
 const DEV_CANDIDATE_STATUS=['اسم جديد','جارٍ البحث عن الرقم','تم الحصول على الرقم','تم التواصل معه','يرغب في التسجيل','اعتذر','تم تحويله إلى عضو'];
-const DEV_SITE_AREAS=['الصفحة الرئيسية','الأعضاء','المواقيت','الإدارة','أمانة السر','اللجنة المالية','اللجنة الإعلامية','لجنة العزاء','التقارير والطباعة','الإعدادات','مركز التطوير والمتابعة','مكان آخر'];
+const DEV_SITE_AREAS=['الصفحة الرئيسية','الأعضاء','المواقيت','الإدارة','أمانة السر','اللجنة المالية','اللجنة الإعلامية','اللجنة الثقافية','لجنة العزاء','التقارير والطباعة','الإعدادات','مركز التطوير والمتابعة','مكان آخر'];
 function devId(p){ return p+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
 function devFmt(iso){ if(!iso) return '—'; try{return new Date(iso).toLocaleString('ar-BH');}catch(e){return iso;} }
 function devOpts(list,val){ return list.map(x=>`<option value="${escapeHtml(x)}"${x===val?' selected':''}>${escapeHtml(x)}</option>`).join(''); }
@@ -10985,15 +10985,30 @@ function renderCultureStats(){
   const att=cultureAttendanceStats();
   const act=cultureActivityStats();
   if(summary)summary.textContent=`${(cultureMeetings||[]).length} اجتماع · ${cultureMembers().length} عضو`;
+
+  const namesAt=(list,key,target)=>{
+    const names=list.filter(x=>x[key]===target).map(x=>x.member.name).filter(Boolean);
+    return names.length?names.join('، '):'—';
+  };
+
   if(!att.length){
-    attBox.innerHTML=actBox.innerHTML='<div class="empty"><div class="txt">أضف أعضاء اللجنة أولاً لعرض الإحصائيات.</div></div>';
+    attBox.innerHTML='<div class="dev-meta">لا توجد بيانات حضور بعد.</div>';
+    actBox.innerHTML='<div class="dev-meta">لا توجد بيانات فاعلية بعد.</div>';
     return;
   }
-  const attSorted=[...att].sort((a,b)=>b.present-a.present || a.member.name.localeCompare(b.member.name,'ar'));
-  const actSorted=[...act].sort((a,b)=>b.assignments-a.assignments || a.member.name.localeCompare(b.member.name,'ar'));
-  const rankRows=(list,valueFn,suffix)=>list.map((x,i)=>`<div class="md-item" style="padding:9px 0"><div style="min-width:28px;font-weight:800;color:var(--accent)">${i+1}</div><div style="flex:1"><b>${escapeHtml(x.member.name)}</b></div><div class="dev-badge">${valueFn(x)} ${suffix}</div></div>`).join('');
-  attBox.innerHTML=`<div class="dev-meta" style="margin-bottom:7px">الأكثر حضوراً في الأعلى والأقل حضوراً في الأسفل.</div>${rankRows(attSorted,x=>x.present,'حضور')}`;
-  actBox.innerHTML=`<div class="dev-meta" style="margin-bottom:7px">تُحتسب الفاعلية بعدد المهام والمسؤوليات المسندة للعضو.</div>${rankRows(actSorted,x=>x.assignments,'مهمة/مسؤولية')}`;
+
+  const maxPresent=Math.max(...att.map(x=>x.present));
+  const minPresent=Math.min(...att.map(x=>x.present));
+  const maxActivity=Math.max(...act.map(x=>x.assignments));
+  const minActivity=Math.min(...act.map(x=>x.assignments));
+
+  attBox.innerHTML=`
+    <div class="md-item"><div style="flex:1"><b>الأكثر حضورًا:</b></div><div>${escapeHtml(namesAt(att,'present',maxPresent))}</div></div>
+    <div class="md-item"><div style="flex:1"><b>الأقل حضورًا:</b></div><div>${escapeHtml(namesAt(att,'present',minPresent))}</div></div>`;
+
+  actBox.innerHTML=`
+    <div class="md-item"><div style="flex:1"><b>الأكثر فاعلية:</b></div><div>${escapeHtml(namesAt(act,'assignments',maxActivity))}</div></div>
+    <div class="md-item"><div style="flex:1"><b>الأقل فاعلية:</b></div><div>${escapeHtml(namesAt(act,'assignments',minActivity))}</div></div>`;
 }
 async function saveCultureMeetings(){ try{await storage.set('cultureMeetings',JSON.stringify(cultureMeetings));}catch(e){toast('تعذر حفظ اجتماع اللجنة الثقافية');} cloudPush('cultureMeetings',cultureMeetings); }
 function renderCultureHub(){
@@ -11039,4 +11054,35 @@ function openCulturePrint(m){
   </style></head><body>${cultureMeetingHTML(m)}<script>window.onload=()=>setTimeout(()=>window.print(),150);<\/script></body></html>`);
   w.document.close();
 }
-async function requestSecretariatAccess(){if(secretariatUnlocked){idaraShow('sec');updateSecCards();fillAnnualYears();return;}const code=prompt('🔐 أمانة السر — أدخل الرقم السري:');if(code===null)return;if(!(await verifySecretariatPin(code.trim()))){toast('رقم سري غير صحيح');return;}secretariatUnlocked=true;idaraShow('sec');updateSecCards();fillAnnualYears();}
+/* ══════════ حماية أمانة السر بالرقم السري ══════════ */
+let secretariatUnlocked=false;
+async function verifySecretariatPin(pin){
+  try{
+    const data=new TextEncoder().encode(pin);
+    const digest=await crypto.subtle.digest('SHA-256',data);
+    const hex=[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    return hex==='f16592d12000ffca0f1159286959f4c2470c82a7b48940020b1323a6d49abe27';
+  }catch(e){
+    return false;
+  }
+}
+async function requestSecretariatAccess(){
+  if(secretariatUnlocked){
+    idaraShow('sec');
+    updateSecCards();
+    fillAnnualYears();
+    window.scrollTo({top:0,behavior:'smooth'});
+    return;
+  }
+  const code=prompt('🔐 أمانة السر — أدخل الرقم السري:');
+  if(code===null)return;
+  if(!(await verifySecretariatPin(String(code).trim()))){
+    toast('رقم سري غير صحيح');
+    return;
+  }
+  secretariatUnlocked=true;
+  idaraShow('sec');
+  updateSecCards();
+  fillAnnualYears();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
