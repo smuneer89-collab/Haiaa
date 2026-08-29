@@ -99,6 +99,7 @@ const HIJRI_LEN = [30,29,30,29,30,29,30,29,30,29,30,29]; // approx month lengths
 let members = [];
 let miqats = [];   // {id, name, day, month, requiredAmount, bookings:[{memberId, amount}]}
 let news = [];     // {id, title, body, date}
+let cultureMeetings = []; // اجتماعات اللجنة الثقافية
 let meetings = []; // {id, number, datetime, committee, plannedMinutes, attendance:[{memberId,present}], speech, agenda, proceedings, minutes, decisions:[{id,text,owner,due,done}], tasks:[...], attachments:[{id,name,type,data}], startedAt, endedAt}
 let assemblies = []; // الجمعية العمومية: {id, year, attendees:[memberId], projects:[{id,title,committee,category}], report:{adminWord,plan,majalis,events,mawakib,achievements,topProjects,challenges,honoring}}
 let photos = []; // ألبوم الصور: {id, img, occasion, photographer, desc, date}
@@ -246,6 +247,7 @@ async function loadData(){
     counters:{...settings.counters,...(JSON.parse(s).counters||{})},
     templates:{...settings.templates,...(JSON.parse(s).templates||{})}}; } catch(e){}
   try { const mt=await storage.get('meetings'); if(mt) meetings=JSON.parse(mt); } catch(e){ meetings=[]; }
+  try { const cm=await storage.get('cultureMeetings'); if(cm) cultureMeetings=JSON.parse(cm); } catch(e){ cultureMeetings=[]; }
   try { const asm=await storage.get('assemblies'); if(asm) assemblies=JSON.parse(asm); } catch(e){ assemblies=[]; }
   try { const ph=await storage.get('photos'); if(ph) photos=JSON.parse(ph); } catch(e){ photos=[]; }
   try { const r=await storage.get('reminders'); if(r) reminders=JSON.parse(r); } catch(e){ reminders=[]; }
@@ -5513,7 +5515,7 @@ async function downloadProjectZip(){
 async function backupExport(){
   const backup={
     app:'هيئة محبي الحسين', version:12, exportedAt:new Date().toISOString(),
-    members, miqats, news, settings, meetings, assemblies, photos,
+    members, miqats, news, settings, meetings, cultureMeetings, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
     radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters, mediaItems,
     devIdeas, devDrafts, devUpdates, devVersions, memberCandidates
@@ -5546,7 +5548,7 @@ async function backupImport(e){
   const typed=prompt('للتأكيد النهائي، اكتب كلمة:  استعادة');
   if((typed||'').trim()!=='استعادة'){ toast('أُلغيت الاستعادة'); e.target.value=''; return; }
   try{
-    members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[]; assemblies=backup.assemblies||[]; photos=backup.photos||[];
+    members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[]; cultureMeetings=backup.cultureMeetings||[]; assemblies=backup.assemblies||[]; photos=backup.photos||[];
     if(backup.finance) finance={...finance, ...backup.finance};
     if(Array.isArray(backup.financeLog)) financeLog=backup.financeLog;
     if(Array.isArray(backup.paidThawab)) paidThawab=backup.paidThawab;
@@ -5566,7 +5568,7 @@ async function backupImport(e){
     if(Array.isArray(backup.devVersions)) devVersions=backup.devVersions;
     if(Array.isArray(backup.memberCandidates)) memberCandidates=backup.memberCandidates;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
-    await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
+    await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveCultureMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
     await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters(); await saveMediaItems();
     await saveDevIdeas(); await saveDevDrafts(); await saveDevUpdates(); await saveDevVersions(); await saveMemberCandidates();
@@ -5721,7 +5723,7 @@ function renderMeetings(){ renderMeetingStats(); populateMeetingFilters(); rende
 
 /* ─── التنقل داخل قسم الإدارة ─── */
 function idaraShow(view){
-  ['hub','sec','finance','media','aza','seasonEval','azamessages','archive','admins'].forEach(v=>{
+  ['hub','sec','finance','media','aza','seasonEval','azamessages','culture','archive','admins'].forEach(v=>{
     const el=document.getElementById('idara-'+v); if(el) el.style.display = (v===view)?'block':'none';
   });
 }
@@ -5731,8 +5733,9 @@ function renderIdaraHub(){
   const el=document.getElementById('idaraAdminsCount'); if(el) el.textContent=`${n} إداري`;
 }
 function openIdara(which){
-  if(which==='sec'){ idaraShow('sec'); updateSecCards(); fillAnnualYears(); }
+  if(which==='sec'){ requestSecretariatAccess(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
+  else if(which==='culture'){ idaraShow('culture'); renderCultureHub(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); renderGdCats(); buildGdIndex(); const c=$('#medCount'); if(c) c.textContent=mediaItems.length?mediaItems.length+' مادة':''; }
   else if(which==='archive'){
@@ -10897,3 +10900,47 @@ if('serviceWorker' in navigator){
     });
   });
 }
+
+/* ══════════ اللجنة الثقافية ══════════ */
+let cultureEditId=null;
+function cultureMembers(){
+  const list=members.filter(m=>String(m.committee||'').includes('ثقاف'));
+  return list.length?list:members.filter(m=>m.isAdmin);
+}
+async function saveCultureMeetings(){ try{await storage.set('cultureMeetings',JSON.stringify(cultureMeetings));}catch(e){toast('تعذر حفظ اجتماع اللجنة الثقافية');} cloudPush('cultureMeetings',cultureMeetings); }
+function renderCultureHub(){
+  const box=document.getElementById('cultureMeetingsList'); if(!box)return;
+  const c=document.getElementById('idaraCultureCount'); if(c)c.textContent=cultureMeetings.length?`${cultureMeetings.length} اجتماع محفوظ`:'الاجتماعات والمتابعة والأفكار';
+  if(!cultureMeetings.length){box.innerHTML='<div class="empty"><div class="txt">لا توجد اجتماعات مسجلة بعد.</div></div>';return;}
+  box.innerHTML=[...cultureMeetings].sort((a,b)=>String(b.datetime).localeCompare(String(a.datetime))).map(m=>`<div class="md-item"><div style="flex:1"><b>اجتماع رقم ${escapeHtml(m.number||'—')}</b><div class="dev-meta">${m.datetime?new Date(m.datetime).toLocaleString('ar-BH',{dateStyle:'medium',timeStyle:'short'}):'—'} · ${(m.attendance||[]).filter(x=>x.status==='present').length} حاضر</div></div><div class="actions-row" style="margin:0"><button class="btn btn-ghost btn-sm" onclick="editCultureMeeting('${m.id}')">فتح</button><button class="btn btn-ghost btn-sm" onclick="printCultureMeeting('${m.id}')">PDF</button><button class="btn btn-danger btn-sm" onclick="deleteCultureMeeting('${m.id}')">حذف</button></div></div>`).join('');
+}
+function culturePersonOptions(selected,multiple=false){return cultureMembers().map(m=>`<option value="${escapeHtml(m.name)}" ${multiple&&Array.isArray(selected)&&selected.includes(m.name)||!multiple&&selected===m.name?'selected':''}>${escapeHtml(m.name)}</option>`).join('');}
+function renderCultureAttendance(data=[]){
+ const map={};data.forEach(x=>map[x.memberId]=x.status); const box=document.getElementById('culAttendance'); if(!box)return;
+ box.innerHTML=cultureMembers().map(m=>{const st=map[m.id]||'absent';return `<div class="mtg-att-row" data-mid="${m.id}"><div class="mtg-att-name">${escapeHtml(m.name)}<small>${escapeHtml(m.committee||'')}</small></div><div class="mtg-att-toggle"><button type="button" class="${st==='present'?'on-present':''}" onclick="setCultureAttendance(this,'present')">حاضر</button><button type="button" class="${st==='excused'?'on-present':''}" onclick="setCultureAttendance(this,'excused')">معتذر</button><button type="button" class="${st==='absent'?'on-absent':''}" onclick="setCultureAttendance(this,'absent')">غائب</button></div></div>`}).join('');
+}
+function setCultureAttendance(btn,status){const row=btn.closest('.mtg-att-row');row.dataset.status=status;row.querySelectorAll('button').forEach((b,i)=>{b.classList.remove('on-present','on-absent');if((status==='present'&&i===0)||(status==='excused'&&i===1))b.classList.add('on-present');if(status==='absent'&&i===2)b.classList.add('on-absent');});}
+function collectCultureAttendance(){return [...document.querySelectorAll('#culAttendance .mtg-att-row')].map(r=>({memberId:r.dataset.mid,status:r.dataset.status||(r.querySelectorAll('button')[0].classList.contains('on-present')?'present':r.querySelectorAll('button')[1].classList.contains('on-present')?'excused':'absent')}));}
+function addCultureFollowup(d={}){const tr=document.createElement('tr');tr.innerHTML=`<td><input class="cf-decision" value="${escapeHtml(d.decision||'')}" placeholder="القرار"></td><td><select class="cf-owner"><option value="">— المسؤول —</option>${culturePersonOptions(d.owner)}</select></td><td><select class="cf-status"><option ${d.status==='done'?'selected':''} value="done">منجز</option><option ${(!d.status||d.status==='doing')?'selected':''} value="doing">قيد التنفيذ</option><option ${d.status==='late'?'selected':''} value="late">متأخر</option></select></td><td><button class="remove-btn" onclick="this.closest('tr').remove()">×</button></td>`;document.getElementById('culFollowup').appendChild(tr);}
+function addCultureIdea(d={}){const x=document.createElement('div');x.className='mtg-item culture-idea';x.innerHTML=`<div class="form-grid"><div class="field"><label>عنوان الفكرة</label><input class="ci-title" value="${escapeHtml(d.title||'')}"></div><div class="field"><label>صاحب الفكرة</label><input class="ci-owner" value="${escapeHtml(d.owner||'')}"></div><div class="field full"><label>شرح الفكرة</label><textarea class="ci-desc" rows="2">${escapeHtml(d.desc||'')}</textarea></div><div class="field full"><label>مناقشة الفكرة</label><textarea class="ci-discussion" rows="2">${escapeHtml(d.discussion||'')}</textarea></div><div class="field"><label>قرار اللجنة</label><select class="ci-decision" onchange="this.closest('.culture-idea').querySelector('.ci-reasons-wrap').style.display=this.value==='no'?'block':'none'"><option value="yes" ${d.decision!=='no'?'selected':''}>موافقة</option><option value="no" ${d.decision==='no'?'selected':''}>غير موافقة</option></select></div><div class="field full ci-reasons-wrap" style="display:${d.decision==='no'?'block':'none'}"><label>أسباب عدم الموافقة</label><textarea class="ci-reasons" rows="2" placeholder="اكتب الأسباب يدوياً...">${escapeHtml(d.reasons||'')}</textarea></div></div><button type="button" class="remove-btn" onclick="this.closest('.culture-idea').remove()">× حذف</button>`;document.getElementById('culIdeas').appendChild(x);}
+function addCultureTask(d={}){const x=document.createElement('div');x.className='mtg-item culture-task';x.innerHTML=`<textarea class="ct-text" rows="2" placeholder="المهمة...">${escapeHtml(d.text||'')}</textarea><div class="mtg-item-row"><select class="ct-owners" multiple size="3" style="min-width:180px">${culturePersonOptions(d.owners||[],true)}</select><input class="ct-due" type="date" value="${d.due||''}"><button type="button" class="remove-btn" onclick="this.closest('.culture-task').remove()">× حذف</button></div><small class="mtg-block-help">يمكن اختيار أكثر من مسؤول باستخدام Ctrl/⌘ أو باللمس حسب الجهاز.</small>`;document.getElementById('culTasks').appendChild(x);}
+function collectCultureFollowup(){return [...document.querySelectorAll('#culFollowup tr')].map(r=>({decision:r.querySelector('.cf-decision').value.trim(),owner:r.querySelector('.cf-owner').value,status:r.querySelector('.cf-status').value})).filter(x=>x.decision);}
+function collectCultureIdeas(){return [...document.querySelectorAll('.culture-idea')].map(x=>({title:x.querySelector('.ci-title').value.trim(),owner:x.querySelector('.ci-owner').value.trim(),desc:x.querySelector('.ci-desc').value.trim(),discussion:x.querySelector('.ci-discussion').value.trim(),decision:x.querySelector('.ci-decision').value,reasons:x.querySelector('.ci-reasons').value.trim()})).filter(x=>x.title||x.owner||x.desc);}
+function collectCultureTasks(){return [...document.querySelectorAll('.culture-task')].map(x=>({text:x.querySelector('.ct-text').value.trim(),owners:[...x.querySelector('.ct-owners').selectedOptions].map(o=>o.value),due:x.querySelector('.ct-due').value})).filter(x=>x.text);}
+function fillCultureMeeting(m={}){cultureEditId=m.id||null;document.getElementById('cultureMeetingTitle').textContent=m.id?`اجتماع رقم ${m.number}`:'اجتماع جديد';document.getElementById('culNumber').value=m.number||String(cultureMeetings.length+1);document.getElementById('culDatetime').value=m.datetime||'';document.getElementById('culNextMeeting').value=m.nextMeeting||'';document.getElementById('culMinutes').value=m.minutes||'';renderCultureAttendance(m.attendance||[]);document.getElementById('culFollowup').innerHTML='';(m.followup||[]).forEach(addCultureFollowup);document.getElementById('culIdeas').innerHTML='';(m.ideas||[]).forEach(addCultureIdea);document.getElementById('culTasks').innerHTML='';(m.tasks||[]).forEach(addCultureTask);}
+function newCultureMeeting(){fillCultureMeeting({});openFullPage('culturemeeting');}
+function editCultureMeeting(id){const m=cultureMeetings.find(x=>x.id===id);if(m){fillCultureMeeting(m);openFullPage('culturemeeting');}}
+function closeCultureMeeting(){switchTab('meetings');setTimeout(()=>openIdara('culture'),60);}
+async function saveCultureMeeting(){const number=document.getElementById('culNumber').value.trim(),datetime=document.getElementById('culDatetime').value;if(!number||!datetime){toast('أدخل رقم الاجتماع وتاريخه');return;}const obj={id:cultureEditId||uid('cul'),number,datetime,attendance:collectCultureAttendance(),followup:collectCultureFollowup(),ideas:collectCultureIdeas(),tasks:collectCultureTasks(),nextMeeting:document.getElementById('culNextMeeting').value,minutes:document.getElementById('culMinutes').value.trim(),updatedAt:new Date().toISOString()};const i=cultureMeetings.findIndex(x=>x.id===obj.id);if(i>=0)cultureMeetings[i]=obj;else cultureMeetings.push(obj);await saveCultureMeetings();toast('تم حفظ اجتماع اللجنة الثقافية');closeCultureMeeting();}
+async function deleteCultureMeeting(id){if(!confirm('حذف هذا الاجتماع؟'))return;cultureMeetings=cultureMeetings.filter(x=>x.id!==id);await saveCultureMeetings();renderCultureHub();}
+function cultureMeetingHTML(m){const name=id=>{const x=members.find(a=>a.id===id);return x?x.name:'—'};const att=(m.attendance||[]);const rows=(m.followup||[]).map(x=>`<tr><td>${escapeHtml(x.decision)}</td><td>${escapeHtml(x.owner||'—')}</td><td>${x.status==='done'?'منجز':x.status==='late'?'متأخر':'قيد التنفيذ'}</td></tr>`).join('');const ideas=(m.ideas||[]).map(x=>`<div><b>${escapeHtml(x.title)}</b> — ${escapeHtml(x.owner||'')}<br>${escapeHtml(x.desc||'')}<br><b>المناقشة:</b> ${escapeHtml(x.discussion||'')}<br><b>القرار:</b> ${x.decision==='no'?'غير موافقة':'موافقة'}${x.decision==='no'?` — الأسباب: ${escapeHtml(x.reasons||'—')}`:''}</div>`).join('<hr>');const tasks=(m.tasks||[]).map(x=>`<li>${escapeHtml(x.text)} — ${escapeHtml((x.owners||[]).join('، ')||'—')} — التسليم: ${escapeHtml(x.due||'—')}</li>`).join('');return `<h2>محضر اجتماع اللجنة الثقافية رقم ${escapeHtml(m.number)}</h2><p>${new Date(m.datetime).toLocaleString('ar-BH')}</p><h3>الحضور</h3><p>${att.filter(x=>x.status==='present').map(x=>escapeHtml(name(x.memberId))).join('، ')||'—'}</p><h3>الاعتذارات</h3><p>${att.filter(x=>x.status==='excused').map(x=>escapeHtml(name(x.memberId))).join('، ')||'—'}</p><h3>متابعة الاجتماع السابق</h3><table><tr><th>القرار</th><th>المسؤول</th><th>الحالة</th></tr>${rows}</table><h3>الأفكار والأعمال</h3>${ideas||'<p>—</p>'}<h3>المهام والمسؤوليات</h3><ul>${tasks}</ul><h3>موعد الاجتماع القادم</h3><p>${m.nextMeeting?new Date(m.nextMeeting).toLocaleString('ar-BH'):'—'}</p><h3>المحضر النهائي</h3><p>${escapeHtml(m.minutes||'—').replace(/\n/g,'<br>')}</p>`;}
+function printCultureMeeting(id){const m=cultureMeetings.find(x=>x.id===id);if(m)openCulturePrint(m);}
+function printCultureMeetingDraft(){const m={number:document.getElementById('culNumber').value||'—',datetime:document.getElementById('culDatetime').value||new Date().toISOString(),attendance:collectCultureAttendance(),followup:collectCultureFollowup(),ideas:collectCultureIdeas(),tasks:collectCultureTasks(),nextMeeting:document.getElementById('culNextMeeting').value,minutes:document.getElementById('culMinutes').value};openCulturePrint(m);}
+function openCulturePrint(m){const w=window.open('','_blank');if(!w){toast('اسمح بالنوافذ المنبثقة للطباعة');return;}w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>محضر اللجنة الثقافية</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#222}h2{text-align:center;color:#123028}h3{border-bottom:1px solid #ccc;padding-bottom:5px;margin-top:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:right}@media print{button{display:none}}</style></head><body><button onclick="print()">طباعة / حفظ PDF</button>${cultureMeetingHTML(m)}</body></html>`);w.document.close();}
+
+/* ══════════ حماية أمانة السر بالرقم السري ══════════ */
+let secretariatUnlocked=false;
+async function verifySecretariatPin(pin){
+ try{const data=new TextEncoder().encode(pin);const digest=await crypto.subtle.digest('SHA-256',data);const hex=[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');return hex==='f16592d12000ffca0f1159286959f4c2470c82a7b48940020b1323a6d49abe27';}catch(e){return false;}
+}
+async function requestSecretariatAccess(){if(secretariatUnlocked){idaraShow('sec');updateSecCards();fillAnnualYears();return;}const code=prompt('🔐 أمانة السر — أدخل الرقم السري:');if(code===null)return;if(!(await verifySecretariatPin(code.trim()))){toast('رقم سري غير صحيح');return;}secretariatUnlocked=true;idaraShow('sec');updateSecCards();fillAnnualYears();}

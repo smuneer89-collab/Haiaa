@@ -19,6 +19,7 @@ const CLOUD_COLLECTIONS = {
   members:    () => members,
   miqats:     () => miqats,
   meetings:   () => meetings,
+  cultureMeetings: () => cultureMeetings,
   assemblies: () => assemblies,
   news:       () => news,
   photos:     () => photos,
@@ -326,6 +327,7 @@ const CloudSync = (() => {
         case 'members':    members=arr;    storage.set('members',JSON.stringify(arr)); break;
         case 'miqats':     miqats=arr;     storage.set('miqats',JSON.stringify(arr)); break;
         case 'meetings':   meetings=arr;   storage.set('meetings',JSON.stringify(arr)); break;
+        case 'cultureMeetings': cultureMeetings=arr; storage.set('cultureMeetings',JSON.stringify(arr)); if(typeof renderCultureHub==='function') renderCultureHub(); break;
         case 'assemblies': assemblies=arr; storage.set('assemblies',JSON.stringify(arr)); break;
         case 'news':       news=arr;       storage.set('news',JSON.stringify(arr)); break;
         case 'photos':     photos=arr;     storage.set('photos',JSON.stringify(arr)); break;

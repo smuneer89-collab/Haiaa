@@ -2601,6 +2601,11 @@
             <div class="ic-name">لجنة العزاء</div>
             <div class="ic-sub" id="idaraAzaCount">تقييم الرواديد وسجل الأداء</div>
           </div>
+          <div class="idara-card" onclick="openIdara('culture')">
+            <div class="ic-ico">📚</div>
+            <div class="ic-name">اللجنة الثقافية</div>
+            <div class="ic-sub" id="idaraCultureCount">الاجتماعات والمتابعة والأفكار</div>
+          </div>
           <div class="idara-card" onclick="openIdara('archive')">
             <div class="ic-ico"><svg class="ico ico-btn" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4.5" rx="1.5"/><path d="M5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5"/><path d="M10 12.5h4"/></svg></div>
             <div class="ic-name">الأرشيف</div>
@@ -2688,6 +2693,16 @@
       
 
 
+    </div>
+
+    <!-- CULTURAL COMMITTEE -->
+    <div id="idara-culture" style="display:none">
+      <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+      <div class="panel">
+        <div class="panel-header"><div><h2 class="panel-title">📚 اللجنة الثقافية</h2><div class="panel-sub">سجل اجتماعات اللجنة ومحاضرها</div></div></div>
+        <div class="actions-row"><button class="btn btn-primary" onclick="newCultureMeeting()">+ اجتماع جديد</button></div>
+        <div id="cultureMeetingsList"></div>
+      </div>
     </div>
 
     <!-- FINANCE -->
@@ -3268,6 +3283,23 @@
     <strong>لعمل بث في واتساب:</strong> انسخ الأرقام ← واتساب ← قائمة بث جديدة ← الصق الأرقام ← الصق الرسالة وأرسل.
   </div>
 </div></div>
+
+<!-- Cultural Committee Meeting -->
+<section id="tab-culturemeeting" class="tab-content" style="display:none">
+  <div class="page-bar"><button class="btn btn-ghost btn-sm" onclick="closeCultureMeeting()">← اللجنة الثقافية</button><h3 class="page-title" id="cultureMeetingTitle" style="margin:0">اجتماع جديد</h3></div>
+  <div class="panel">
+    <div class="form-grid">
+      <div class="field"><label>رقم الاجتماع</label><input id="culNumber" inputmode="numeric"></div>
+      <div class="field"><label>تاريخ ووقت الاجتماع</label><input id="culDatetime" type="datetime-local"></div>
+    </div>
+    <div class="mtg-block"><div class="mtg-block-head"><span class="mtg-block-title">الحضور والاعتذارات</span></div><div class="mtg-block-help">حدد حالة كل عضو: حاضر، معتذر، أو غائب.</div><div id="culAttendance" class="mtg-attendance"></div></div>
+    <div class="mtg-block"><div class="mtg-block-head"><span class="mtg-block-title">متابعة الاجتماع السابق</span><button type="button" class="btn btn-ghost btn-sm" onclick="addCultureFollowup()">+ بند</button></div><div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th>القرار</th><th>المسؤول</th><th>الحالة</th><th></th></tr></thead><tbody id="culFollowup"></tbody></table></div></div>
+    <div class="mtg-block"><div class="mtg-block-head"><span class="mtg-block-title">إضافة فكرة أو عمل</span><button type="button" class="btn btn-ghost btn-sm" onclick="addCultureIdea()">+ فكرة / عمل</button></div><div id="culIdeas" class="mtg-items"></div></div>
+    <div class="mtg-block"><div class="mtg-block-head"><span class="mtg-block-title">المهام والمسؤوليات</span><button type="button" class="btn btn-ghost btn-sm" onclick="addCultureTask()">+ مهمة</button></div><div id="culTasks" class="mtg-items"></div></div>
+    <div class="form-grid" style="margin-top:14px"><div class="field full"><label>تحديد موعد الاجتماع القادم</label><input id="culNextMeeting" type="datetime-local"></div><div class="field full"><label>محضر الاجتماع النهائي</label><textarea id="culMinutes" rows="5" placeholder="نص المحضر النهائي..."></textarea></div></div>
+    <div class="actions-row" style="margin-top:18px"><button class="btn btn-primary" onclick="saveCultureMeeting()">حفظ الاجتماع</button><button class="btn btn-ghost" onclick="printCultureMeetingDraft()">طباعة المحضر PDF</button><button class="btn btn-ghost" onclick="closeCultureMeeting()">إلغاء</button></div>
+  </div>
+</section>
 
 <!-- New / Edit Meeting Modal -->
 <section id="tab-meetingpage" class="tab-content" style="display:none">
