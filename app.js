@@ -100,6 +100,7 @@ let members = [];
 let miqats = [];   // {id, name, day, month, requiredAmount, bookings:[{memberId, amount}]}
 let news = [];     // {id, title, body, date}
 let cultureMeetings = []; // اجتماعات اللجنة الثقافية
+let cultureMemberLinks = []; // أعضاء اللجنة الثقافية: [{id: memberId}]
 let meetings = []; // {id, number, datetime, committee, plannedMinutes, attendance:[{memberId,present}], speech, agenda, proceedings, minutes, decisions:[{id,text,owner,due,done}], tasks:[...], attachments:[{id,name,type,data}], startedAt, endedAt}
 let assemblies = []; // الجمعية العمومية: {id, year, attendees:[memberId], projects:[{id,title,committee,category}], report:{adminWord,plan,majalis,events,mawakib,achievements,topProjects,challenges,honoring}}
 let photos = []; // ألبوم الصور: {id, img, occasion, photographer, desc, date}
@@ -248,6 +249,7 @@ async function loadData(){
     templates:{...settings.templates,...(JSON.parse(s).templates||{})}}; } catch(e){}
   try { const mt=await storage.get('meetings'); if(mt) meetings=JSON.parse(mt); } catch(e){ meetings=[]; }
   try { const cm=await storage.get('cultureMeetings'); if(cm) cultureMeetings=JSON.parse(cm); } catch(e){ cultureMeetings=[]; }
+  try { const cl=await storage.get('cultureMemberLinks'); if(cl) cultureMemberLinks=JSON.parse(cl); } catch(e){ cultureMemberLinks=[]; }
   try { const asm=await storage.get('assemblies'); if(asm) assemblies=JSON.parse(asm); } catch(e){ assemblies=[]; }
   try { const ph=await storage.get('photos'); if(ph) photos=JSON.parse(ph); } catch(e){ photos=[]; }
   try { const r=await storage.get('reminders'); if(r) reminders=JSON.parse(r); } catch(e){ reminders=[]; }
@@ -5514,8 +5516,8 @@ async function downloadProjectZip(){
 }
 async function backupExport(){
   const backup={
-    app:'هيئة محبي الحسين', version:12, exportedAt:new Date().toISOString(),
-    members, miqats, news, settings, meetings, cultureMeetings, assemblies, photos,
+    app:'هيئة محبي الحسين', version:13, exportedAt:new Date().toISOString(),
+    members, miqats, news, settings, meetings, cultureMeetings, cultureMemberLinks, assemblies, photos,
     finance, financeLog, paidThawab, reminders,
     radoods, radoodEvals, projects, auditLog, radoodParts, archives, revenues, letters, mediaItems,
     devIdeas, devDrafts, devUpdates, devVersions, memberCandidates
@@ -5548,7 +5550,7 @@ async function backupImport(e){
   const typed=prompt('للتأكيد النهائي، اكتب كلمة:  استعادة');
   if((typed||'').trim()!=='استعادة'){ toast('أُلغيت الاستعادة'); e.target.value=''; return; }
   try{
-    members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[]; cultureMeetings=backup.cultureMeetings||[]; assemblies=backup.assemblies||[]; photos=backup.photos||[];
+    members=backup.members||[]; miqats=backup.miqats||[]; news=backup.news||[]; meetings=backup.meetings||[]; cultureMeetings=backup.cultureMeetings||[]; cultureMemberLinks=backup.cultureMemberLinks||[]; assemblies=backup.assemblies||[]; photos=backup.photos||[];
     if(backup.finance) finance={...finance, ...backup.finance};
     if(Array.isArray(backup.financeLog)) financeLog=backup.financeLog;
     if(Array.isArray(backup.paidThawab)) paidThawab=backup.paidThawab;
@@ -5568,7 +5570,7 @@ async function backupImport(e){
     if(Array.isArray(backup.devVersions)) devVersions=backup.devVersions;
     if(Array.isArray(backup.memberCandidates)) memberCandidates=backup.memberCandidates;
     if(backup.settings) settings={...settings,...backup.settings, counters:{...settings.counters,...(backup.settings.counters||{})}, templates:{...settings.templates,...(backup.settings.templates||{})}};
-    await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveCultureMeetings(); await saveAssemblies(); await savePhotos(); await persistSettings();
+    await saveMembers(); await saveMiqats(); await storage.set('news',JSON.stringify(news)); await saveMeetings(); await saveCultureMeetings(); await saveCultureMemberLinks(); await saveAssemblies(); await savePhotos(); await persistSettings();
     await saveFinance(); try{ await storage.set('financeLog',JSON.stringify(financeLog)); }catch(_){}
     await savePaidThawab(); await saveRadoods(); await saveRadoodEvals(); await saveProjects(); await saveAuditLog(); await saveRadoodParts(); await saveArchives(); await saveRevenues(); await saveLetters(); await saveMediaItems();
     await saveDevIdeas(); await saveDevDrafts(); await saveDevUpdates(); await saveDevVersions(); await saveMemberCandidates();
@@ -10903,12 +10905,92 @@ if('serviceWorker' in navigator){
 
 /* ══════════ اللجنة الثقافية ══════════ */
 let cultureEditId=null;
+
 function cultureMembers(){
-  const list=members.filter(m=>String(m.committee||'').includes('ثقاف'));
-  return list.length?list:members.filter(m=>m.isAdmin);
+  const ids=new Set((cultureMemberLinks||[]).map(x=>String(x.id)));
+  return members.filter(m=>ids.has(String(m.id)));
+}
+async function saveCultureMemberLinks(){
+  try{await storage.set('cultureMemberLinks',JSON.stringify(cultureMemberLinks));}
+  catch(e){toast('تعذر حفظ أعضاء اللجنة الثقافية');}
+  cloudPush('cultureMemberLinks',cultureMemberLinks);
+}
+function openCultureMemberPicker(){
+  const q=document.getElementById('cultureMemberSearch'); if(q)q.value='';
+  renderCultureMemberPicker();
+  const modal=document.getElementById('cultureMemberModal'); if(modal)modal.classList.add('open');
+}
+function closeCultureMemberPicker(){
+  const modal=document.getElementById('cultureMemberModal'); if(modal)modal.classList.remove('open');
+}
+function renderCultureMemberPicker(){
+  const box=document.getElementById('cultureMemberPickerList'); if(!box)return;
+  const q=(document.getElementById('cultureMemberSearch')?.value||'').trim().toLowerCase();
+  const chosen=new Set((cultureMemberLinks||[]).map(x=>String(x.id)));
+  const list=members.filter(m=>!chosen.has(String(m.id)) && (!q || String(m.name||'').toLowerCase().includes(q) || String(m.memberNo||m.code||'').toLowerCase().includes(q)));
+  if(!list.length){box.innerHTML='<div class="empty"><div class="txt">لا يوجد أعضاء مطابقون للبحث أو تمت إضافتهم مسبقاً.</div></div>';return;}
+  box.innerHTML=list.map(m=>`<button type="button" class="sec-card" style="width:100%;text-align:right;margin-bottom:7px" onclick="addCultureMember('${String(m.id).replace(/'/g,"\\'")}')"><span class="sc-t">${escapeHtml(m.name||'—')}</span><span class="sc-s">${escapeHtml(m.memberNo||m.code||m.type||'عضو')}</span><span style="margin-right:auto">＋</span></button>`).join('');
+}
+async function addCultureMember(memberId){
+  const id=String(memberId);
+  if((cultureMemberLinks||[]).some(x=>String(x.id)===id)){toast('العضو مضاف مسبقاً');return;}
+  const m=members.find(x=>String(x.id)===id); if(!m){toast('تعذر العثور على العضو');return;}
+  cultureMemberLinks.push({id});
+  await saveCultureMemberLinks();
+  renderCultureMembersList(); renderCultureStats(); renderCultureMemberPicker();
+  toast(`تمت إضافة ${m.name} إلى اللجنة الثقافية`);
+}
+function renderCultureMembersList(){
+  const box=document.getElementById('cultureMembersList'); if(!box)return;
+  const list=cultureMembers();
+  const count=document.getElementById('cultureMembersCount'); if(count)count.textContent=`${list.length} عضو`;
+  if(!list.length){box.innerHTML='<div class="empty"><div class="txt">لم تتم إضافة أعضاء إلى اللجنة الثقافية بعد.</div></div>';return;}
+  box.innerHTML=list.map(m=>`<div class="md-item"><div style="flex:1"><b>${escapeHtml(m.name||'—')}</b><div class="dev-meta">${escapeHtml(m.memberNo||m.code||m.type||'عضو في الهيئة')}</div></div></div>`).join('');
+}
+function cultureAttendanceStats(){
+  return cultureMembers().map(m=>{
+    let present=0, excused=0, absent=0, recorded=0;
+    (cultureMeetings||[]).forEach(mt=>{
+      const row=(mt.attendance||[]).find(x=>String(x.memberId)===String(m.id));
+      if(!row)return;
+      recorded++;
+      if(row.status==='present')present++;
+      else if(row.status==='excused')excused++;
+      else absent++;
+    });
+    return {member:m,present,excused,absent,recorded};
+  });
+}
+function cultureActivityStats(){
+  return cultureMembers().map(m=>{
+    let assignments=0;
+    (cultureMeetings||[]).forEach(mt=>{
+      (mt.tasks||[]).forEach(t=>{ if((t.owners||[]).includes(m.name))assignments++; });
+      (mt.followup||[]).forEach(f=>{ if(f.owner===m.name)assignments++; });
+    });
+    return {member:m,assignments};
+  });
+}
+function renderCultureStats(){
+  const attBox=document.getElementById('cultureAttendanceStats');
+  const actBox=document.getElementById('cultureActivityStats');
+  if(!attBox||!actBox)return;
+  const att=cultureAttendanceStats();
+  const act=cultureActivityStats();
+  if(!att.length){
+    attBox.innerHTML=actBox.innerHTML='<div class="empty"><div class="txt">أضف أعضاء اللجنة أولاً لعرض الإحصائيات.</div></div>';
+    return;
+  }
+  const attSorted=[...att].sort((a,b)=>b.present-a.present || a.member.name.localeCompare(b.member.name,'ar'));
+  const actSorted=[...act].sort((a,b)=>b.assignments-a.assignments || a.member.name.localeCompare(b.member.name,'ar'));
+  const rankRows=(list,valueFn,suffix)=>list.map((x,i)=>`<div class="md-item" style="padding:9px 0"><div style="min-width:28px;font-weight:800;color:var(--accent)">${i+1}</div><div style="flex:1"><b>${escapeHtml(x.member.name)}</b></div><div class="dev-badge">${valueFn(x)} ${suffix}</div></div>`).join('');
+  attBox.innerHTML=`<div class="dev-meta" style="margin-bottom:7px">الأكثر حضوراً في الأعلى والأقل حضوراً في الأسفل.</div>${rankRows(attSorted,x=>x.present,'حضور')}`;
+  actBox.innerHTML=`<div class="dev-meta" style="margin-bottom:7px">تُحتسب الفاعلية بعدد المهام والمسؤوليات المسندة للعضو.</div>${rankRows(actSorted,x=>x.assignments,'مهمة/مسؤولية')}`;
 }
 async function saveCultureMeetings(){ try{await storage.set('cultureMeetings',JSON.stringify(cultureMeetings));}catch(e){toast('تعذر حفظ اجتماع اللجنة الثقافية');} cloudPush('cultureMeetings',cultureMeetings); }
 function renderCultureHub(){
+  renderCultureMembersList();
+  renderCultureStats();
   const box=document.getElementById('cultureMeetingsList'); if(!box)return;
   const c=document.getElementById('idaraCultureCount'); if(c)c.textContent=cultureMeetings.length?`${cultureMeetings.length} اجتماع محفوظ`:'الاجتماعات والمتابعة والأفكار';
   if(!cultureMeetings.length){box.innerHTML='<div class="empty"><div class="txt">لا توجد اجتماعات مسجلة بعد.</div></div>';return;}

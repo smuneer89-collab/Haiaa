@@ -2698,9 +2698,26 @@
     <!-- CULTURAL COMMITTEE -->
     <div id="idara-culture" style="display:none">
       <button class="btn btn-ghost btn-sm idara-back" onclick="idaraHome()">← رجوع للإدارة</button>
+
       <div class="panel">
-        <div class="panel-header"><div><h2 class="panel-title">📚 اللجنة الثقافية</h2><div class="panel-sub">سجل اجتماعات اللجنة ومحاضرها</div></div></div>
-        <div class="actions-row"><button class="btn btn-primary" onclick="newCultureMeeting()">+ اجتماع جديد</button></div>
+        <div class="panel-header">
+          <div><h2 class="panel-title">📚 اللجنة الثقافية</h2><div class="panel-sub">إدارة أعضاء اللجنة واجتماعاتها ومحاضرها</div></div>
+          <button class="btn btn-primary" onclick="openCultureMemberPicker()">+ إضافة عضو إلى اللجنة</button>
+        </div>
+        <div class="panel-sub" style="margin-bottom:10px">أعضاء اللجنة الثقافية <span id="cultureMembersCount">0 عضو</span></div>
+        <div id="cultureMembersList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div><h2 class="panel-title">إحصائيات اللجنة</h2><div class="panel-sub">الحضور والفاعلية وفق الاجتماعات والمهام المسجلة</div></div></div>
+        <div class="form-grid">
+          <div class="field full"><label>الأكثر والأقل حضوراً</label><div id="cultureAttendanceStats"></div></div>
+          <div class="field full"><label>الأكثر والأقل فاعلية</label><div id="cultureActivityStats"></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><div><h2 class="panel-title">اجتماعات اللجنة الثقافية</h2><div class="panel-sub">سجل الاجتماعات السابقة والمحاضر</div></div><button class="btn btn-primary" onclick="newCultureMeeting()">+ اجتماع جديد</button></div>
         <div id="cultureMeetingsList"></div>
       </div>
     </div>
@@ -3283,6 +3300,20 @@
     <strong>لعمل بث في واتساب:</strong> انسخ الأرقام ← واتساب ← قائمة بث جديدة ← الصق الأرقام ← الصق الرسالة وأرسل.
   </div>
 </div></div>
+
+<!-- Cultural Committee Member Picker -->
+<div class="modal-backdrop" id="cultureMemberModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeCultureMemberPicker()">×</button>
+    <h3>إضافة عضو إلى اللجنة الثقافية</h3>
+    <div class="subtitle">اختر أي عضو من أعضاء الهيئة. بعد إضافته سيظهر تلقائياً في حضور وغياب اجتماعات اللجنة.</div>
+    <div class="field full" style="margin-top:12px">
+      <label>بحث عن عضو</label>
+      <input id="cultureMemberSearch" type="search" placeholder="اكتب اسم العضو..." oninput="renderCultureMemberPicker()" autocomplete="off">
+    </div>
+    <div id="cultureMemberPickerList" style="max-height:55vh;overflow:auto;margin-top:12px"></div>
+  </div>
+</div>
 
 <!-- Cultural Committee Meeting -->
 <section id="tab-culturemeeting" class="tab-content" style="display:none">
