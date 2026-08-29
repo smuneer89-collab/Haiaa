@@ -2701,23 +2701,46 @@
 
       <div class="panel">
         <div class="panel-header">
-          <div><h2 class="panel-title">📚 اللجنة الثقافية</h2><div class="panel-sub">إدارة أعضاء اللجنة واجتماعاتها ومحاضرها</div></div>
+          <div>
+            <h2 class="panel-title">📚 اللجنة الثقافية</h2>
+            <div class="panel-sub">إدارة أعضاء اللجنة واجتماعاتها ومحاضرها</div>
+          </div>
           <button class="btn btn-primary" onclick="openCultureMemberPicker()">+ إضافة عضو إلى اللجنة</button>
         </div>
-        <div class="panel-sub" style="margin-bottom:10px">أعضاء اللجنة الثقافية <span id="cultureMembersCount">0 عضو</span></div>
-        <div id="cultureMembersList"></div>
+        <div style="font-weight:800;color:var(--accent);margin-top:4px">
+          أعضاء اللجنة الثقافية: <span id="cultureMembersCount">0 عضو</span>
+        </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-header"><div><h2 class="panel-title">إحصائيات اللجنة</h2><div class="panel-sub">الحضور والفاعلية وفق الاجتماعات والمهام المسجلة</div></div></div>
-        <div class="form-grid">
-          <div class="field full"><label>الأكثر والأقل حضوراً</label><div id="cultureAttendanceStats"></div></div>
-          <div class="field full"><label>الأكثر والأقل فاعلية</label><div id="cultureActivityStats"></div></div>
+      <div class="panel mtg-dash-panel">
+        <div class="panel-header mtg-dash-toggle" onclick="toggleCultureStats()">
+          <div>
+            <h2 class="panel-title">📊 إحصائيات اللجنة الثقافية</h2>
+            <div class="panel-sub" id="cultureStatsSummary">اضغط لعرض الإحصائيات</div>
+          </div>
+          <div class="mtg-dash-actions">
+            <span class="dash-caret" id="cultureStatsCaret">▾</span>
+          </div>
+        </div>
+        <div id="cultureStatsBody" style="display:none">
+          <div class="form-grid">
+            <div class="field full">
+              <label>الأكثر والأقل حضوراً</label>
+              <div id="cultureAttendanceStats"></div>
+            </div>
+            <div class="field full">
+              <label>الأكثر والأقل فاعلية</label>
+              <div id="cultureActivityStats"></div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="panel">
-        <div class="panel-header"><div><h2 class="panel-title">اجتماعات اللجنة الثقافية</h2><div class="panel-sub">سجل الاجتماعات السابقة والمحاضر</div></div><button class="btn btn-primary" onclick="newCultureMeeting()">+ اجتماع جديد</button></div>
+        <div class="panel-header">
+          <div><h2 class="panel-title">اجتماعات اللجنة الثقافية</h2><div class="panel-sub">سجل الاجتماعات السابقة والمحاضر</div></div>
+          <button class="btn btn-primary" onclick="newCultureMeeting()">+ اجتماع جديد</button>
+        </div>
         <div id="cultureMeetingsList"></div>
       </div>
     </div>

@@ -10941,11 +10941,8 @@ async function addCultureMember(memberId){
   toast(`تمت إضافة ${m.name} إلى اللجنة الثقافية`);
 }
 function renderCultureMembersList(){
-  const box=document.getElementById('cultureMembersList'); if(!box)return;
-  const list=cultureMembers();
-  const count=document.getElementById('cultureMembersCount'); if(count)count.textContent=`${list.length} عضو`;
-  if(!list.length){box.innerHTML='<div class="empty"><div class="txt">لم تتم إضافة أعضاء إلى اللجنة الثقافية بعد.</div></div>';return;}
-  box.innerHTML=list.map(m=>`<div class="md-item"><div style="flex:1"><b>${escapeHtml(m.name||'—')}</b><div class="dev-meta">${escapeHtml(m.memberNo||m.code||m.type||'عضو في الهيئة')}</div></div></div>`).join('');
+  const count=document.getElementById('cultureMembersCount');
+  if(count)count.textContent=`${cultureMembers().length} عضو`;
 }
 function cultureAttendanceStats(){
   return cultureMembers().map(m=>{
@@ -10971,12 +10968,23 @@ function cultureActivityStats(){
     return {member:m,assignments};
   });
 }
+function toggleCultureStats(){
+  const body=document.getElementById('cultureStatsBody');
+  const caret=document.getElementById('cultureStatsCaret');
+  if(!body)return;
+  const open=body.style.display==='none'||!body.style.display;
+  body.style.display=open?'block':'none';
+  if(caret)caret.textContent=open?'▴':'▾';
+  if(open)renderCultureStats();
+}
 function renderCultureStats(){
   const attBox=document.getElementById('cultureAttendanceStats');
   const actBox=document.getElementById('cultureActivityStats');
+  const summary=document.getElementById('cultureStatsSummary');
   if(!attBox||!actBox)return;
   const att=cultureAttendanceStats();
   const act=cultureActivityStats();
+  if(summary)summary.textContent=`${(cultureMeetings||[]).length} اجتماع · ${cultureMembers().length} عضو`;
   if(!att.length){
     attBox.innerHTML=actBox.innerHTML='<div class="empty"><div class="txt">أضف أعضاء اللجنة أولاً لعرض الإحصائيات.</div></div>';
     return;
@@ -11018,11 +11026,17 @@ async function deleteCultureMeeting(id){if(!confirm('حذف هذا الاجتم�
 function cultureMeetingHTML(m){const name=id=>{const x=members.find(a=>a.id===id);return x?x.name:'—'};const att=(m.attendance||[]);const rows=(m.followup||[]).map(x=>`<tr><td>${escapeHtml(x.decision)}</td><td>${escapeHtml(x.owner||'—')}</td><td>${x.status==='done'?'منجز':x.status==='late'?'متأخر':'قيد التنفيذ'}</td></tr>`).join('');const ideas=(m.ideas||[]).map(x=>`<div><b>${escapeHtml(x.title)}</b> — ${escapeHtml(x.owner||'')}<br>${escapeHtml(x.desc||'')}<br><b>المناقشة:</b> ${escapeHtml(x.discussion||'')}<br><b>القرار:</b> ${x.decision==='no'?'غير موافقة':'موافقة'}${x.decision==='no'?` — الأسباب: ${escapeHtml(x.reasons||'—')}`:''}</div>`).join('<hr>');const tasks=(m.tasks||[]).map(x=>`<li>${escapeHtml(x.text)} — ${escapeHtml((x.owners||[]).join('، ')||'—')} — التسليم: ${escapeHtml(x.due||'—')}</li>`).join('');return `<h2>محضر اجتماع اللجنة الثقافية رقم ${escapeHtml(m.number)}</h2><p>${new Date(m.datetime).toLocaleString('ar-BH')}</p><h3>الحضور</h3><p>${att.filter(x=>x.status==='present').map(x=>escapeHtml(name(x.memberId))).join('، ')||'—'}</p><h3>الاعتذارات</h3><p>${att.filter(x=>x.status==='excused').map(x=>escapeHtml(name(x.memberId))).join('، ')||'—'}</p><h3>متابعة الاجتماع السابق</h3><table><tr><th>القرار</th><th>المسؤول</th><th>الحالة</th></tr>${rows}</table><h3>الأفكار والأعمال</h3>${ideas||'<p>—</p>'}<h3>المهام والمسؤوليات</h3><ul>${tasks}</ul><h3>موعد الاجتماع القادم</h3><p>${m.nextMeeting?new Date(m.nextMeeting).toLocaleString('ar-BH'):'—'}</p><h3>المحضر النهائي</h3><p>${escapeHtml(m.minutes||'—').replace(/\n/g,'<br>')}</p>`;}
 function printCultureMeeting(id){const m=cultureMeetings.find(x=>x.id===id);if(m)openCulturePrint(m);}
 function printCultureMeetingDraft(){const m={number:document.getElementById('culNumber').value||'—',datetime:document.getElementById('culDatetime').value||new Date().toISOString(),attendance:collectCultureAttendance(),followup:collectCultureFollowup(),ideas:collectCultureIdeas(),tasks:collectCultureTasks(),nextMeeting:document.getElementById('culNextMeeting').value,minutes:document.getElementById('culMinutes').value};openCulturePrint(m);}
-function openCulturePrint(m){const w=window.open('','_blank');if(!w){toast('اسمح بالنوافذ المنبثقة للطباعة');return;}w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>محضر اللجنة الثقافية</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#222}h2{text-align:center;color:#123028}h3{border-bottom:1px solid #ccc;padding-bottom:5px;margin-top:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:8px;text-align:right}@media print{button{display:none}}</style></head><body><button onclick="print()">طباعة / حفظ PDF</button>${cultureMeetingHTML(m)}</body></html>`);w.document.close();}
-
-/* ══════════ حماية أمانة السر بالرقم السري ══════════ */
-let secretariatUnlocked=false;
-async function verifySecretariatPin(pin){
- try{const data=new TextEncoder().encode(pin);const digest=await crypto.subtle.digest('SHA-256',data);const hex=[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');return hex==='f16592d12000ffca0f1159286959f4c2470c82a7b48940020b1323a6d49abe27';}catch(e){return false;}
+function openCulturePrint(m){
+  const w=window.open('','_blank');
+  if(!w){toast('اسمح بالنوافذ المنبثقة للطباعة');return;}
+  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>محضر اللجنة الثقافية</title><style>
+    body{font-family:Arial,sans-serif;padding:32px;color:#222}
+    h2{text-align:center;color:#123028}
+    h3{border-bottom:1px solid #ccc;padding-bottom:5px;margin-top:22px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #ccc;padding:8px;text-align:right}
+    @media print{button,.btn,.actions-row,.page-bar,.topbar,.nav,.sidebar{display:none!important}}
+  </style></head><body>${cultureMeetingHTML(m)}<script>window.onload=()=>setTimeout(()=>window.print(),150);<\/script></body></html>`);
+  w.document.close();
 }
 async function requestSecretariatAccess(){if(secretariatUnlocked){idaraShow('sec');updateSecCards();fillAnnualYears();return;}const code=prompt('🔐 أمانة السر — أدخل الرقم السري:');if(code===null)return;if(!(await verifySecretariatPin(code.trim()))){toast('رقم سري غير صحيح');return;}secretariatUnlocked=true;idaraShow('sec');updateSecCards();fillAnnualYears();}
