@@ -621,6 +621,15 @@ const CloudSync = (() => {
     batch.delete(db.collection('seasonEvalSessions').doc(sessionId)); await batch.commit();
   }
 
+  // ═══ استبيان اللجنة الثقافية: 20 سؤالًا ═══
+  async function fetchCulture20Responses(){
+    if(!db) throw new Error('cloud not ready');
+    const snap=await db.collection('culture20Responses').get();
+    const arr=snap.docs.map(d=>Object.assign({_id:d.id},d.data()));
+    arr.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+    return arr;
+  }
+
   // ═══ الانتخابات ═══
   async function createElection(payload){
     if(!db) throw new Error('cloud not ready');
@@ -699,6 +708,7 @@ const CloudSync = (() => {
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            createSeasonEvalSession, fetchSeasonEvalSessions, fetchSeasonEvalResponses, setSeasonEvalSessionClosed, deleteSeasonEvalSession,
+           fetchCulture20Responses,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
            setRegistrationOpen, fetchRegistrationOpen, fetchRegistrationRequests, updateRegistrationRequest, deleteRegistrationRequest,
            createElection, updateElection, fetchElection, fetchBallots, deleteElection,

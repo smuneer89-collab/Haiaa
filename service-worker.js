@@ -4,7 +4,7 @@
    • طلبات Firebase والخطوط: تمر مباشرة بلا تخزين ← لا تتعطّل المزامنة
    • بلا إنترنت: يرجع لآخر نسخة مخزّنة تلقائياً
 */
-const CACHE = 'husain-v28-cultural-summary-secretariat-fix';
+const CACHE = 'husain-v29-cultural-survey20';
 
 const APP_SHELL = [
   './',

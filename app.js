@@ -5737,7 +5737,7 @@ function renderIdaraHub(){
 function openIdara(which){
   if(which==='sec'){ requestSecretariatAccess(); }
   else if(which==='admins'){ idaraShow('admins'); renderAdmins(); }
-  else if(which==='culture'){ idaraShow('culture'); renderCultureHub(); }
+  else if(which==='culture'){ idaraShow('culture'); renderCultureHub(); updateCulture20Link(); }
   else if(which==='finance'){ enterFinance(); }
   else if(which==='media'){ idaraShow('media'); renderAlbum(); renderGdCats(); buildGdIndex(); const c=$('#medCount'); if(c) c.textContent=mediaItems.length?mediaItems.length+' مادة':''; }
   else if(which==='archive'){
@@ -10901,6 +10901,82 @@ if('serviceWorker' in navigator){
       if(reloaded) return; reloaded=true; location.reload();
     });
   });
+}
+
+
+/* ══════════ استبيان اللجنة الثقافية: 20 سؤالًا ══════════ */
+const CULTURE20_QUESTIONS=[{"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "لو طُلب منك أن تختصر اللجنة الثقافية بكلمة واحدة، فماذا تختار؟", "hint": "مدى الانتماء العاطفي الحالي للجنة."}, {"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "ما أول شعور راودك عند انضمامك إلى اللجنة، وهل ما زال قائمًا حتى الآن؟", "hint": "مدى تراجع الحماس الأولي وأسبابه."}, {"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "بعيدًا عن أي رأي شخصي، ما الأمر الذي تشعر أن جميع أعضاء اللجنة متفقون عليه دون نقاش؟", "hint": "مدى وجود أرضية مشتركة يمكن البناء عليها."}, {"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "لو كانت لجنتنا شخصًا واحدًا، كيف تصف شخصيته الحالية؟", "hint": "الصورة الذهنية الجماعية للجنة."}, {"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "ما القيمة التي لا تتنازل عنها في العمل الثقافي حتى لو خالفك بقية الأعضاء؟", "hint": "نقاط الاختلاف الفكري الحقيقية بينهم."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "عند رؤيتك لجنة أخرى منظمة وملتزمة، ما أول ما يلفت انتباهك فيها؟", "hint": "معيارهم الشخصي لتعريف الجدية."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "ما الذي يجعلك تشعر أن اجتماعًا معينًا يستحق الحضور، مقابل اجتماع آخر تفضّل الاعتذار عنه؟", "hint": "السبب الحقيقي وراء الغياب."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "لو قيّمت التزامك الشخصي بمواعيد اللجنة بصراحة تامة، ماذا تقول عن نفسك؟", "hint": "مستوى الوعي الذاتي بالمشكلة."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "ما أكبر عائق يمنعك من الالتزام بمهمة معينة حتى النهاية؟", "hint": "طبيعة العائق (وقت، حماس، تنظيم، أو قناعة بالمهمة)."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "لو استطعت وضع قاعدة واحدة إلزامية على جميع أعضاء اللجنة دون استثناء، فماذا تكون؟", "hint": "اقتراح الفرد لحل ذاتي لمشكلة الالتزام."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "ما آخر مصدر (كتاب، محاضرة، أو بودكاست) أثّر في تفكيرك الثقافي مؤخرًا؟", "hint": "مدى فاعلية الرصيد الثقافي الحالي."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "لو بدأ كل اجتماع بخمس دقائق من النقاش الثقافي الحر بمعزل عن الشؤون الإدارية، هل يحمّسك ذلك؟ ولماذا؟", "hint": "الرغبة الفعلية في أجواء ثقافية حقيقية."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "ما الفرق بين المعلومة التي تُحفظ والثقافة التي تُعاش، من وجهة نظرك؟", "hint": "عمق فهمهم لمفهوم الثقافة."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "عند حضورك فعالية ثقافية كمشارك لا كمنظّم، ما الذي يجعلك تشعر بأنها أثّرت فيك فعلًا؟", "hint": "معيارهم لتقييم نجاح أي فعالية."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "ما موضوع ثقافي تشعر أن اللجنة لم تطرحه من قبل وتستحق طرحه؟", "hint": "أفكار برامج جديدة كامنة لديهم."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "لو وضعنا هدفًا واحدًا كبيرًا للجنة هذا العام يجعلنا نفخر بأنفسنا، فماذا يكون؟", "hint": "رؤيتهم لهدف جامع يوحّدهم."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "ما الأمر الوحيد الذي لو تغيّر في طريقة عمل اللجنة سيجعلك أكثر حماسًا للمشاركة؟", "hint": "أكبر ما يرغبون بتغييره، بصياغة إيجابية."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "لو طُلب منك أن تشرح لشخص غريب سبب وجود هذه اللجنة، فماذا تقول له في جملتين؟", "hint": "مدى وضوح رسالة اللجنة في أذهانهم."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "ما الذي تشعر أنه يعيد الحماس لعضو باتت مشاركته فاترة منذ فترة؟", "hint": "أفكارًا عملية لتنشيط الأعضاء الخاملين."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "لو قلنا بعد عام من الآن إن هذا كان أفضل عام للجنة، فماذا يكون قد حدث خلاله؟", "hint": "تصورهم الكامل لمعنى النجاح."}];
+let culture20Responses=[];
+
+function culture20SurveyPageURL(){
+  const base=location.origin + location.pathname.replace(/[^/]*$/, '');
+  return base+'culture-survey-20.html';
+}
+async function copyCulture20SurveyLink(){
+  const url=culture20SurveyPageURL();
+  const el=document.getElementById('culture20SurveyURL'); if(el)el.textContent=url;
+  await copyToClipboard(url);
+  toast('تم نسخ رابط الاستبيان');
+}
+function updateCulture20Link(){
+  const el=document.getElementById('culture20SurveyURL');
+  if(el)el.textContent=culture20SurveyPageURL();
+}
+async function loadCulture20Responses(){
+  const host=document.getElementById('culture20Results'); if(!host)return;
+  host.innerHTML='<div class="dev-meta">جارٍ تحميل الإجابات…</div>';
+  if(!window.CloudSync||!CloudSync.isReady){
+    host.innerHTML='<div class="eval-link-err">يجب الاتصال بالسحابة أولًا لعرض الإجابات.</div>';
+    return;
+  }
+  try{
+    culture20Responses=await CloudSync.fetchCulture20Responses();
+    renderCulture20Responses();
+  }catch(e){
+    console.error(e);
+    host.innerHTML='<div class="eval-link-err">تعذّر تحميل إجابات الاستبيان. تأكد من الاتصال وقواعد Firebase.</div>';
+  }
+}
+function culture20Answer(r,i){
+  return Array.isArray(r.answers)?String(r.answers[i]||''):String((r.answers||{})[String(i+1)]||'');
+}
+function renderCulture20Responses(){
+  const host=document.getElementById('culture20Results'); if(!host)return;
+  if(!culture20Responses.length){
+    host.innerHTML='<div class="empty"><div class="txt">لا توجد إجابات مسجلة حتى الآن.</div></div>';
+    return;
+  }
+  const head=CULTURE20_QUESTIONS.map((x,i)=>`<th>س${i+1}</th>`).join('');
+  const rows=culture20Responses.map((r,ri)=>`<tr><td><b>${escapeHtml(r.name||'—')}</b><div class="dev-meta">${r.createdAt?new Date(r.createdAt).toLocaleString('ar-BH'):''}</div><button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="printCulture20Person(${ri})">طباعة PDF</button></td>${CULTURE20_QUESTIONS.map((_,i)=>`<td style="min-width:220px;white-space:pre-wrap">${escapeHtml(culture20Answer(r,i)||'—')}</td>`).join('')}</tr>`).join('');
+  host.innerHTML=`<div class="dev-meta" style="margin-bottom:8px">${culture20Responses.length} إجابة مسجلة</div><div style="overflow:auto"><table style="width:max-content;min-width:100%;border-collapse:collapse"><thead><tr><th style="min-width:180px">العضو</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function culture20PDFBody(r){
+  let out=`<h1>إجابات ${escapeHtml(r.name||'عضو')}</h1><div class="meta">استبيان اللجنة الثقافية — 20 سؤالًا</div>`;
+  let lastGroup='';
+  CULTURE20_QUESTIONS.forEach((x,i)=>{
+    if(x.group!==lastGroup){lastGroup=x.group;out+=`<h2>${escapeHtml(x.group)}</h2>`;}
+    out+=`<section><h3>${i+1}. ${escapeHtml(x.q)}</h3><div class="hint">يكشف: ${escapeHtml(x.hint)}</div><div class="answer">${escapeHtml(culture20Answer(r,i)||'—').replace(/\n/g,'<br>')}</div></section>`;
+  });
+  return out;
+}
+function openCulture20Print(title,body){
+  const w=window.open('','_blank');
+  if(!w){toast('اسمح بالنوافذ المنبثقة للطباعة');return;}
+  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
+  body{font-family:Arial,sans-serif;padding:30px;color:#222;line-height:1.7}h1{text-align:center;color:#173d33}h2{margin-top:28px;padding:8px 10px;background:#f3f5f4;border-right:4px solid #8b6f3d}h3{font-size:15px;margin:0 0 2px}section{margin:14px 0 20px;break-inside:avoid}.hint{font-size:11px;color:#888;margin-bottom:7px}.answer{border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff;white-space:normal}.meta{text-align:center;color:#777;margin-bottom:22px}.person{page-break-before:always}.person:first-child{page-break-before:auto}@media print{button{display:none!important}}</style></head><body>${body}<script>window.onload=()=>setTimeout(()=>window.print(),150);<\/script></body></html>`);
+  w.document.close();
+}
+function printCulture20Person(index){
+  const r=culture20Responses[index]; if(!r)return;
+  openCulture20Print('إجابات '+(r.name||'عضو'),culture20PDFBody(r));
+}
+async function printAllCulture20Responses(){
+  if(!culture20Responses.length){
+    await loadCulture20Responses();
+    if(!culture20Responses.length)return;
+  }
+  const body=culture20Responses.map(r=>`<div class="person">${culture20PDFBody(r)}</div>`).join('');
+  openCulture20Print('الإجابات العامة لاستبيان اللجنة الثقافية',`<h1>الإجابات العامة لجميع الأعضاء</h1><div class="meta">${culture20Responses.length} إجابة</div>${body}`);
 }
 
 /* ══════════ اللجنة الثقافية ══════════ */

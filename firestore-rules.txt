@@ -98,6 +98,22 @@ service cloud.firestore {
       allow read, update, delete: if allowed();
     }
 
+    // ═══ استبيان اللجنة الثقافية: 20 سؤالًا ═══
+    match /culture20Responses/{responseId} {
+      allow create: if request.resource.data.keys().hasOnly([
+          'surveyKey', 'name', 'answers', 'createdAt'
+        ])
+        && request.resource.data.surveyKey == 'culture20-v1'
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.answers is list
+        && request.resource.data.answers.size() == 20
+        && request.resource.data.createdAt is string
+        && request.resource.data.createdAt.size() <= 40;
+      allow read, update, delete: if allowed();
+    }
+
     // ═══ باقي بيانات الهيئة: الإدارة فقط ═══
     match /{document=**} {
       allow read, write: if allowed();

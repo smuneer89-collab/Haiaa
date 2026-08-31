@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>استبيان اللجنة الثقافية — 20 سؤالًا</title>
+<style>
+:root{--accent:#173d33;--gold:#9a7b42;--bg:#f5f6f4;--surface:#fff;--line:#dde1de;--muted:#68736f;--ink:#18201e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif;line-height:1.7}
+.wrap{max-width:780px;margin:auto;padding:18px 12px 42px}.head{background:var(--accent);color:#fff;border-radius:16px;padding:22px;text-align:center;margin-bottom:14px}.head h1{margin:4px 0;font-size:24px}.head small{opacity:.8}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:12px;box-shadow:0 2px 10px #00000008}
+label{display:block;font-weight:750;margin-bottom:8px}input,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;background:#fff}textarea{min-height:120px;resize:vertical}
+.btn{width:100%;border:0;border-radius:11px;padding:13px 16px;background:var(--accent);color:#fff;font:750 16px inherit;cursor:pointer}.btn:disabled{opacity:.55}
+.state{text-align:center;padding:58px 18px}.state .ic{font-size:44px}.welcome p{margin:5px 0;color:var(--muted)}.qno{font-size:12px;color:var(--gold);font-weight:800;margin-bottom:4px}.progress{height:8px;background:#e8ebe9;border-radius:20px;overflow:hidden;margin:12px 0 5px}.progress span{display:block;height:100%;background:var(--gold);width:0}.count{font-size:12px;color:var(--muted);text-align:left}
+@media(max-width:520px){.wrap{padding:10px}.head h1{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="head"><small>هيئة محبي الحسين (ع) · اللجنة الثقافية</small><h1>استبيان 20 سؤالًا</h1></div>
+  <div id="stage"></div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBlAxijaUz0OHwCsq5NnvQ90OVOCsr1vKY",authDomain:"haiaa-banijamrah.firebaseapp.com",projectId:"haiaa-banijamrah",storageBucket:"haiaa-banijamrah.firebasestorage.app",messagingSenderId:"499603171369",appId:"1:499603171369:web:19c71e92ca2690cfe61438"};
+const QUESTIONS=["لو طُلب منك أن تختصر اللجنة الثقافية بكلمة واحدة، فماذا تختار؟", "ما أول شعور راودك عند انضمامك إلى اللجنة، وهل ما زال قائمًا حتى الآن؟", "بعيدًا عن أي رأي شخصي، ما الأمر الذي تشعر أن جميع أعضاء اللجنة متفقون عليه دون نقاش؟", "لو كانت لجنتنا شخصًا واحدًا، كيف تصف شخصيته الحالية؟", "ما القيمة التي لا تتنازل عنها في العمل الثقافي حتى لو خالفك بقية الأعضاء؟", "عند رؤيتك لجنة أخرى منظمة وملتزمة، ما أول ما يلفت انتباهك فيها؟", "ما الذي يجعلك تشعر أن اجتماعًا معينًا يستحق الحضور، مقابل اجتماع آخر تفضّل الاعتذار عنه؟", "لو قيّمت التزامك الشخصي بمواعيد اللجنة بصراحة تامة، ماذا تقول عن نفسك؟", "ما أكبر عائق يمنعك من الالتزام بمهمة معينة حتى النهاية؟", "لو استطعت وضع قاعدة واحدة إلزامية على جميع أعضاء اللجنة دون استثناء، فماذا تكون؟", "ما آخر مصدر (كتاب، محاضرة، أو بودكاست) أثّر في تفكيرك الثقافي مؤخرًا؟", "لو بدأ كل اجتماع بخمس دقائق من النقاش الثقافي الحر بمعزل عن الشؤون الإدارية، هل يحمّسك ذلك؟ ولماذا؟", "ما الفرق بين المعلومة التي تُحفظ والثقافة التي تُعاش، من وجهة نظرك؟", "عند حضورك فعالية ثقافية كمشارك لا كمنظّم، ما الذي يجعلك تشعر بأنها أثّرت فيك فعلًا؟", "ما موضوع ثقافي تشعر أن اللجنة لم تطرحه من قبل وتستحق طرحه؟", "لو وضعنا هدفًا واحدًا كبيرًا للجنة هذا العام يجعلنا نفخر بأنفسنا، فماذا يكون؟", "ما الأمر الوحيد الذي لو تغيّر في طريقة عمل اللجنة سيجعلك أكثر حماسًا للمشاركة؟", "لو طُلب منك أن تشرح لشخص غريب سبب وجود هذه اللجنة، فماذا تقول له في جملتين؟", "ما الذي تشعر أنه يعيد الحماس لعضو باتت مشاركته فاترة منذ فترة؟", "لو قلنا بعد عام من الآن إن هذا كان أفضل عام للجنة، فماذا يكون قد حدث خلاله؟"];
+let db,name='',answers=Array(20).fill(''),current=0;
+const stage=document.getElementById('stage');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function nameStage(){
+  stage.innerHTML=`<div class="card"><label>الاسم</label><input id="memberName" maxlength="120" autocomplete="name" placeholder="اكتب اسمك الكامل"><div style="height:12px"></div><button class="btn" onclick="acceptName()">متابعة</button></div>`;
+  setTimeout(()=>document.getElementById('memberName').focus(),50);
+}
+function acceptName(){
+  const v=(document.getElementById('memberName').value||'').trim();
+  if(!v){alert('يرجى إدخال الاسم أولًا.');return}
+  name=v; welcomeStage();
+}
+function welcomeStage(){
+  stage.innerHTML=`<div class="card welcome"><h2>مرحبًا ${esc(name)}</h2><p>نرجو منك الإجابة عن الأسئلة بكل وضوح وصراحة، فإجاباتك ستسهم في فهم واقع اللجنة الثقافية وتطوير عملها.</p><p>يتكوّن الاستبيان من 20 سؤالًا. لن تظهر لك عناوين المجموعات أو الملاحظات التحليلية أثناء الإجابة.</p><div style="height:10px"></div><button class="btn" onclick="questionStage()">بدء الاستبيان</button></div>`;
+}
+function questionStage(){
+  const pct=Math.round((current/20)*100);
+  stage.innerHTML=`<div class="card"><div class="progress"><span style="width:${pct}%"></span></div><div class="count">${current+1} من 20</div><div class="qno">السؤال ${current+1}</div><label>${esc(QUESTIONS[current])}</label><textarea id="answer" placeholder="اكتب إجابتك بوضوح وصراحة...">${esc(answers[current])}</textarea><div style="display:flex;gap:8px;margin-top:12px">${current?'<button class="btn" style="background:#6b746f" onclick="prevQ()">السابق</button>':''}<button class="btn" onclick="nextQ()">${current===19?'مراجعة وإرسال':'التالي'}</button></div></div>`;
+  setTimeout(()=>document.getElementById('answer').focus(),40);
+}
+function storeCurrent(){
+  const v=(document.getElementById('answer').value||'').trim();
+  if(!v){alert('يرجى الإجابة عن السؤال قبل المتابعة.');return false}
+  answers[current]=v; return true;
+}
+function prevQ(){answers[current]=(document.getElementById('answer').value||'').trim();current--;questionStage()}
+function nextQ(){if(!storeCurrent())return;if(current<19){current++;questionStage()}else reviewStage()}
+function reviewStage(){
+  stage.innerHTML=`<div class="card"><h2>مراجعة قبل الإرسال</h2><p>الاسم: <b>${esc(name)}</b></p><p style="color:var(--muted)">تمت الإجابة عن الأسئلة العشرين. يمكنك العودة لتعديل الإجابة الأخيرة أو إرسال الاستبيان الآن.</p><div style="display:flex;gap:8px"><button class="btn" style="background:#6b746f" onclick="current=19;questionStage()">رجوع</button><button class="btn" id="sendBtn" onclick="submitSurvey()">إرسال الإجابات</button></div></div>`;
+}
+async function submitSurvey(){
+  const btn=document.getElementById('sendBtn');btn.disabled=true;btn.textContent='جارٍ الإرسال…';
+  try{
+    await db.collection('culture20Responses').add({surveyKey:'culture20-v1',name,answers,createdAt:new Date().toISOString()});
+    stage.innerHTML='<div class="card state"><div class="ic">✅</div><h2>شكرًا لمشاركتك</h2><p>تم استلام إجاباتك بنجاح.</p></div>';
+  }catch(e){
+    console.error(e);alert('تعذّر إرسال الإجابات. حاول مرة أخرى.');btn.disabled=false;btn.textContent='إرسال الإجابات';
+  }
+}
+try{firebase.initializeApp(FB_CONFIG);db=firebase.firestore();nameStage()}catch(e){console.error(e);stage.innerHTML='<div class="card state"><div class="ic">⚠️</div><h2>تعذّر الاتصال</h2><p>حاول مرة أخرى لاحقًا.</p></div>'}
+</script>
+</body>
+</html>

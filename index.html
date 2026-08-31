@@ -2738,6 +2738,26 @@
 
       <div class="panel">
         <div class="panel-header">
+          <div>
+            <h2 class="panel-title">📝 استبيان 20 سؤالًا</h2>
+            <div class="panel-sub">رابط للأعضاء · عرض الإجابات · طباعة فردية وشاملة</div>
+          </div>
+          <button class="btn btn-primary" onclick="copyCulture20SurveyLink()">نسخ رابط الاستبيان</button>
+        </div>
+        <div class="eval-link-box" style="margin-bottom:12px">
+          <div class="elb-label">رابط الاستبيان</div>
+          <div class="elb-url" id="culture20SurveyURL"></div>
+          <div class="elb-actions">
+            <button class="btn btn-ghost btn-sm" onclick="window.open(culture20SurveyPageURL(),'_blank')">فتح الاستبيان</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadCulture20Responses()">تحديث النتائج</button>
+            <button class="btn btn-ghost btn-sm" onclick="printAllCulture20Responses()">طباعة PDF شامل</button>
+          </div>
+        </div>
+        <div id="culture20Results"><div class="dev-meta">اضغط «تحديث النتائج» لعرض الإجابات.</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
           <div><h2 class="panel-title">اجتماعات اللجنة الثقافية</h2><div class="panel-sub">سجل الاجتماعات السابقة والمحاضر</div></div>
           <button class="btn btn-primary" onclick="newCultureMeeting()">+ اجتماع جديد</button>
         </div>
