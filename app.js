@@ -11025,41 +11025,55 @@ function moneyReceiptHTML(r){
         </div>
       </div>
 
-      <div class="receipt-bottom">
-        <div class="secretary-signature">
-          <b>توقيع أمين السر</b>
-          <div class="signature-space">${typeof HAIAA_SIGNATURE!=='undefined'&&HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="توقيع أمين السر">`:''}</div>
-          <div class="signature-line"></div>
-        </div>
-        <div class="receipt-note"><span class="note-shield">✓</span> هذا الوصل صادر رسميًا ولا يُعتد به دون توقيع أمين السر</div>
+    </div>
+
+    <div class="receipt-bottom">
+      <div class="secretary-signature">
+        <b>توقيع أمين السر</b>
+        <div class="signature-space">${typeof HAIAA_SIGNATURE!=='undefined'&&HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="توقيع أمين السر">`:''}</div>
+        <div class="signature-line"></div>
       </div>
+      <div class="receipt-note"><span class="note-shield">✓</span> هذا الوصل صادر رسميًا ولا يُعتد به دون توقيع أمين السر</div>
     </div>
   </div>`;
 }
 function openMoneyReceiptPrint(r){
   const w=window.open('','_blank');
   if(!w){toast('اسمح بالنوافذ المنبثقة للطباعة');return;}
-  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(r.receiptNo||'وصل استلام')}</title><style>
+  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(r.receiptNo||'وصل استلام')}</title><style>
     @page{size:A4 portrait;margin:0}
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:#fff}
-    body{font-family:Arial,Tahoma,sans-serif;color:#16352d;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .receipt-page{width:210mm;height:297mm;margin:auto;background:#fff;position:relative;overflow:hidden}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:Arial,Tahoma,sans-serif;color:#16352d;background:#edf2ef;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact;
+    }
+    .pdf-toolbar{
+      position:sticky;top:0;z-index:50;
+      max-width:210mm;margin:0 auto 10px;padding:10px;
+      display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+      background:rgba(255,255,255,.96);border-bottom:1px solid #dce5e0;
+      box-shadow:0 4px 14px rgba(15,75,60,.08);
+    }
+    .pdf-btn{
+      border:1px solid #17654e;border-radius:10px;padding:9px 16px;
+      font:700 13px Arial,Tahoma,sans-serif;cursor:pointer;background:#fff;color:#17654e;
+    }
+    .pdf-btn.primary{background:#17654e;color:#fff}
+    .receipt-page{width:210mm;height:297mm;margin:0 auto 18px;background:#fff;position:relative;overflow:hidden}
     .receipt-top{
       height:55mm;
       background:linear-gradient(120deg,#0d4b3c 0%,#0f5d47 62%,#1d805e 100%);
       border-radius:0 0 12mm 12mm;
-      position:relative;
-      z-index:3;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      position:relative;z-index:3;display:flex;align-items:center;justify-content:center;
     }
     .receipt-logo-wrap{width:112mm;height:31mm;display:flex;align-items:center;justify-content:center}
     .receipt-logo-wrap img{max-width:100%;max-height:100%;object-fit:contain}
     .receipt-watermark{position:absolute;border-radius:50%;background:#f0f7f3;z-index:0}
     .receipt-watermark-a{width:72mm;height:72mm;top:38mm;left:-34mm}
     .receipt-watermark-b{width:78mm;height:78mm;bottom:-30mm;right:-30mm}
+
+    /* Main details remain in normal flow and can no longer be covered by the signature. */
     .receipt-content{position:relative;z-index:2;padding:13mm 16mm 12mm}
     .receipt-heading-row{display:flex;align-items:center;justify-content:space-between;gap:8mm;margin-bottom:8mm}
     .receipt-heading-row h1{margin:0;font-size:26px;font-weight:900;color:#0d4b3c}
@@ -11080,8 +11094,7 @@ function openMoneyReceiptPrint(r){
     .receipt-fields{margin-top:3mm}
     .info-row{
       min-height:16mm;border-bottom:.35mm solid #e3e8e5;
-      display:grid;grid-template-columns:9mm 49mm 1fr;align-items:center;gap:3mm;
-      padding:2mm 0;
+      display:grid;grid-template-columns:9mm 49mm 1fr;align-items:center;gap:3mm;padding:2mm 0;
     }
     .info-row .num{
       width:7mm;height:7mm;border-radius:50%;background:#e7f4ee;color:#17654e;
@@ -11091,32 +11104,53 @@ function openMoneyReceiptPrint(r){
     .info-row .value{font-size:14px;color:#364d46;min-height:8mm;display:flex;align-items:center}
     .payment-options{display:flex!important;align-items:center;gap:6mm;flex-wrap:wrap}
     .pay-choice{display:inline-flex;align-items:center;gap:1.5mm;font-size:12px;color:#6b7773}
-    .pay-choice i{width:4.5mm;height:4.5mm;border:.55mm solid #26896a;border-radius:1mm;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-style:normal;color:#17654e}
+    .pay-choice i{
+      width:4.5mm;height:4.5mm;border:.55mm solid #26896a;border-radius:1mm;
+      display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-style:normal;color:#17654e;
+    }
     .pay-choice.active{font-weight:900;color:#174c3d}
     .pay-choice.active i{background:#dff2e9}
+
+    /* Signature is anchored to the A4 page itself, lower than before. */
     .receipt-bottom{
-      position:absolute;left:10mm;right:10mm;bottom:12mm;
+      position:absolute;left:10mm;right:10mm;bottom:12mm;z-index:4;
     }
     .secretary-signature{
-      width:100%;min-height:39mm;border:.35mm solid #e3ebe7;border-radius:5mm;
-      background:#f8fbf9;padding:6mm 12mm 5mm;text-align:center;color:#163f35;
+      width:100%;min-height:34mm;border:.35mm solid #dfe8e3;border-radius:5mm;
+      background:#fbfdfc;padding:5mm 12mm 4mm;text-align:center;color:#163f35;
       box-shadow:0 1mm 3mm rgba(15,75,60,.04);
     }
-    .secretary-signature b{display:block;font-size:14px;margin-bottom:2mm}
-    .signature-space{height:18mm;display:flex;align-items:center;justify-content:center}
-    .signature-space img{max-width:62mm;max-height:16mm;object-fit:contain}
+    .secretary-signature b{display:block;font-size:14px;margin-bottom:1mm}
+    .signature-space{height:16mm;display:flex;align-items:center;justify-content:center}
+    .signature-space img{max-width:58mm;max-height:15mm;object-fit:contain}
     .signature-line{width:58%;margin:0 auto;border-top:.55mm solid #165b48}
     .receipt-note{
-      margin-top:6mm;min-height:18mm;border:.35mm solid #e5ece8;border-radius:4mm;
+      margin-top:5mm;min-height:14mm;border:.35mm solid #e5ece8;border-radius:4mm;
       background:#f8fbf9;display:flex;align-items:center;justify-content:center;gap:4mm;
-      padding:4mm 7mm;text-align:center;font-size:11px;color:#275e4f;
+      padding:3mm 7mm;text-align:center;font-size:11px;color:#275e4f;
     }
     .note-shield{
-      width:8mm;height:8mm;border:.6mm solid #17654e;border-radius:2mm;
+      width:7mm;height:7mm;border:.6mm solid #17654e;border-radius:2mm;
       display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#17654e;
     }
-    @media print{button{display:none!important}}
-  </style></head><body>${moneyReceiptHTML(r)}<script>window.onload=()=>setTimeout(()=>window.print(),250);<\/script></body></html>`);
+
+    @media(max-width:850px){
+      .pdf-toolbar{margin-bottom:6px}
+      .receipt-page{transform-origin:top center}
+    }
+    @media print{
+      body{background:#fff}
+      .pdf-toolbar{display:none!important}
+      .receipt-page{margin:0}
+    }
+  </style></head><body>
+    <div class="pdf-toolbar">
+      <button class="pdf-btn" onclick="window.close()">← عودة</button>
+      <button class="pdf-btn" onclick="try{if(window.opener){window.opener.focus();if(typeof window.opener.idaraHome==='function')window.opener.idaraHome();}}catch(e){}window.close()">⌂ الرئيسية</button>
+      <button class="pdf-btn primary" onclick="window.print()">طباعة / حفظ PDF</button>
+    </div>
+    ${moneyReceiptHTML(r)}
+  </body></html>`);
   w.document.close();
 }
 function printMoneyReceiptById(id){ const r=(moneyReceipts||[]).find(x=>String(x.id)===String(id)); if(r)openMoneyReceiptPrint(r); }

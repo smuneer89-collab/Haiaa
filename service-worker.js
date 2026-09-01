@@ -4,7 +4,7 @@
    • طلبات Firebase والخطوط: تمر مباشرة بلا تخزين ← لا تتعطّل المزامنة
    • بلا إنترنت: يرجع لآخر نسخة مخزّنة تلقائياً
 */
-const CACHE = 'husain-v31-receipt-signature-bottom';
+const CACHE = 'husain-v32-receipt-pdf-controls-layout-fix';
 
 const APP_SHELL = [
   './',
