@@ -11241,7 +11241,7 @@ function openCulture20Print(title,body){
     .survey-person-head{text-align:center;margin:3mm 0 7mm}.survey-kicker{color:#8a6b58;font-size:12px;font-weight:700}.survey-person-head h1{font-size:23px;color:#681c28;margin:1mm 0}.meta{font-size:11px;color:#8b7c73}
     .group-title{background:#681c28;color:#fff;font-size:17px;margin:8mm 0 4mm;padding:2.4mm 4mm;border-radius:1mm;break-after:avoid}
     .qa-block{margin:0 0 5mm;break-inside:avoid}.qa-block h3{font-size:14px;color:#702331;margin:0 0 1mm;font-weight:800}.qnum{color:#8e3541}.hint{font-size:10px;color:#a29388;margin:0 1mm 2mm}.hint b{color:#a07d54}.answer{border:1px solid #caa99c;border-right:3px solid #8c3340;background:#f7efe7;color:#3f3330;padding:2.6mm 3.5mm;min-height:9mm;font-size:12px;white-space:normal}
-    .person{page-break-before:always}.person:first-child{page-break-before:auto}.all-title{text-align:center;color:#681c28;margin:5mm 0 1mm}.all-meta{text-align:center;color:#8b7c73;margin-bottom:7mm}
+    .comprehensive-question{break-inside:auto}.comprehensive-answers .answer{margin-bottom:2mm;break-inside:avoid}.comprehensive-answers .answer:last-child{margin-bottom:0}.person{page-break-before:always}.person:first-child{page-break-before:auto}.all-title{text-align:center;color:#681c28;margin:5mm 0 1mm}.all-meta{text-align:center;color:#8b7c73;margin-bottom:7mm}
     @media print{body{background:#fff}.survey-toolbar{display:none!important}.print-shell{width:auto;min-height:0;margin:0;padding:0}.survey-header{margin-top:-13mm;margin-left:-12mm;margin-right:-12mm} }
   </style></head><body>
     <div class="survey-toolbar"><button onclick="window.close()">← عودة</button><button onclick="try{if(window.opener){window.opener.focus();if(typeof window.opener.idaraHome==='function')window.opener.idaraHome();}}catch(e){}window.close()">⌂ الرئيسية</button><button class="primary" onclick="window.print()">طباعة / حفظ PDF</button></div>
@@ -11258,7 +11258,33 @@ async function printAllCulture20Responses(){
     await loadCulture20Responses();
     if(!culture20Responses.length)return;
   }
-  const body=`<h1 class="all-title">الإجابات العامة لجميع الأعضاء</h1><div class="all-meta">${culture20Responses.length} إجابة</div>`+culture20Responses.map(r=>culture20PDFBody(r,{comprehensive:true})).join('');
+
+  let lastGroup='';
+  let questionsHTML='';
+  CULTURE20_QUESTIONS.forEach((x,i)=>{
+    if(x.group!==lastGroup){
+      lastGroup=x.group;
+      questionsHTML+=`<h2 class="group-title">${escapeHtml(x.group)}</h2>`;
+    }
+
+    const memberAnswers=culture20Responses.map(r=>{
+      const name=escapeHtml(r.name||'عضو');
+      const answer=escapeHtml(culture20Answer(r,i)||'—').replace(/\n/g,'<br>');
+      return `<div class="answer"><b>${name}:</b> ${answer}</div>`;
+    }).join('');
+
+    questionsHTML+=`
+      <section class="qa-block comprehensive-question">
+        <h3><span class="qnum">${i+1}.</span> ${escapeHtml(x.q)}</h3>
+        <div class="hint"><b>يكشف:</b> ${escapeHtml(x.hint)}</div>
+        <div class="comprehensive-answers">${memberAnswers}</div>
+      </section>`;
+  });
+
+  const body=`<h1 class="all-title">الإجابات العامة لجميع الأعضاء</h1>
+    <div class="all-meta">${culture20Responses.length} إجابة · مرتبة حسب السؤال</div>
+    ${questionsHTML}`;
+
   openCulture20Print('الإجابات العامة لاستبيان اللجنة الثقافية',body);
 }
 
