@@ -111,6 +111,7 @@ let paidThawab = []; // التثويبات المدفوعة: {id, name, phone, m
 let revenues = []; // إيرادات المواقيت: {id, kind:'vow'|'donation', miqatId, name, amount, note, date, at}
 let mediaItems = []; // الأرشيف الإعلامي
 let letters = []; // الرسائل الرسمية الصادرة
+let moneyReceipts = []; // وصول استلام المبالغ الرسمية — أمانة السر
 let archives = []; // أرشيف السنوات
 let radoodParts = []; // مشاركات مسجّلة يدوياً: {id, radoodId, miqatId, miqatName, note, at}
 let auditLog = []; // سجل التغييرات: {id, at, who, act, cat, what}
@@ -263,6 +264,7 @@ async function loadData(){
   try { const ar=await storage.get('archives'); if(ar) archives=JSON.parse(ar); } catch(e){ archives=[]; }
   try { const rv=await storage.get('revenues'); if(rv) revenues=JSON.parse(rv); } catch(e){ revenues=[]; }
   try { const lt=await storage.get('letters'); if(lt) letters=JSON.parse(lt); } catch(e){ letters=[]; }
+  try { const mr=await storage.get('moneyReceipts'); if(mr) moneyReceipts=JSON.parse(mr); } catch(e){ moneyReceipts=[]; }
   try { const mi=await storage.get('mediaItems'); if(mi) mediaItems=JSON.parse(mi); } catch(e){ mediaItems=[]; }
   try { const gi=await storage.get('gdIndexCache'); if(gi) gdIndex=JSON.parse(gi); } catch(e){}
   try { const ac=await storage.get('azaSessionsCache'); if(ac){ const o=JSON.parse(ac); window.__azaSessions=o.ev||[]; window.__azaSurveys=o.sv||[]; } } catch(e){ window.__azaSessions=[]; window.__azaSurveys=[]; }
@@ -10903,6 +10905,218 @@ if('serviceWorker' in navigator){
   });
 }
 
+
+
+/* ══════════ نظام وصل استلام مبلغ — أمانة السر ══════════ */
+let moneyReceiptDraft=null;
+function openMoneyReceiptsPage(){ openFullPage('moneyreceipts'); newMoneyReceipt(false); loadMoneyReceipts(); }
+function closeMoneyReceiptsPage(){ openFullPage('administration'); idaraShow('sec'); updateSecCards(); fillAnnualYears(); }
+function moneyReceiptToday(){ return new Date().toISOString().slice(0,10); }
+function moneyReceiptMemberOptions(){ return members.map(m=>`<option value="${escapeHtml(m.name||'')}"></option>`).join(''); }
+function moneyReceiptMiqatOptions(){ return miqats.map(m=>`<option value="${escapeHtml(m.name||'')}"></option>`).join(''); }
+function newMoneyReceipt(show=true){
+  moneyReceiptDraft={date:moneyReceiptToday(),amount:'',currency:'دينار بحريني',name:'',occasion:'',paymentMethod:'نقدًا'};
+  const host=$('#moneyReceiptEditor'); if(!host)return;
+  host.style.display=show?'block':'none';
+  host.innerHTML=`<div style="border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px;background:var(--bg)">
+    <div class="section-label">بيانات الوصل</div>
+    <div class="form-grid">
+      <div class="field"><label>رقم الوصل</label><input value="يتولد تلقائيًا عند إصدار الوصل" readonly style="font-weight:700;background:#f1f1ed"></div>
+      <div class="field"><label>التاريخ</label><input id="mrDate" type="date" value="${moneyReceiptDraft.date}"></div>
+      <div class="field"><label>المبلغ المستلم</label><input id="mrAmount" type="number" min="0.001" step="0.001" inputmode="decimal" placeholder="0.000" style="font-weight:800;direction:ltr;text-align:right"></div>
+      <div class="field"><label>العملة</label><select id="mrCurrency"><option>دينار بحريني</option><option>ريال سعودي</option><option>دولار أمريكي</option></select></div>
+      <div class="field"><label>استلمنا من السيد/ة</label><input id="mrName" list="mrMembers" placeholder="اسم العضو"><datalist id="mrMembers">${moneyReceiptMemberOptions()}</datalist></div>
+      <div class="field"><label>وذلك عن</label><input id="mrOccasion" list="mrMiqats" placeholder="اسم الميقات"><datalist id="mrMiqats">${moneyReceiptMiqatOptions()}</datalist></div>
+      <div class="field full"><label>طريقة الدفع</label><select id="mrPayment"><option>نقدًا</option><option>تحويل بنكي</option><option>شيك</option><option>بنفت</option></select></div>
+    </div>
+    <div class="actions-row" style="margin-top:14px"><button class="btn btn-primary" id="mrIssueBtn" onclick="issueMoneyReceipt()">إصدار الوصل وحفظه</button><button class="btn btn-ghost" onclick="document.getElementById('moneyReceiptEditor').style.display='none'">إلغاء</button></div>
+  </div>`;
+}
+function collectMoneyReceiptDraft(){
+  return {date:($('#mrDate')||{}).value||'',amount:Number((($('#mrAmount')||{}).value||0)),currency:(($('#mrCurrency')||{}).value||''),name:String((($('#mrName')||{}).value||'')).trim(),occasion:String((($('#mrOccasion')||{}).value||'')).trim(),paymentMethod:(($('#mrPayment')||{}).value||'')};
+}
+async function issueMoneyReceipt(){
+  const d=collectMoneyReceiptDraft();
+  if(!d.date){toast('اختر التاريخ');return} if(!(d.amount>0)){toast('أدخل المبلغ المستلم');return} if(!d.name){toast('اكتب اسم العضو');return} if(!d.occasion){toast('اكتب اسم الميقات');return}
+  if(!window.CloudSync||!CloudSync.isReady||!CloudSync.createMoneyReceipt){toast('يجب الاتصال بالسحابة لإصدار رقم وصل غير مكرر');return}
+  const btn=$('#mrIssueBtn'); if(btn){btn.disabled=true;btn.textContent='جارٍ إصدار الوصل…';}
+  try{
+    const r=await CloudSync.createMoneyReceipt(d);
+    moneyReceipts.unshift(r); await storage.set('moneyReceipts',JSON.stringify(moneyReceipts));
+    logAudit('إضافة','أمانة السر',`إصدار وصل استلام ${r.receiptNo} — ${r.name}`);
+    renderMoneyReceiptArchive();
+    const host=$('#moneyReceiptEditor'); if(host)host.style.display='none';
+    toast('تم إصدار الوصل '+r.receiptNo);
+    printMoneyReceiptById(r.id);
+  }catch(e){console.error(e);toast('تعذّر إصدار الوصل. تحقق من الاتصال ثم حاول مرة أخرى.');}
+  finally{if(btn){btn.disabled=false;btn.textContent='إصدار الوصل وحفظه';}}
+}
+async function loadMoneyReceipts(){
+  const host=$('#moneyReceiptArchive'); if(host)host.innerHTML='<div class="dev-meta">جارٍ تحميل الوصول…</div>';
+  try{
+    if(window.CloudSync&&CloudSync.isReady&&CloudSync.fetchMoneyReceipts){ moneyReceipts=await CloudSync.fetchMoneyReceipts(); await storage.set('moneyReceipts',JSON.stringify(moneyReceipts)); }
+  }catch(e){console.error(e);}
+  renderMoneyReceiptArchive();
+}
+function clearMoneyReceiptSearch(){ ['mrSearchNo','mrSearchName','mrSearchOccasion','mrSearchYear','mrSearchFrom','mrSearchTo'].forEach(id=>{const e=$('#'+id);if(e)e.value='';}); renderMoneyReceiptArchive(); }
+function filteredMoneyReceipts(){
+  const no=String((($('#mrSearchNo')||{}).value||'')).trim().toLowerCase(), name=String((($('#mrSearchName')||{}).value||'')).trim().toLowerCase(), occ=String((($('#mrSearchOccasion')||{}).value||'')).trim().toLowerCase();
+  const year=String((($('#mrSearchYear')||{}).value||'')).trim(), from=(($('#mrSearchFrom')||{}).value||''), to=(($('#mrSearchTo')||{}).value||'');
+  return (moneyReceipts||[]).filter(r=>{ const d=String(r.date||''); return (!no||String(r.receiptNo||'').toLowerCase().includes(no))&&(!name||String(r.name||'').toLowerCase().includes(name))&&(!occ||String(r.occasion||'').toLowerCase().includes(occ))&&(!year||d.slice(0,4)===year)&&(!from||d>=from)&&(!to||d<=to); });
+}
+function moneyReceiptAmountText(r){ return `${Number(r.amount||0).toLocaleString('en-US',{minimumFractionDigits:3,maximumFractionDigits:3})} ${r.currency||''}`; }
+function renderMoneyReceiptArchive(){
+  const host=$('#moneyReceiptArchive'); if(!host)return; const rows=filteredMoneyReceipts();
+  if(!rows.length){host.innerHTML='<div class="empty"><div class="txt">لا توجد وصول مطابقة.</div></div>';return;}
+  host.innerHTML=`<div style="overflow:auto"><table class="rep-tbl"><tr><th>رقم الوصل</th><th>التاريخ</th><th>العضو</th><th>المناسبة</th><th>المبلغ</th><th>الدفع</th><th></th></tr>${rows.map(r=>`<tr><td><b dir="ltr">${escapeHtml(r.receiptNo||'')}</b></td><td>${escapeHtml(r.date||'')}</td><td>${escapeHtml(r.name||'')}</td><td>${escapeHtml(r.occasion||'')}</td><td><b dir="ltr">${escapeHtml(moneyReceiptAmountText(r))}</b></td><td>${escapeHtml(r.paymentMethod||'')}</td><td><div class="actions-row"><button class="btn btn-ghost btn-sm" onclick="printMoneyReceiptById('${r.id}')">PDF</button><button class="btn btn-ghost btn-sm" onclick="sendMoneyReceiptWhatsApp('${r.id}')">واتساب</button></div></td></tr>`).join('')}</table></div>`;
+}
+function moneyReceiptHTML(r){
+  const amount=Number(r.amount||0).toLocaleString('en-US',{minimumFractionDigits:3,maximumFractionDigits:3});
+  const payMethods=['نقدًا','تحويل بنكي','شيك','بنفت'];
+  const payHTML=payMethods.map(p=>`<span class="pay-choice ${r.paymentMethod===p?'active':''}"><i>${r.paymentMethod===p?'✓':''}</i>${escapeHtml(p)}</span>`).join('');
+  return `<div class="receipt-page" dir="rtl">
+    <div class="receipt-top">
+      <div class="receipt-logo-wrap"><img src="${HAIAA_LOGO_WHITE}" alt="شعار الهيئة"></div>
+    </div>
+
+    <div class="receipt-watermark receipt-watermark-a"></div>
+    <div class="receipt-watermark receipt-watermark-b"></div>
+
+    <div class="receipt-content">
+      <div class="receipt-heading-row">
+        <h1>وصل استلام مبلغ</h1>
+        <span class="official-pill">إيصال رسمي</span>
+      </div>
+
+      <div class="receipt-meta">
+        <div class="meta-card">
+          <span>رقم الوصل</span>
+          <b dir="ltr">${escapeHtml(r.receiptNo||'')}</b>
+        </div>
+        <div class="meta-card">
+          <span>التاريخ</span>
+          <b dir="ltr">${escapeHtml(r.date||'')}</b>
+        </div>
+      </div>
+
+      <div class="amount-card">
+        <div class="amount-label">المبلغ المستلم</div>
+        <div class="amount-row">
+          <strong dir="ltr">${escapeHtml(amount)}</strong>
+          <span class="currency-pill">${escapeHtml(r.currency||'')}</span>
+        </div>
+      </div>
+
+      <div class="receipt-fields">
+        <div class="info-row">
+          <span class="num">١</span>
+          <span class="label">استلمنا من السيد/ة</span>
+          <span class="value">${escapeHtml(r.name||'')}</span>
+        </div>
+        <div class="info-row">
+          <span class="num">٢</span>
+          <span class="label">وذلك عن</span>
+          <span class="value">${escapeHtml(r.occasion||'')}</span>
+        </div>
+        <div class="info-row payment-row">
+          <span class="num">٣</span>
+          <span class="label">طريقة الدفع</span>
+          <span class="value payment-options">${payHTML}</span>
+        </div>
+      </div>
+
+      <div class="secretary-signature">
+        <div class="signature-space">${typeof HAIAA_SIGNATURE!=='undefined'&&HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="توقيع أمين السر">`:''}</div>
+        <div class="signature-line"></div>
+        <b>توقيع أمين السر</b>
+      </div>
+
+      <div class="receipt-note">هذا الوصل صادر رسميًا ولا يُعتد به دون توقيع أمين السر.</div>
+    </div>
+  </div>`;
+}
+function openMoneyReceiptPrint(r){
+  const w=window.open('','_blank');
+  if(!w){toast('اسمح بالنوافذ المنبثقة للطباعة');return;}
+  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(r.receiptNo||'وصل استلام')}</title><style>
+    @page{size:A4 portrait;margin:0}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#fff}
+    body{font-family:Arial,Tahoma,sans-serif;color:#16352d;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .receipt-page{width:210mm;height:297mm;margin:auto;background:#fff;position:relative;overflow:hidden}
+    .receipt-top{
+      height:55mm;
+      background:linear-gradient(120deg,#0d4b3c 0%,#0f5d47 62%,#1d805e 100%);
+      border-radius:0 0 12mm 12mm;
+      position:relative;
+      z-index:3;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .receipt-logo-wrap{width:112mm;height:31mm;display:flex;align-items:center;justify-content:center}
+    .receipt-logo-wrap img{max-width:100%;max-height:100%;object-fit:contain}
+    .receipt-watermark{position:absolute;border-radius:50%;background:#f0f7f3;z-index:0}
+    .receipt-watermark-a{width:72mm;height:72mm;top:38mm;left:-34mm}
+    .receipt-watermark-b{width:78mm;height:78mm;bottom:-30mm;right:-30mm}
+    .receipt-content{position:relative;z-index:2;padding:13mm 16mm 12mm}
+    .receipt-heading-row{display:flex;align-items:center;justify-content:space-between;gap:8mm;margin-bottom:8mm}
+    .receipt-heading-row h1{margin:0;font-size:26px;font-weight:900;color:#0d4b3c}
+    .official-pill{background:#e4f3ec;color:#17654e;padding:2.4mm 6mm;border-radius:20mm;font-size:12px;font-weight:800}
+    .receipt-meta{display:grid;grid-template-columns:1fr 1fr;gap:7mm;margin-bottom:7mm}
+    .meta-card{background:#f5faf7;border-bottom:1.2mm solid #248467;border-radius:4mm;padding:4mm 5mm;height:20mm}
+    .meta-card span{display:block;font-size:11px;color:#35806c;font-weight:800;margin-bottom:2mm}
+    .meta-card b{display:block;font-size:15px;color:#183d34}
+    .amount-card{
+      background:linear-gradient(105deg,#0d4b3c,#197957);
+      color:#fff;border-radius:5mm;padding:6mm 7mm;margin-bottom:8mm;min-height:30mm;
+      display:flex;flex-direction:column;justify-content:center;
+    }
+    .amount-label{font-size:13px;font-weight:800;margin-bottom:3mm}
+    .amount-row{display:flex;align-items:center;justify-content:space-between;gap:8mm}
+    .amount-row strong{font-size:29px;font-weight:900;letter-spacing:.3px}
+    .currency-pill{background:#d3aa4d;color:#17382f;border-radius:4mm;padding:2.4mm 5mm;font-size:12px;font-weight:900;white-space:nowrap}
+    .receipt-fields{margin-top:3mm}
+    .info-row{
+      min-height:16mm;border-bottom:.35mm solid #e3e8e5;
+      display:grid;grid-template-columns:9mm 49mm 1fr;align-items:center;gap:3mm;
+      padding:2mm 0;
+    }
+    .info-row .num{
+      width:7mm;height:7mm;border-radius:50%;background:#e7f4ee;color:#17654e;
+      display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;
+    }
+    .info-row .label{font-size:13px;font-weight:900;color:#173f35}
+    .info-row .value{font-size:14px;color:#364d46;min-height:8mm;display:flex;align-items:center}
+    .payment-options{display:flex!important;align-items:center;gap:6mm;flex-wrap:wrap}
+    .pay-choice{display:inline-flex;align-items:center;gap:1.5mm;font-size:12px;color:#6b7773}
+    .pay-choice i{width:4.5mm;height:4.5mm;border:.55mm solid #26896a;border-radius:1mm;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-style:normal;color:#17654e}
+    .pay-choice.active{font-weight:900;color:#174c3d}
+    .pay-choice.active i{background:#dff2e9}
+    .secretary-signature{
+      position:absolute;right:17mm;bottom:31mm;width:78mm;text-align:center;color:#163f35;
+    }
+    .signature-space{height:20mm;display:flex;align-items:flex-end;justify-content:center}
+    .signature-space img{max-width:56mm;max-height:18mm;object-fit:contain}
+    .signature-line{border-top:.55mm solid #165b48;margin-bottom:3mm}
+    .secretary-signature b{font-size:13px}
+    .receipt-note{
+      position:absolute;bottom:15mm;left:16mm;right:16mm;border-top:.3mm solid #e5e9e7;
+      padding-top:4mm;text-align:center;font-size:10px;color:#98a09d;
+    }
+    @media print{button{display:none!important}}
+  </style></head><body>${moneyReceiptHTML(r)}<script>window.onload=()=>setTimeout(()=>window.print(),250);<\/script></body></html>`);
+  w.document.close();
+}
+function printMoneyReceiptById(id){ const r=(moneyReceipts||[]).find(x=>String(x.id)===String(id)); if(r)openMoneyReceiptPrint(r); }
+function sendMoneyReceiptWhatsApp(id){
+  const r=(moneyReceipts||[]).find(x=>String(x.id)===String(id)); if(!r)return;
+  const m=members.find(x=>String(x.name||'').trim()===String(r.name||'').trim()); const phone=m&&m.phone?m.phone:'';
+  const msg=`السلام عليكم،\nمرفق لكم وصل استلام مبلغ رقم ${r.receiptNo} بتاريخ ${r.date}.\nالمبلغ: ${moneyReceiptAmountText(r)}\nوذلك عن: ${r.occasion}.\n\nهيئة محبي الحسين — أمانة السر`;
+  // المتصفح لا يستطيع إرفاق ملف ناتج من نافذة الطباعة تلقائياً؛ نفتح الوصل للطباعة/الحفظ ثم محادثة واتساب الجاهزة.
+  openMoneyReceiptPrint(r);
+  setTimeout(()=>window.open(phone?whatsappLink(phone,msg):`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank'),450);
+}
 
 /* ══════════ استبيان اللجنة الثقافية: 20 سؤالًا ══════════ */
 const CULTURE20_QUESTIONS=[{"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "لو طُلب منك أن تختصر اللجنة الثقافية بكلمة واحدة، فماذا تختار؟", "hint": "مدى الانتماء العاطفي الحالي للجنة."}, {"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "ما أول شعور راودك عند انضمامك إلى اللجنة، وهل ما زال قائمًا حتى الآن؟", "hint": "مدى تراجع الحماس الأولي وأسبابه."}, {"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "بعيدًا عن أي رأي شخصي، ما الأمر الذي تشعر أن جميع أعضاء اللجنة متفقون عليه دون نقاش؟", "hint": "مدى وجود أرضية مشتركة يمكن البناء عليها."}, {"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "لو كانت لجنتنا شخصًا واحدًا، كيف تصف شخصيته الحالية؟", "hint": "الصورة الذهنية الجماعية للجنة."}, {"group": "المجموعة الأولى: كسر الجليد وبناء الأرضية المشتركة", "q": "ما القيمة التي لا تتنازل عنها في العمل الثقافي حتى لو خالفك بقية الأعضاء؟", "hint": "نقاط الاختلاف الفكري الحقيقية بينهم."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "عند رؤيتك لجنة أخرى منظمة وملتزمة، ما أول ما يلفت انتباهك فيها؟", "hint": "معيارهم الشخصي لتعريف الجدية."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "ما الذي يجعلك تشعر أن اجتماعًا معينًا يستحق الحضور، مقابل اجتماع آخر تفضّل الاعتذار عنه؟", "hint": "السبب الحقيقي وراء الغياب."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "لو قيّمت التزامك الشخصي بمواعيد اللجنة بصراحة تامة، ماذا تقول عن نفسك؟", "hint": "مستوى الوعي الذاتي بالمشكلة."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "ما أكبر عائق يمنعك من الالتزام بمهمة معينة حتى النهاية؟", "hint": "طبيعة العائق (وقت، حماس، تنظيم، أو قناعة بالمهمة)."}, {"group": "المجموعة الثانية: قياس الجدية والالتزام", "q": "لو استطعت وضع قاعدة واحدة إلزامية على جميع أعضاء اللجنة دون استثناء، فماذا تكون؟", "hint": "اقتراح الفرد لحل ذاتي لمشكلة الالتزام."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "ما آخر مصدر (كتاب، محاضرة، أو بودكاست) أثّر في تفكيرك الثقافي مؤخرًا؟", "hint": "مدى فاعلية الرصيد الثقافي الحالي."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "لو بدأ كل اجتماع بخمس دقائق من النقاش الثقافي الحر بمعزل عن الشؤون الإدارية، هل يحمّسك ذلك؟ ولماذا؟", "hint": "الرغبة الفعلية في أجواء ثقافية حقيقية."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "ما الفرق بين المعلومة التي تُحفظ والثقافة التي تُعاش، من وجهة نظرك؟", "hint": "عمق فهمهم لمفهوم الثقافة."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "عند حضورك فعالية ثقافية كمشارك لا كمنظّم، ما الذي يجعلك تشعر بأنها أثّرت فيك فعلًا؟", "hint": "معيارهم لتقييم نجاح أي فعالية."}, {"group": "المجموعة الثالثة: قوة الثقافة والأجواء الثقافية", "q": "ما موضوع ثقافي تشعر أن اللجنة لم تطرحه من قبل وتستحق طرحه؟", "hint": "أفكار برامج جديدة كامنة لديهم."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "لو وضعنا هدفًا واحدًا كبيرًا للجنة هذا العام يجعلنا نفخر بأنفسنا، فماذا يكون؟", "hint": "رؤيتهم لهدف جامع يوحّدهم."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "ما الأمر الوحيد الذي لو تغيّر في طريقة عمل اللجنة سيجعلك أكثر حماسًا للمشاركة؟", "hint": "أكبر ما يرغبون بتغييره، بصياغة إيجابية."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "لو طُلب منك أن تشرح لشخص غريب سبب وجود هذه اللجنة، فماذا تقول له في جملتين؟", "hint": "مدى وضوح رسالة اللجنة في أذهانهم."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "ما الذي تشعر أنه يعيد الحماس لعضو باتت مشاركته فاترة منذ فترة؟", "hint": "أفكارًا عملية لتنشيط الأعضاء الخاملين."}, {"group": "المجموعة الرابعة: الهدف الكبير والتغيير المطلوب", "q": "لو قلنا بعد عام من الآن إن هذا كان أفضل عام للجنة، فماذا يكون قد حدث خلاله؟", "hint": "تصورهم الكامل لمعنى النجاح."}];

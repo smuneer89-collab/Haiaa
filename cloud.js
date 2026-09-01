@@ -630,6 +630,26 @@ const CloudSync = (() => {
     return arr;
   }
 
+  // ═══ وصول استلام المبالغ — أمانة السر ═══
+  async function createMoneyReceipt(payload){
+    if(!db) throw new Error('cloud not ready');
+    const current=auth&&auth.currentUser; if(!current) throw new Error('not authenticated');
+    const date=String(payload.date||''); const year=(date.match(/^\d{4}/)||[String(new Date().getFullYear())])[0];
+    const counterRef=db.collection('moneyReceiptCounters').doc(year);
+    return await db.runTransaction(async tx=>{
+      const snap=await tx.get(counterRef); const next=(snap.exists?Number(snap.data().last||0):0)+1;
+      const receiptNo=`RCP-${year}-${String(next).padStart(4,'0')}`;
+      const ref=db.collection('moneyReceipts').doc(receiptNo);
+      const item={id:receiptNo,receiptNo,date,amount:Number(payload.amount)||0,currency:String(payload.currency||''),name:String(payload.name||''),occasion:String(payload.occasion||''),paymentMethod:String(payload.paymentMethod||''),createdAt:new Date().toISOString(),createdBy:String(current.email||'')};
+      tx.set(counterRef,{last:next,updatedAt:item.createdAt},{merge:true}); tx.set(ref,item); return item;
+    });
+  }
+  async function fetchMoneyReceipts(){
+    if(!db) throw new Error('cloud not ready');
+    const snap=await db.collection('moneyReceipts').get(); const arr=snap.docs.map(d=>Object.assign({id:d.id},d.data()));
+    arr.sort((a,b)=>(b.receiptNo||'').localeCompare(a.receiptNo||'')); return arr;
+  }
+
   // ═══ الانتخابات ═══
   async function createElection(payload){
     if(!db) throw new Error('cloud not ready');
@@ -709,6 +729,7 @@ const CloudSync = (() => {
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            createSeasonEvalSession, fetchSeasonEvalSessions, fetchSeasonEvalResponses, setSeasonEvalSessionClosed, deleteSeasonEvalSession,
            fetchCulture20Responses,
+           createMoneyReceipt, fetchMoneyReceipts,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
            setRegistrationOpen, fetchRegistrationOpen, fetchRegistrationRequests, updateRegistrationRequest, deleteRegistrationRequest,
            createElection, updateElection, fetchElection, fetchBallots, deleteElection,

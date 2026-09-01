@@ -2295,6 +2295,29 @@
     <div id="letterBody"></div>
   </section>
 
+  <!-- نظام وصل استلام مبلغ — أمانة السر -->
+  <section id="tab-moneyreceipts" class="tab-content" style="display:none">
+    <div class="page-bar"><button class="btn btn-ghost btn-sm" onclick="closeMoneyReceiptsPage()">← رجوع لأمانة السر</button></div>
+    <div class="panel">
+      <div class="panel-header"><div><h2 class="panel-title">وصل استلام مبلغ</h2><div class="panel-sub">إصدار وأرشفة وصول الاستلام الرسمية</div></div>
+        <button class="btn btn-primary" onclick="newMoneyReceipt()">+ وصل جديد</button></div>
+      <div id="moneyReceiptEditor" style="display:none"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><div><h2 class="panel-title">البحث في الوصول</h2><div class="panel-sub">بحث متقدم حسب التاريخ والسنة والاسم والمناسبة ورقم الوصل</div></div></div>
+      <div class="form-grid">
+        <div class="field"><label>رقم الوصل</label><input id="mrSearchNo" placeholder="مثال: RCP-2026-0001" oninput="renderMoneyReceiptArchive()"></div>
+        <div class="field"><label>اسم العضو</label><input id="mrSearchName" placeholder="اسم العضو" oninput="renderMoneyReceiptArchive()"></div>
+        <div class="field"><label>اسم المناسبة / الميقات</label><input id="mrSearchOccasion" placeholder="اسم الميقات" oninput="renderMoneyReceiptArchive()"></div>
+        <div class="field"><label>السنة</label><input id="mrSearchYear" type="number" min="2000" max="2200" placeholder="مثال: 2026" oninput="renderMoneyReceiptArchive()"></div>
+        <div class="field"><label>من تاريخ</label><input id="mrSearchFrom" type="date" oninput="renderMoneyReceiptArchive()"></div>
+        <div class="field"><label>إلى تاريخ</label><input id="mrSearchTo" type="date" oninput="renderMoneyReceiptArchive()"></div>
+      </div>
+      <div class="actions-row"><button class="btn btn-ghost btn-sm" onclick="clearMoneyReceiptSearch()">مسح البحث</button><button class="btn btn-ghost btn-sm" onclick="loadMoneyReceipts()">تحديث</button></div>
+      <div id="moneyReceiptArchive"><div class="dev-meta">جارٍ تحميل الوصول…</div></div>
+    </div>
+  </section>
+
   <!-- صفحة مساهمة العضو (استلام) -->
   <section id="tab-receipt" class="tab-content" style="display:none">
     <div class="page-bar">
@@ -2635,6 +2658,15 @@
         <span style="color:var(--accent)"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2.5 7l9.5 6 9.5-6"/></svg></span>
         <span style="flex:1"><b style="display:block;font-size:15.5px;color:var(--ink);font-weight:700;">الرسائل الرسمية</b>
           <small style="font-size:11.5px;color:var(--muted);">كتابة وطباعة وأرشيف الصادر</small></span>
+        <span style="font-size:22px;color:var(--muted-2);">›</span>
+      </button>
+
+      <!-- وصول استلام المبالغ -->
+      <button class="idara-card" style="width:100%;margin-bottom:12px;text-align:right;display:flex;align-items:center;gap:12px;padding:15px 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);cursor:pointer;font-family:var(--font-sans);"
+        onclick="openMoneyReceiptsPage()">
+        <span style="color:var(--accent)"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span>
+        <span style="flex:1"><b style="display:block;font-size:15.5px;color:var(--ink);font-weight:700;">وصل استلام مبلغ</b>
+          <small style="font-size:11.5px;color:var(--muted);">إصدار وصل رسمي · ترقيم تلقائي · بحث وطباعة PDF</small></span>
         <span style="font-size:22px;color:var(--muted-2);">›</span>
       </button>
 
