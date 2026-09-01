@@ -11025,13 +11025,14 @@ function moneyReceiptHTML(r){
         </div>
       </div>
 
-      <div class="secretary-signature">
-        <div class="signature-space">${typeof HAIAA_SIGNATURE!=='undefined'&&HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="توقيع أمين السر">`:''}</div>
-        <div class="signature-line"></div>
-        <b>توقيع أمين السر</b>
+      <div class="receipt-bottom">
+        <div class="secretary-signature">
+          <b>توقيع أمين السر</b>
+          <div class="signature-space">${typeof HAIAA_SIGNATURE!=='undefined'&&HAIAA_SIGNATURE?`<img src="${HAIAA_SIGNATURE}" alt="توقيع أمين السر">`:''}</div>
+          <div class="signature-line"></div>
+        </div>
+        <div class="receipt-note"><span class="note-shield">✓</span> هذا الوصل صادر رسميًا ولا يُعتد به دون توقيع أمين السر</div>
       </div>
-
-      <div class="receipt-note">هذا الوصل صادر رسميًا ولا يُعتد به دون توقيع أمين السر.</div>
     </div>
   </div>`;
 }
@@ -11093,16 +11094,26 @@ function openMoneyReceiptPrint(r){
     .pay-choice i{width:4.5mm;height:4.5mm;border:.55mm solid #26896a;border-radius:1mm;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-style:normal;color:#17654e}
     .pay-choice.active{font-weight:900;color:#174c3d}
     .pay-choice.active i{background:#dff2e9}
-    .secretary-signature{
-      position:absolute;right:17mm;bottom:31mm;width:78mm;text-align:center;color:#163f35;
+    .receipt-bottom{
+      position:absolute;left:10mm;right:10mm;bottom:12mm;
     }
-    .signature-space{height:20mm;display:flex;align-items:flex-end;justify-content:center}
-    .signature-space img{max-width:56mm;max-height:18mm;object-fit:contain}
-    .signature-line{border-top:.55mm solid #165b48;margin-bottom:3mm}
-    .secretary-signature b{font-size:13px}
+    .secretary-signature{
+      width:100%;min-height:39mm;border:.35mm solid #e3ebe7;border-radius:5mm;
+      background:#f8fbf9;padding:6mm 12mm 5mm;text-align:center;color:#163f35;
+      box-shadow:0 1mm 3mm rgba(15,75,60,.04);
+    }
+    .secretary-signature b{display:block;font-size:14px;margin-bottom:2mm}
+    .signature-space{height:18mm;display:flex;align-items:center;justify-content:center}
+    .signature-space img{max-width:62mm;max-height:16mm;object-fit:contain}
+    .signature-line{width:58%;margin:0 auto;border-top:.55mm solid #165b48}
     .receipt-note{
-      position:absolute;bottom:15mm;left:16mm;right:16mm;border-top:.3mm solid #e5e9e7;
-      padding-top:4mm;text-align:center;font-size:10px;color:#98a09d;
+      margin-top:6mm;min-height:18mm;border:.35mm solid #e5ece8;border-radius:4mm;
+      background:#f8fbf9;display:flex;align-items:center;justify-content:center;gap:4mm;
+      padding:4mm 7mm;text-align:center;font-size:11px;color:#275e4f;
+    }
+    .note-shield{
+      width:8mm;height:8mm;border:.6mm solid #17654e;border-radius:2mm;
+      display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#17654e;
     }
     @media print{button{display:none!important}}
   </style></head><body>${moneyReceiptHTML(r)}<script>window.onload=()=>setTimeout(()=>window.print(),250);<\/script></body></html>`);
