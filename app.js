@@ -11209,20 +11209,44 @@ function renderCulture20Responses(){
   const rows=culture20Responses.map((r,ri)=>`<tr><td><b>${escapeHtml(r.name||'—')}</b><div class="dev-meta">${r.createdAt?new Date(r.createdAt).toLocaleString('ar-BH'):''}</div><button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="printCulture20Person(${ri})">طباعة PDF</button></td>${CULTURE20_QUESTIONS.map((_,i)=>`<td style="min-width:220px;white-space:pre-wrap">${escapeHtml(culture20Answer(r,i)||'—')}</td>`).join('')}</tr>`).join('');
   host.innerHTML=`<div class="dev-meta" style="margin-bottom:8px">${culture20Responses.length} إجابة مسجلة</div><div style="overflow:auto"><table style="width:max-content;min-width:100%;border-collapse:collapse"><thead><tr><th style="min-width:180px">العضو</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
-function culture20PDFBody(r){
-  let out=`<h1>إجابات ${escapeHtml(r.name||'عضو')}</h1><div class="meta">استبيان اللجنة الثقافية — 20 سؤالًا</div>`;
+function culture20PDFBody(r,opts={}){
+  const comprehensive=!!opts.comprehensive;
+  let out=`<div class="survey-person-head"><div class="survey-kicker">اللجنة الثقافية</div><h1>إجابات ${escapeHtml(r.name||'عضو')}</h1><div class="meta">استبيان اللجنة الثقافية — 20 سؤالًا</div></div>`;
   let lastGroup='';
   CULTURE20_QUESTIONS.forEach((x,i)=>{
-    if(x.group!==lastGroup){lastGroup=x.group;out+=`<h2>${escapeHtml(x.group)}</h2>`;}
-    out+=`<section><h3>${i+1}. ${escapeHtml(x.q)}</h3><div class="hint">يكشف: ${escapeHtml(x.hint)}</div><div class="answer">${escapeHtml(culture20Answer(r,i)||'—').replace(/\n/g,'<br>')}</div></section>`;
+    if(x.group!==lastGroup){
+      lastGroup=x.group;
+      out+=`<h2 class="group-title">${escapeHtml(x.group)}</h2>`;
+    }
+    out+=`<section class="qa-block"><h3><span class="qnum">${i+1}.</span> ${escapeHtml(x.q)}</h3><div class="hint"><b>يكشف:</b> ${escapeHtml(x.hint)}</div><div class="answer">${escapeHtml(culture20Answer(r,i)||'—').replace(/\n/g,'<br>')}</div></section>`;
   });
-  return out;
+  return comprehensive?`<div class="person">${out}</div>`:out;
 }
 function openCulture20Print(title,body){
   const w=window.open('','_blank');
   if(!w){toast('اسمح بالنوافذ المنبثقة للطباعة');return;}
-  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
-  body{font-family:Arial,sans-serif;padding:30px;color:#222;line-height:1.7}h1{text-align:center;color:#173d33}h2{margin-top:28px;padding:8px 10px;background:#f3f5f4;border-right:4px solid #8b6f3d}h3{font-size:15px;margin:0 0 2px}section{margin:14px 0 20px;break-inside:avoid}.hint{font-size:11px;color:#888;margin-bottom:7px}.answer{border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff;white-space:normal}.meta{text-align:center;color:#777;margin-bottom:22px}.person{page-break-before:always}.person:first-child{page-break-before:auto}@media print{button{display:none!important}}</style></head><body>${body}<script>window.onload=()=>setTimeout(()=>window.print(),150);<\/script></body></html>`);
+  const logo=(typeof HAIAA_LOGO_WHITE!=='undefined'&&HAIAA_LOGO_WHITE)?HAIAA_LOGO_WHITE:'';
+  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>
+    @page{size:A4 portrait;margin:13mm 12mm 14mm}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{font-family:Arial,Tahoma,sans-serif;background:#eee9e1;color:#4c2429;line-height:1.65;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .survey-toolbar{position:sticky;top:0;z-index:100;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding:10px;background:rgba(255,255,255,.97);border-bottom:1px solid #ded6cb;box-shadow:0 3px 12px #0001}
+    .survey-toolbar button{border:1px solid #681c28;border-radius:9px;background:#fff;color:#681c28;padding:9px 16px;font:700 13px Arial,Tahoma;cursor:pointer}
+    .survey-toolbar .primary{background:#681c28;color:#fff}
+    .print-shell{width:210mm;min-height:297mm;margin:12px auto;background:#fff;padding:0 12mm 14mm}
+    .survey-header{height:30mm;background:#681c28;margin:0 -12mm 9mm;padding:5mm 12mm;display:flex;align-items:center;justify-content:space-between;gap:8mm;color:#fff}
+    .survey-header img{max-width:72mm;max-height:20mm;object-fit:contain}
+    .survey-header-text{text-align:left}.survey-header-text b{display:block;font-size:16px}.survey-header-text span{font-size:11px;opacity:.9}
+    .survey-person-head{text-align:center;margin:3mm 0 7mm}.survey-kicker{color:#8a6b58;font-size:12px;font-weight:700}.survey-person-head h1{font-size:23px;color:#681c28;margin:1mm 0}.meta{font-size:11px;color:#8b7c73}
+    .group-title{background:#681c28;color:#fff;font-size:17px;margin:8mm 0 4mm;padding:2.4mm 4mm;border-radius:1mm;break-after:avoid}
+    .qa-block{margin:0 0 5mm;break-inside:avoid}.qa-block h3{font-size:14px;color:#702331;margin:0 0 1mm;font-weight:800}.qnum{color:#8e3541}.hint{font-size:10px;color:#a29388;margin:0 1mm 2mm}.hint b{color:#a07d54}.answer{border:1px solid #caa99c;border-right:3px solid #8c3340;background:#f7efe7;color:#3f3330;padding:2.6mm 3.5mm;min-height:9mm;font-size:12px;white-space:normal}
+    .person{page-break-before:always}.person:first-child{page-break-before:auto}.all-title{text-align:center;color:#681c28;margin:5mm 0 1mm}.all-meta{text-align:center;color:#8b7c73;margin-bottom:7mm}
+    @media print{body{background:#fff}.survey-toolbar{display:none!important}.print-shell{width:auto;min-height:0;margin:0;padding:0}.survey-header{margin-top:-13mm;margin-left:-12mm;margin-right:-12mm} }
+  </style></head><body>
+    <div class="survey-toolbar"><button onclick="window.close()">← عودة</button><button onclick="try{if(window.opener){window.opener.focus();if(typeof window.opener.idaraHome==='function')window.opener.idaraHome();}}catch(e){}window.close()">⌂ الرئيسية</button><button class="primary" onclick="window.print()">طباعة / حفظ PDF</button></div>
+    <div class="print-shell"><div class="survey-header">${logo?`<img src="${logo}" alt="شعار الهيئة">`:''}<div class="survey-header-text"><b>استبيان اللجنة الثقافية</b><span>اللجنة الثقافية</span></div></div>${body}</div>
+  </body></html>`);
   w.document.close();
 }
 function printCulture20Person(index){
@@ -11234,8 +11258,8 @@ async function printAllCulture20Responses(){
     await loadCulture20Responses();
     if(!culture20Responses.length)return;
   }
-  const body=culture20Responses.map(r=>`<div class="person">${culture20PDFBody(r)}</div>`).join('');
-  openCulture20Print('الإجابات العامة لاستبيان اللجنة الثقافية',`<h1>الإجابات العامة لجميع الأعضاء</h1><div class="meta">${culture20Responses.length} إجابة</div>${body}`);
+  const body=`<h1 class="all-title">الإجابات العامة لجميع الأعضاء</h1><div class="all-meta">${culture20Responses.length} إجابة</div>`+culture20Responses.map(r=>culture20PDFBody(r,{comprehensive:true})).join('');
+  openCulture20Print('الإجابات العامة لاستبيان اللجنة الثقافية',body);
 }
 
 /* ══════════ اللجنة الثقافية ══════════ */
