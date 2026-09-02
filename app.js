@@ -2922,7 +2922,7 @@ function computeNotifications(){
     else if(days>0 && days<=2){ list.push({ cat:'الاجتماعات', type:'info', ic:'📋', title:`اجتماع بعد ${days===1?'يوم واحد':'يومين'}`, desc:`«${escapeHtml(mt.title||'مجلس الإدارة')}»${mt.committee?' — '+escapeHtml(mt.committee):''}.`, meta:fmtMeetingDT(mt.datetime), action:()=>switchTab('meetings') }); }
   });
 
-  // 3) الأقساط المستحقة - قبل موعدها بـ 10 أيام
+  // 3) الأقساط المستحقة - قبل موعدها بيومين
   members.forEach(m=>{
     // أقساط العضوية
     collectDueInstallments(m).forEach(due=>{
@@ -2985,7 +2985,7 @@ function computeNotifications(){
   return list;
 }
 
-/* جمع أقساط العضو المستحقة (لها تاريخ استحقاق مجدول ضمن 10 أيام أو فات) */
+/* جمع أقساط العضو المستحقة (تنبيه قبل يومين من الاستحقاق أو عند الاستحقاق/التأخر) */
 function collectDueInstallments(m){
   const out=[]; const todayG=new Date(); todayG.setHours(0,0,0,0);
   // العضوية
@@ -2995,7 +2995,7 @@ function collectDueInstallments(m){
       const g=hijriToGregorian(d.day,d.month,d.year); if(!g) return;
       const gd=new Date(g); gd.setHours(0,0,0,0);
       const days=Math.round((gd-todayG)/86400000);
-      if(days<=10){ out.push({ days, label:`قسط عضوية مجدول${d.amount?` بمبلغ ${fmtMoney(d.amount)}`:''}`, hijriText:`${d.day} ${HIJRI_MONTHS[d.month]} ${d.year} هـ`, gregText:fmtDate(g) }); }
+      if(days<=2){ out.push({ days, label:`قسط عضوية مجدول${d.amount?` بمبلغ ${fmtMoney(d.amount)}`:''}`, hijriText:`${d.day} ${HIJRI_MONTHS[d.month]} ${d.year} هـ`, gregText:fmtDate(g) }); }
     });
   }
   // مساهمات المواقيت
@@ -3009,7 +3009,7 @@ function collectDueInstallments(m){
         const g=hijriToGregorian(d.day,d.month,d.year); if(!g) return;
         const gd=new Date(g); gd.setHours(0,0,0,0);
         const days=Math.round((gd-todayG)/86400000);
-        if(days<=10){ out.push({ days, label:`قسط مساهمة «${escapeHtml(mq.name)}»${d.amount?` بمبلغ ${fmtMoney(d.amount)}`:''}`, hijriText:`${d.day} ${HIJRI_MONTHS[d.month]} ${d.year} هـ`, gregText:fmtDate(g) }); }
+        if(days<=2){ out.push({ days, label:`قسط مساهمة «${escapeHtml(mq.name)}»${d.amount?` بمبلغ ${fmtMoney(d.amount)}`:''}`, hijriText:`${d.day} ${HIJRI_MONTHS[d.month]} ${d.year} هـ`, gregText:fmtDate(g) }); }
       });
     });
   });
@@ -4605,6 +4605,49 @@ function instPrintStatement(){
   if(b&&b.familyName) printOneFamilyReport(instCtx.miqatId, instCtx.memberId);
   else printSubReceipt(instCtx.memberId);
 }
+function instPrintSchedulePDF(){
+  const o=instObligation(); if(!o) return;
+  const t=schedTarget();
+  const sched=(t&&Array.isArray(t.dueSchedule))?t.dueSchedule:[];
+  if(!sched.length){ toast('لا توجد مواعيد استحقاق مجدولة'); return; }
+
+  const paid=o.payments.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const rem=Math.max(0,o.total-paid);
+  const member=o.m || members.find(x=>x.id===instCtx.memberId);
+  const who = member?.name || (o.b?.familyName||'—');
+  const obligation = instCtx.kind==='sub' ? 'اشتراك العضوية' : (o.mq?`مساهمة ${o.mq.name}`:'مساهمة');
+  const rows=sched.map((d,i)=>{
+    const g=hijriToGregorian(d.day,d.month,d.year);
+    return `<tr><td>${i+1}</td><td>${d.day} ${HIJRI_MONTHS[d.month]} ${d.year} هـ</td><td>${g?fmtDate(g):'—'}</td><td>${d.amount?fmtMoney(d.amount):'—'}</td><td>${d.paid?'تم الدفع':'مستحق'}</td></tr>`;
+  }).join('');
+
+  const w=window.open('','_blank');
+  if(!w){ toast('اسمح بالنوافذ المنبثقة للطباعة'); return; }
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>جدول مواعيد الاستحقاق — ${escapeHtml(who)}</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+    <style>
+      body{font-family:'IBM Plex Sans Arabic',sans-serif;padding:28px;color:#1a0a0a}
+      .pdf-logo{display:block;margin:0 auto 8px;max-width:210px;max-height:78px}
+      .pdf-head{border-bottom:2px solid #c19a3e;padding-bottom:12px;text-align:center}
+      .doc-title{font-size:22px;font-weight:700;color:#1c4536}
+      .sub{text-align:center;color:#94908a;font-size:13px;margin:6px 0 16px}
+      .info{font-size:14px;margin-bottom:14px}.info b{color:#1c4536}
+      .grand{display:flex;justify-content:space-between;gap:10px;background:#f6f1e6;border:1px solid #e0dccf;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:14px;font-weight:600}
+      .paid{color:#2f8f5b}.rem{color:#b5763a}
+      table{width:100%;border-collapse:collapse;font-size:13px}
+      th,td{border:1px solid #e0dccf;padding:8px 10px;text-align:right}
+      th{background:#123028;color:#fff}
+      .foot{margin-top:24px;padding-top:10px;border-top:1px solid #e0dccf;text-align:center;color:#94908a;font-size:11px}
+      ${PRINT_BAR_CSS}
+    </style></head><body>${PRINT_BAR}
+      <div class="pdf-head"><img class="pdf-logo" src="${HAIAA_LOGO}" alt=""><div class="doc-title">جدول مواعيد الاستحقاق</div><div class="sub">هيئة محبي الحسين (ع) — ${hijriToday()}</div></div>
+      <div class="info">الاسم: <b>${escapeHtml(who)}</b><br>البيان: <b>${escapeHtml(obligation)}</b></div>
+      <div class="grand"><span>الإجمالي: ${fmtMoney(o.total)}</span><span class="paid">المدفوع: ${fmtMoney(paid)}</span><span class="rem">المتبقّي: ${fmtMoney(rem)}</span></div>
+      <table><thead><tr><th>#</th><th>تاريخ الاستحقاق الهجري</th><th>الموافق ميلادي</th><th>مبلغ القسط</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="foot">جدول مواعيد الاستحقاق المجدولة — صادر من هيئة محبي الحسين (ع)</div>
+    </body></html>`);
+  w.document.close(); w.focus();
+}
 /* تسجيل استلام كامل المتبقّي دفعةً واحدة */
 async function instPayFull(){
   const o=instObligation(); if(!o) return;
@@ -4962,9 +5005,10 @@ function openBooking(miqatId){
 }
 /* ═══ محرّر بنود المساهمة (متعدّد: نقدي/عيني بقيمة تقديرية) ═══ */
 const contribState = { booking: [], edit: [] };
-function contribInit(ctx){ contribState[ctx]=[{kind:'نقدي', other:'', value:''}]; contribRender(ctx); }
-function contribAdd(ctx){ contribState[ctx].push({kind:'نقدي', other:'', value:''}); contribRender(ctx); }
-function contribRemove(ctx,i){ contribState[ctx].splice(i,1); if(!contribState[ctx].length) contribState[ctx].push({kind:'نقدي',other:'',value:''}); contribRender(ctx); }
+function contribDefaultKind(ctx){ return ctx==='donation' ? 'وجبة غداء' : 'نقدي'; }
+function contribInit(ctx){ contribState[ctx]=[{kind:contribDefaultKind(ctx), other:'', value:''}]; contribRender(ctx); }
+function contribAdd(ctx){ contribState[ctx].push({kind:contribDefaultKind(ctx), other:'', value:''}); contribRender(ctx); }
+function contribRemove(ctx,i){ contribState[ctx].splice(i,1); if(!contribState[ctx].length) contribState[ctx].push({kind:contribDefaultKind(ctx),other:'',value:''}); contribRender(ctx); }
 function contribSetKind(ctx,i,v){ contribState[ctx][i].kind=v; contribRender(ctx); }
 function contribSetOther(ctx,i,v){ contribState[ctx][i].other=v; }
 function contribSetValue(ctx,i,v){ contribState[ctx][i].value=v; contribTotalUpdate(ctx); if(String(ctx).startsWith('reg_')) regPreviewUpdate(ctx); }
@@ -4981,7 +5025,9 @@ function contribRender(ctx){
   const box=contribBox(ctx); if(!box) return;
   const rows=(contribState[ctx]||[]).map((it,i)=>`
     <div class="contrib-row">
-      <select onchange="contribSetKind('${ctx}',${i},this.value)">${contribKindOptions(it.kind)}</select>
+      <select onchange="contribSetKind('${ctx}',${i},this.value)">${ctx==='donation'
+        ? CONTRIB_KINDS.filter(k=>k!=='نقدي').map(k=>`<option value="${k}"${k===it.kind?' selected':''}>${k}</option>`).join('')
+        : contribKindOptions(it.kind)}</select>
       ${it.kind==='أخرى'?`<input type="text" class="contrib-other" placeholder="النوع" value="${(it.other||'').replace(/"/g,'&quot;')}" oninput="contribSetOther('${ctx}',${i},this.value)">`:''}
       <input type="number" class="contrib-val" min="0" step="0.001" placeholder="القيمة" value="${it.value}" oninput="contribSetValue('${ctx}',${i},this.value)">
       <button type="button" class="contrib-del" onclick="contribRemove('${ctx}',${i})" title="حذف البند">×</button>
@@ -7369,7 +7415,7 @@ function renderFinancePage(page, opts){
   else if(page==='compare'){ host.innerHTML=finCompareHTML(); }
   else if(page==='revenue') host.innerHTML=finRevenueHTML();
   else if(page==='revMiqat') host.innerHTML=finRevMiqatHTML(opts);
-  else if(page==='revEntry') host.innerHTML=finRevEntryHTML(opts);
+  else if(page==='revEntry'){ host.innerHTML=finRevEntryHTML(opts); if((opts.kind||'vow')==='donation') contribInit('donation'); }
   else if(page==='memberMiqatRevenue') host.innerHTML=finMemberMiqatRevenueHTML();
   else if(page==='memberMiqatRevenueDetail') host.innerHTML=finMemberMiqatRevenueDetailHTML(opts);
   else if(page==='expenses') host.innerHTML=finExpensesHTML();
@@ -7627,6 +7673,20 @@ function miqatFinData(miqatId, arch){
     const notes = [ ...its.map(i=>(i.note||'').trim()).filter(Boolean), (b.receivedNote||'').trim() ].filter(Boolean);
     contribs.push({ type, items:names, est, note:[...new Set(notes)].join(' · '),
                     kindNames: kindItems.map(i=>i.kind) });
+  });
+  // التبرعات العينية تستخدم نفس بنية بنود المساهمة، وتظهر في التقارير دون أن تدخل في الرصيد النقدي.
+  (src.revenues||[]).filter(r=>r.miqatId===miqatId && r.kind==='donation').forEach(r=>{
+    const kindItems=Array.isArray(r.contributionItems)?r.contributionItems.filter(i=>!isCashItem(i.kind)):[];
+    if(!kindItems.length) return;
+    const est=kindItems.reduce((s,i)=>s+(Number(i.value)||0),0);
+    inKindTotal+=est;
+    contribs.push({
+      type:'عيني',
+      items:[...new Set(kindItems.map(i=>i.kind).filter(Boolean))],
+      est,
+      note:r.note||'',
+      kindNames:kindItems.map(i=>i.kind)
+    });
   });
   return { id:miqatId, name:mq.name, date:fmtMiqatDate(mq), cash, vows, donations, thawab, income,
            expTotal, net:income-expTotal, expenses:exps, contribs, inKindTotal };
@@ -8170,8 +8230,13 @@ function finRevEntryHTML(opts){
   <div class="fin-add-exp">
     <div class="fin-field"><label>${K.person}</label>
       <input id="revName" type="text" placeholder="${K.person}" /></div>
-    <div class="fin-field"><label>المبلغ (د.ب)</label>
+    <div class="fin-field"><label>المبلغ النقدي (د.ب)${kind==='donation'?' <span class="opt">اختياري عند وجود مساهمة عينية</span>':''}</label>
       <input id="revAmount" type="number" min="0" step="0.001" placeholder="0.000" /></div>
+    ${kind==='donation'?`<div class="fin-field full">
+      <label>المساهمات العينية <span class="opt">اختياري</span></label>
+      <div class="contrib-editor" data-ctx="donation"></div>
+      <div class="fin-hint">نفس نظام المساهمات العينية المستخدم في المشروع. القيمة تقديرية ولا تدخل في الرصيد النقدي.</div>
+    </div>`:''}
     <div class="fin-field"><label>التاريخ</label>
       <input id="revDate" type="date" value="${today()}" /></div>
     <div class="fin-field"><label>ملاحظة <span class="opt">اختياري</span></label>
@@ -8183,20 +8248,31 @@ function finRevEntryHTML(opts){
     ${rows.length?rows.map(r=>`<div class="fel-item">
       <div><div class="fel-type">${escapeHtml(r.name||'—')}</div>
         <div class="fel-meta">${r.date?fmtDate(r.date):''}${r.note?' · '+escapeHtml(r.note):''}</div></div>
-      <div class="fel-cost">${finMoney(r.amount)}<button class="fel-del" onclick="deleteRevenue('${r.id}')">×</button></div>
+      <div class="fel-cost">${finMoney(r.amount)}${Array.isArray(r.contributionItems)&&r.contributionItems.length?`<div style="font-size:10.5px;color:var(--muted);margin-top:3px">عيني: ${r.contributionItems.map(i=>escapeHtml(i.kind)).join(' + ')}</div>`:''}<button class="fel-del" onclick="deleteRevenue('${r.id}')">×</button></div>
     </div>`).join(''):`<div class="fel-empty">لا توجد ${K.label} بعد</div>`}
   </div>`;
 }
 async function addRevenue(kind, miqatId){
   const name=$('#revName').value.trim();
-  const amount=parseFloat($('#revAmount').value);
+  const raw=$('#revAmount').value;
+  const amount=raw===''?0:(parseFloat(raw)||0);
+  const contributionItems = kind==='donation'
+    ? contribItems('donation').filter(i=>!isCashItem(i.kind))
+    : [];
+  const inKindValue=contributionItems.reduce((s,i)=>s+(Number(i.value)||0),0);
+
   if(!name){ toast('أدخل الاسم'); return; }
-  if(isNaN(amount)||amount<=0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  if(kind!=='donation' && amount<=0){ toast('أدخل مبلغاً صحيحاً'); return; }
+  if(kind==='donation' && amount<=0 && !contributionItems.length){ toast('أدخل مبلغاً نقدياً أو مساهمة عينية'); return; }
+
   revenues.push({ id:'rv_'+Date.now(), kind, miqatId, name,
-    amount, note:$('#revNote').value.trim(), date:$('#revDate').value||today(), at:new Date().toISOString() });
+    amount, contributionItems,
+    note:$('#revNote').value.trim(), date:$('#revDate').value||today(), at:new Date().toISOString() });
   await saveRevenues();
   const mq=miqats.find(x=>x.id===miqatId);
-  logAudit('إضافة','المالية',`${REV_KINDS[kind].label}: ${name} بمبلغ ${finMoney(amount)} — ${mq?mq.name:''}`);
+  const detail = amount>0 ? ` بمبلغ ${finMoney(amount)}` : '';
+  const ink = inKindValue>0 ? ` + مساهمة عينية تقديرية ${finMoney(inKindValue)}` : '';
+  logAudit('إضافة','المالية',`${REV_KINDS[kind].label}: ${name}${detail}${ink} — ${mq?mq.name:''}`);
   toast('تمت الإضافة');
   renderFinancePage('revEntry',{kind,miqatId});
 }
@@ -8265,6 +8341,11 @@ function miqatInKindList(miqatId){
     if(!all.length) return;
     const who = b.familyName || (members.find(m=>m.id===b.memberId)?.name) || '—';
     out.push({ who, items:all, note:(b.receivedNote||'').trim() });
+  });
+  revenues.filter(r=>r.miqatId===miqatId && r.kind==='donation').forEach(r=>{
+    const items=Array.isArray(r.contributionItems)?r.contributionItems.filter(i=>!isCashItem(i.kind)):[];
+    if(!items.length) return;
+    out.push({ who:r.name||'—', items:[...new Set(items.map(i=>i.kind).filter(Boolean))], note:r.note||'' });
   });
   return out;
 }
@@ -8553,7 +8634,7 @@ function printMiqatDetailedReport(opts){ printMiqatExpenseReport(opts,true); }
 function printMiqatExpenseReport(opts, detailed=false){
   const mq=miqats.find(x=>x.id===opts.miqatId);
   const isHzn=opts.mood==='hzn';
-  const kindLbl = isHzn ? 'مناسبة حزن' : (opts.kind==='mawlid'?'قراءة مولد':'احتفال');
+  const kindLbl = isHzn ? '' : (opts.kind==='mawlid'?'قراءة مولد':'احتفال');
   const rows=(finance.expenses||[]).filter(e=>e.miqatId===opts.miqatId && e.kind===opts.kind && e.mood===opts.mood)
     .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   const total=rows.reduce((s,e)=>s+(Number(e.cost)||0),0);
