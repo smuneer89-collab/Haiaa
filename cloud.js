@@ -629,6 +629,12 @@ const CloudSync = (() => {
     arr.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
     return arr;
   }
+  async function deleteCulture20Response(id){
+    if(!db) throw new Error('cloud not ready');
+    if(!auth||!auth.currentUser) throw new Error('not authenticated');
+    await db.collection('culture20Responses').doc(String(id)).delete();
+  }
+
 
   // ═══ وصول استلام المبالغ — أمانة السر ═══
   async function createMoneyReceipt(payload){
@@ -728,7 +734,7 @@ const CloudSync = (() => {
            createEvalSession, fetchPublicEvals, setEvalSessionClosed, fetchEvalSessions, deleteEvalSession,
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            createSeasonEvalSession, fetchSeasonEvalSessions, fetchSeasonEvalResponses, setSeasonEvalSessionClosed, deleteSeasonEvalSession,
-           fetchCulture20Responses,
+           fetchCulture20Responses, deleteCulture20Response,
            createMoneyReceipt, fetchMoneyReceipts,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
            setRegistrationOpen, fetchRegistrationOpen, fetchRegistrationRequests, updateRegistrationRequest, deleteRegistrationRequest,

@@ -11287,8 +11287,20 @@ function renderCulture20Responses(){
     return;
   }
   const head=CULTURE20_QUESTIONS.map((x,i)=>`<th>س${i+1}</th>`).join('');
-  const rows=culture20Responses.map((r,ri)=>`<tr><td><b>${escapeHtml(r.name||'—')}</b><div class="dev-meta">${r.createdAt?new Date(r.createdAt).toLocaleString('ar-BH'):''}</div><button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="printCulture20Person(${ri})">طباعة PDF</button></td>${CULTURE20_QUESTIONS.map((_,i)=>`<td style="min-width:220px;white-space:pre-wrap">${escapeHtml(culture20Answer(r,i)||'—')}</td>`).join('')}</tr>`).join('');
+  const rows=culture20Responses.map((r,ri)=>`<tr><td><b>${escapeHtml(r.name||'—')}</b><div class="dev-meta">${r.createdAt?new Date(r.createdAt).toLocaleString('ar-BH'):''}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="printCulture20Person(${ri})">طباعة PDF</button><button class="btn btn-ghost btn-sm" style="color:#a33;border-color:#d9aaaa" onclick="deleteCulture20Response(${ri})">حذف الإجابة</button></div></td>${CULTURE20_QUESTIONS.map((_,i)=>`<td style="min-width:220px;white-space:pre-wrap">${escapeHtml(culture20Answer(r,i)||'—')}</td>`).join('')}</tr>`).join('');
   host.innerHTML=`<div class="dev-meta" style="margin-bottom:8px">${culture20Responses.length} إجابة مسجلة</div><div style="overflow:auto"><table style="width:max-content;min-width:100%;border-collapse:collapse"><thead><tr><th style="min-width:180px">العضو</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+async function deleteCulture20Response(index){
+  const r=culture20Responses[index]; if(!r||!r._id) return;
+  const name=r.name||'هذا العضو';
+  if(!confirm(`حذف إجابة «${name}» من استبيان 20 سؤالًا؟\n\nسيتم حذف هذه المشاركة فقط ولا يمكن التراجع.`)) return;
+  if(!window.CloudSync||!CloudSync.isReady){ toast('يجب الاتصال بالسحابة أولًا'); return; }
+  try{
+    await CloudSync.deleteCulture20Response(r._id);
+    culture20Responses.splice(index,1);
+    renderCulture20Responses();
+    toast('تم حذف الإجابة');
+  }catch(e){ console.error(e); toast('تعذّر حذف الإجابة'); }
 }
 function culture20PDFBody(r,opts={}){
   const comprehensive=!!opts.comprehensive;
