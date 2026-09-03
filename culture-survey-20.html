@@ -56,16 +56,62 @@ function nextQ(){if(!storeCurrent())return;if(current<19){current++;questionStag
 function reviewStage(){
   stage.innerHTML=`<div class="card"><h2>مراجعة قبل الإرسال</h2><p>الاسم: <b>${esc(name)}</b></p><p style="color:var(--muted)">تمت الإجابة عن الأسئلة العشرين. يمكنك العودة لتعديل الإجابة الأخيرة أو إرسال الاستبيان الآن.</p><div style="display:flex;gap:8px"><button class="btn" style="background:#6b746f" onclick="current=19;questionStage()">رجوع</button><button class="btn" id="sendBtn" onclick="submitSurvey()">إرسال الإجابات</button></div></div>`;
 }
-async function submitSurvey(){
-  const btn=document.getElementById('sendBtn');btn.disabled=true;btn.textContent='جارٍ الإرسال…';
+function submitDocId(){
+  if(!window.__culture20SubmitId){
+    const rnd=Math.random().toString(36).slice(2,10);
+    window.__culture20SubmitId='c20_'+Date.now()+'_'+rnd;
+  }
+  return window.__culture20SubmitId;
+}
+function timeoutAfter(ms){
+  return new Promise((_,reject)=>setTimeout(()=>reject(new Error('submit-timeout')),ms));
+}
+async function restSubmitCulture20(docId,payload){
+  const url='https://firestore.googleapis.com/v1/projects/'+FB_CONFIG.projectId+'/databases/(default)/documents/culture20Responses?documentId='+encodeURIComponent(docId)+'&key='+encodeURIComponent(FB_CONFIG.apiKey);
+  const body={fields:{
+    surveyKey:{stringValue:payload.surveyKey},
+    name:{stringValue:payload.name},
+    answers:{arrayValue:{values:payload.answers.map(v=>({stringValue:String(v||'')}))}},
+    createdAt:{stringValue:payload.createdAt}
+  }};
+  const ctl=typeof AbortController!=='undefined'?new AbortController():null;
+  const timer=ctl?setTimeout(()=>ctl.abort(),15000):null;
   try{
-    await db.collection('culture20Responses').add({surveyKey:'culture20-v1',name,answers,createdAt:new Date().toISOString()});
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctl?ctl.signal:undefined});
+    if(res.ok || res.status===409) return true; // 409 = نفس المشاركة وصلت مسبقاً
+    const txt=await res.text().catch(()=>String(res.status));
+    throw new Error('REST '+res.status+' '+txt);
+  }finally{ if(timer) clearTimeout(timer); }
+}
+async function submitSurvey(){
+  const btn=document.getElementById('sendBtn');
+  if(!btn||btn.disabled)return;
+  btn.disabled=true;btn.textContent='جارٍ الإرسال…';
+  const docId=submitDocId();
+  const payload={surveyKey:'culture20-v1',name,answers:answers.slice(),createdAt:new Date().toISOString()};
+  try{
+    try{
+      await Promise.race([
+        db.collection('culture20Responses').doc(docId).set(payload),
+        timeoutAfter(9000)
+      ]);
+    }catch(firstErr){
+      console.warn('Firebase SDK submit fallback',firstErr);
+      await restSubmitCulture20(docId,payload);
+    }
     stage.innerHTML='<div class="card state"><div class="ic">✅</div><h2>شكرًا لمشاركتك</h2><p>تم استلام إجاباتك بنجاح.</p></div>';
   }catch(e){
-    console.error(e);alert('تعذّر إرسال الإجابات. حاول مرة أخرى.');btn.disabled=false;btn.textContent='إرسال الإجابات';
+    console.error(e);
+    alert('تعذّر إرسال الإجابات. تأكد من الاتصال بالإنترنت ثم حاول مرة أخرى.');
+    btn.disabled=false;btn.textContent='إرسال الإجابات';
   }
 }
-try{firebase.initializeApp(FB_CONFIG);db=firebase.firestore();nameStage()}catch(e){console.error(e);stage.innerHTML='<div class="card state"><div class="ic">⚠️</div><h2>تعذّر الاتصال</h2><p>حاول مرة أخرى لاحقًا.</p></div>'}
+try{
+  firebase.initializeApp(FB_CONFIG);
+  db=firebase.firestore();
+  try{db.settings({experimentalAutoDetectLongPolling:true,useFetchStreams:false})}catch(_){}
+  nameStage();
+}catch(e){console.error(e);stage.innerHTML='<div class="card state"><div class="ic">⚠️</div><h2>تعذّر الاتصال</h2><p>حاول مرة أخرى لاحقًا.</p></div>'}
 </script>
 </body>
 </html>
