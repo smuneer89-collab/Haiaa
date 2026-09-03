@@ -420,9 +420,11 @@ const CloudSync = (() => {
         cache[id] = j;
         if(++ops >= 400){ await batch.commit(); batch = db.batch(); ops = 0; }
       }
-      // مجموعات مركز التطوير لا تُحذف ضمن حفظ مصفوفة عادي؛ الحذف فيها صريح فقط.
-      // هذا يمنع نسخة قديمة على جهاز آخر من حذف سجلات جديدة.
-      if(!protectedCenter.has(name)) for(const id of Object.keys(cache)){
+      // حماية V6.25: المزامنة العادية لا تحذف أي مستند من السحابة.
+      // الحذف يجب أن يكون فقط من أوامر الحذف الصريحة في النظام.
+      // هذا يمنع جهازًا قديمًا أو نسخة محلية ناقصة من توليد آلاف عمليات الحذف.
+      // يبقى migrate() هو الاستثناء الوحيد لأنه إجراء إداري صريح ومؤكد.
+      if(allowBigDelete) for(const id of Object.keys(cache)){
         if(seen.has(id)) continue;
         batch.delete(db.collection(name).doc(id));
         delete cache[id];
@@ -432,9 +434,15 @@ const CloudSync = (() => {
       if(rev!==null && rev===localRevision[name]){ clearDirty(name); delete pendingLocal[name]; delete pendingPush[name]; }
       setStatus('ok','متصل');
     }catch(e){
-      console.error('push '+name, e); writeCache[name]={};
-      if(rev!==null && rev===localRevision[name]){ clearTimeout(pendingPush[name]); pendingPush[name]=setTimeout(()=>doPush(name,pendingLocal[name]||arr,rev),3000); }
-      setStatus('offline','تعذّرت المزامنة — ستُعاد المحاولة');
+      console.error('push '+name, e);
+      const code=String((e&&e.code)||'');
+      const quotaHit=(code==='resource-exhausted'||code==='firestore/resource-exhausted');
+      if(!quotaHit) writeCache[name]={};
+      if(!quotaHit && rev!==null && rev===localRevision[name]){
+        clearTimeout(pendingPush[name]);
+        pendingPush[name]=setTimeout(()=>doPush(name,pendingLocal[name]||arr,rev),3000);
+      }
+      setStatus('offline',quotaHit?'تم إيقاف المزامنة مؤقتًا — حصة Firebase ممتلئة':'تعذّرت المزامنة — ستُعاد المحاولة');
     }
   }
 

@@ -20,6 +20,8 @@ label{display:block;font-weight:750;margin-bottom:8px}input,textarea{width:100%;
   <div class="head"><small>هيئة محبي الحسين (ع) · اللجنة الثقافية</small><h1>استبيان 20 سؤالًا</h1></div>
   <div id="stage"></div>
 </div>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore-compat.js"></script>
 <script>
 const FB_CONFIG={apiKey:"AIzaSyBlAxijaUz0OHwCsq5NnvQ90OVOCsr1vKY",authDomain:"haiaa-banijamrah.firebaseapp.com",projectId:"haiaa-banijamrah",storageBucket:"haiaa-banijamrah.firebasestorage.app",messagingSenderId:"499603171369",appId:"1:499603171369:web:19c71e92ca2690cfe61438"};
 const QUESTIONS=["لو طُلب منك أن تختصر اللجنة الثقافية بكلمة واحدة، فماذا تختار؟", "ما أول شعور راودك عند انضمامك إلى اللجنة، وهل ما زال قائمًا حتى الآن؟", "بعيدًا عن أي رأي شخصي، ما الأمر الذي تشعر أن جميع أعضاء اللجنة متفقون عليه دون نقاش؟", "لو كانت لجنتنا شخصًا واحدًا، كيف تصف شخصيته الحالية؟", "ما القيمة التي لا تتنازل عنها في العمل الثقافي حتى لو خالفك بقية الأعضاء؟", "عند رؤيتك لجنة أخرى منظمة وملتزمة، ما أول ما يلفت انتباهك فيها؟", "ما الذي يجعلك تشعر أن اجتماعًا معينًا يستحق الحضور، مقابل اجتماع آخر تفضّل الاعتذار عنه؟", "لو قيّمت التزامك الشخصي بمواعيد اللجنة بصراحة تامة، ماذا تقول عن نفسك؟", "ما أكبر عائق يمنعك من الالتزام بمهمة معينة حتى النهاية؟", "لو استطعت وضع قاعدة واحدة إلزامية على جميع أعضاء اللجنة دون استثناء، فماذا تكون؟", "ما آخر مصدر (كتاب، محاضرة، أو بودكاست) أثّر في تفكيرك الثقافي مؤخرًا؟", "لو بدأ كل اجتماع بخمس دقائق من النقاش الثقافي الحر بمعزل عن الشؤون الإدارية، هل يحمّسك ذلك؟ ولماذا؟", "ما الفرق بين المعلومة التي تُحفظ والثقافة التي تُعاش، من وجهة نظرك؟", "عند حضورك فعالية ثقافية كمشارك لا كمنظّم، ما الذي يجعلك تشعر بأنها أثّرت فيك فعلًا؟", "ما موضوع ثقافي تشعر أن اللجنة لم تطرحه من قبل وتستحق طرحه؟", "لو وضعنا هدفًا واحدًا كبيرًا للجنة هذا العام يجعلنا نفخر بأنفسنا، فماذا يكون؟", "ما الأمر الوحيد الذي لو تغيّر في طريقة عمل اللجنة سيجعلك أكثر حماسًا للمشاركة؟", "لو طُلب منك أن تشرح لشخص غريب سبب وجود هذه اللجنة، فماذا تقول له في جملتين؟", "ما الذي تشعر أنه يعيد الحماس لعضو باتت مشاركته فاترة منذ فترة؟", "لو قلنا بعد عام من الآن إن هذا كان أفضل عام للجنة، فماذا يكون قد حدث خلاله؟"];
@@ -54,20 +56,11 @@ function nextQ(){if(!storeCurrent())return;if(current<19){current++;questionStag
 function reviewStage(){
   stage.innerHTML=`<div class="card"><h2>مراجعة قبل الإرسال</h2><p>الاسم: <b>${esc(name)}</b></p><p style="color:var(--muted)">تمت الإجابة عن الأسئلة العشرين. يمكنك العودة لتعديل الإجابة الأخيرة أو إرسال الاستبيان الآن.</p><div style="display:flex;gap:8px"><button class="btn" style="background:#6b746f" onclick="current=19;questionStage()">رجوع</button><button class="btn" id="sendBtn" onclick="submitSurvey()">إرسال الإجابات</button></div></div>`;
 }
-
-function submitDocId(){
-  if(!window.__culture20SubmitId){
-    window.__culture20SubmitId='c20_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
+function culture20DocId(){
+  if(!window.__culture20DocId){
+    window.__culture20DocId='c20_'+Date.now()+'_'+Math.random().toString(36).slice(2,10);
   }
-  return window.__culture20SubmitId;
-}
-function firestoreRestBody(payload){
-  return {fields:{
-    surveyKey:{stringValue:payload.surveyKey},
-    name:{stringValue:payload.name},
-    answers:{arrayValue:{values:payload.answers.map(v=>({stringValue:String(v||'')}))}},
-    createdAt:{stringValue:payload.createdAt}
-  }};
+  return window.__culture20DocId;
 }
 async function submitSurvey(){
   const btn=document.getElementById('sendBtn');
@@ -79,7 +72,6 @@ async function submitSurvey(){
     answers:answers.slice(0,20).map(v=>String(v||'').trim()),
     createdAt:new Date().toISOString()
   };
-
   if(!payload.name || payload.answers.length!==20 || payload.answers.some(v=>!v)){
     alert('تأكد من الاسم والإجابة عن جميع الأسئلة العشرين.');
     return;
@@ -87,61 +79,25 @@ async function submitSurvey(){
 
   btn.disabled=true;
   btn.textContent='جارٍ الإرسال…';
-
-  const docId=submitDocId();
-  const url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(FB_CONFIG.projectId)+'/databases/(default)/documents/culture20Responses?documentId='+encodeURIComponent(docId)+'&key='+encodeURIComponent(FB_CONFIG.apiKey);
-
-  const ctl=new AbortController();
-  const timer=setTimeout(()=>ctl.abort(),12000);
-
   try{
-    const res=await fetch(url,{
-      method:'POST',
-      mode:'cors',
-      cache:'no-store',
-      credentials:'omit',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(firestoreRestBody(payload)),
-      signal:ctl.signal
-    });
-
-    clearTimeout(timer);
-
-    if(res.ok || res.status===409){
-      stage.innerHTML='<div class="card state"><div class="ic">✅</div><h2>شكرًا لمشاركتك</h2><p>تم استلام إجاباتك بنجاح.</p></div>';
-      return;
-    }
-
-    let detail='';
-    try{
-      const body=await res.json();
-      detail=(body&&body.error&&(body.error.status||body.error.message))||'';
-    }catch(_){}
-
-    btn.disabled=false;
-    btn.textContent='إعادة محاولة الإرسال';
-
-    if(res.status===403){
-      alert('Firebase رفض الإرسال (403). المشكلة الآن من إعدادات مشروع Firebase أو مفتاح API، وليست من نموذج الاستبيان.');
-    }else if(res.status===401){
-      alert('Firebase رفض الاتصال (401). يرجى مراجعة إعدادات مفتاح Firebase.');
-    }else{
-      alert('تعذّر الإرسال إلى Firebase. رمز الخطأ: '+res.status+(detail?' — '+detail:''));
-    }
+    if(!db)throw new Error('firestore-not-ready');
+    await db.collection('culture20Responses').doc(culture20DocId()).set(payload);
+    stage.innerHTML='<div class="card state"><div class="ic">✅</div><h2>شكرًا لمشاركتك</h2><p>تم استلام إجاباتك بنجاح.</p></div>';
   }catch(e){
-    clearTimeout(timer);
-    console.error('culture20 direct submit',e);
+    console.error('culture20 submit',e);
     btn.disabled=false;
-    btn.textContent='إعادة محاولة الإرسال';
-    if(e && e.name==='AbortError'){
-      alert('لم يصل رد من Firebase خلال 12 ثانية. هذا يعني أن الاتصال بخدمة Firebase نفسها متعذر من هذا الجهاز/الشبكة.');
-    }else{
-      alert('تعذّر الاتصال بخدمة Firebase من المتصفح. افتح الرابط في Safari مباشرة ثم حاول مرة أخرى.');
-    }
+    btn.textContent='إرسال الإجابات';
+    alert('تعذّر إرسال الإجابات. حاول مرة أخرى.');
   }
 }
-
-nameStage();
+try{
+  firebase.initializeApp(FB_CONFIG);
+  db=firebase.firestore();
+  nameStage();
+}catch(e){
+  console.error(e);
+  stage.innerHTML='<div class="card state"><div class="ic">⚠️</div><h2>تعذّر الاتصال</h2><p>أعد فتح الرابط وحاول مرة أخرى.</p></div>';
+}
 </script>
 </body>
 </html>
