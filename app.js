@@ -11295,12 +11295,41 @@ async function deleteCulture20Response(index){
   const name=r.name||'هذا العضو';
   if(!confirm(`حذف إجابة «${name}» من استبيان 20 سؤالًا؟\n\nسيتم حذف هذه المشاركة فقط ولا يمكن التراجع.`)) return;
   if(!window.CloudSync||!CloudSync.isReady){ toast('يجب الاتصال بالسحابة أولًا'); return; }
+
+  const deleteTimeout=(ms)=>new Promise((_,reject)=>setTimeout(()=>reject(new Error('delete-timeout')),ms));
+  let firstError=null;
+
   try{
-    await CloudSync.deleteCulture20Response(r._id);
+    // المسار الأساسي عبر CloudSync.
+    if(typeof CloudSync.deleteCulture20Response==='function'){
+      try{
+        await Promise.race([CloudSync.deleteCulture20Response(r._id),deleteTimeout(10000)]);
+      }catch(e){
+        firstError=e;
+        // مسار احتياطي مباشر إلى Firestore إذا كان cloud.js القديم ما زال مخزناً أو تعذّر المسار الأساسي.
+        if(!window.firebase||!firebase.firestore||!firebase.auth||!firebase.auth().currentUser) throw e;
+        await Promise.race([
+          firebase.firestore().collection('culture20Responses').doc(String(r._id)).delete(),
+          deleteTimeout(10000)
+        ]);
+      }
+    }else{
+      // إذا كانت الواجهة الجديدة اشتغلت مع نسخة cloud.js قديمة مخزّنة في الجهاز.
+      if(!window.firebase||!firebase.firestore||!firebase.auth||!firebase.auth().currentUser) throw new Error('delete-method-unavailable');
+      await Promise.race([
+        firebase.firestore().collection('culture20Responses').doc(String(r._id)).delete(),
+        deleteTimeout(10000)
+      ]);
+    }
+
+    // لا نحذف من الواجهة إلا بعد نجاح الحذف في Firebase.
     culture20Responses.splice(index,1);
     renderCulture20Responses();
     toast('تم حذف الإجابة');
-  }catch(e){ console.error(e); toast('تعذّر حذف الإجابة'); }
+  }catch(e){
+    console.error('deleteCulture20Response',firstError||e,e);
+    toast(e&&e.message==='delete-timeout'?'تعذّر الحذف بسبب بطء الاتصال — حاول مرة أخرى':'تعذّر حذف الإجابة');
+  }
 }
 function culture20PDFBody(r,opts={}){
   const comprehensive=!!opts.comprehensive;
