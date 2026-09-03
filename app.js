@@ -11249,8 +11249,8 @@ const CULTURE20_QUESTIONS=[{"group": "المجموعة الأولى: كسر ال
 let culture20Responses=[];
 
 function culture20SurveyPageURL(){
-  const base=location.origin + location.pathname.replace(/[^/]*$/, '');
-  return base+'culture-survey-20.html';
+  // رابط ثابت للأعضاء — لا يتغيّر مع أرقام الإصدارات أو الكاش.
+  return 'https://smuneer89-collab.github.io/Haiaa/culture-survey-20.html';
 }
 async function copyCulture20SurveyLink(){
   const url=culture20SurveyPageURL();

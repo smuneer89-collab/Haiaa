@@ -63,55 +63,101 @@ function submitDocId(){
   }
   return window.__culture20SubmitId;
 }
-function timeoutAfter(ms){
-  return new Promise((_,reject)=>setTimeout(()=>reject(new Error('submit-timeout')),ms));
+function submitTimeout(ms,label){
+  return new Promise((_,reject)=>setTimeout(()=>reject(new Error(label||'timeout')),ms));
 }
-async function restSubmitCulture20(docId,payload){
-  const url='https://firestore.googleapis.com/v1/projects/'+FB_CONFIG.projectId+'/databases/(default)/documents/culture20Responses?documentId='+encodeURIComponent(docId)+'&key='+encodeURIComponent(FB_CONFIG.apiKey);
-  const body={fields:{
+function firestoreRestBody(payload){
+  return {fields:{
     surveyKey:{stringValue:payload.surveyKey},
     name:{stringValue:payload.name},
     answers:{arrayValue:{values:payload.answers.map(v=>({stringValue:String(v||'')}))}},
     createdAt:{stringValue:payload.createdAt}
   }};
+}
+async function submitViaRest(docId,payload){
+  const url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(FB_CONFIG.projectId)+'/databases/(default)/documents/culture20Responses?documentId='+encodeURIComponent(docId)+'&key='+encodeURIComponent(FB_CONFIG.apiKey);
   const ctl=typeof AbortController!=='undefined'?new AbortController():null;
-  const timer=ctl?setTimeout(()=>ctl.abort(),15000):null;
+  const timer=ctl?setTimeout(()=>ctl.abort(),20000):null;
   try{
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctl?ctl.signal:undefined});
-    if(res.ok || res.status===409) return true; // 409 = نفس المشاركة وصلت مسبقاً
-    const txt=await res.text().catch(()=>String(res.status));
-    throw new Error('REST '+res.status+' '+txt);
-  }finally{ if(timer) clearTimeout(timer); }
+    const res=await fetch(url,{
+      method:'POST',
+      mode:'cors',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(firestoreRestBody(payload)),
+      signal:ctl?ctl.signal:undefined
+    });
+    // 409 means this exact generated document already exists: the prior attempt succeeded.
+    if(res.ok || res.status===409) return true;
+    let detail='';
+    try{detail=(await res.json())?.error?.message||''}catch(_){}
+    throw new Error('rest-'+res.status+(detail?': '+detail:''));
+  }finally{
+    if(timer)clearTimeout(timer);
+  }
+}
+async function submitViaSdk(docId,payload){
+  if(!db)throw new Error('sdk-not-ready');
+  await Promise.race([
+    db.collection('culture20Responses').doc(docId).set(payload),
+    submitTimeout(20000,'sdk-timeout')
+  ]);
+  return true;
 }
 async function submitSurvey(){
   const btn=document.getElementById('sendBtn');
   if(!btn||btn.disabled)return;
-  btn.disabled=true;btn.textContent='جارٍ الإرسال…';
+
+  btn.disabled=true;
+  btn.textContent='جارٍ الإرسال…';
+
   const docId=submitDocId();
-  const payload={surveyKey:'culture20-v1',name,answers:answers.slice(),createdAt:new Date().toISOString()};
+  const payload={
+    surveyKey:'culture20-v1',
+    name:String(name||'').trim(),
+    answers:answers.slice(0,20).map(v=>String(v||'').trim()),
+    createdAt:new Date().toISOString()
+  };
+
+  if(!payload.name || payload.answers.length!==20 || payload.answers.some(v=>!v)){
+    alert('تأكد من الاسم والإجابة عن جميع الأسئلة العشرين.');
+    btn.disabled=false;
+    btn.textContent='إرسال الإجابات';
+    return;
+  }
+
+  let restError=null;
   try{
+    // المسار الأساسي لا يعتمد على حالة اتصال Firestore داخل Safari.
     try{
-      await Promise.race([
-        db.collection('culture20Responses').doc(docId).set(payload),
-        timeoutAfter(9000)
-      ]);
-    }catch(firstErr){
-      console.warn('Firebase SDK submit fallback',firstErr);
-      await restSubmitCulture20(docId,payload);
+      await submitViaRest(docId,payload);
+    }catch(e){
+      restError=e;
+      console.warn('REST submit failed; trying Firebase SDK',e);
+      await submitViaSdk(docId,payload);
     }
+
     stage.innerHTML='<div class="card state"><div class="ic">✅</div><h2>شكرًا لمشاركتك</h2><p>تم استلام إجاباتك بنجاح.</p></div>';
   }catch(e){
-    console.error(e);
-    alert('تعذّر إرسال الإجابات. تأكد من الاتصال بالإنترنت ثم حاول مرة أخرى.');
-    btn.disabled=false;btn.textContent='إرسال الإجابات';
+    console.error('culture20 submit failed',restError,e);
+    const online=(typeof navigator==='undefined'||navigator.onLine!==false);
+    const msg=online
+      ? 'تعذّر إرسال الإجابات حالياً. لم تُفقد إجاباتك؛ اضغط «إرسال الإجابات» للمحاولة مرة أخرى.'
+      : 'لا يوجد اتصال بالإنترنت حالياً. اتصل بالإنترنت ثم اضغط «إرسال الإجابات» مرة أخرى.';
+    alert(msg);
+    btn.disabled=false;
+    btn.textContent='إرسال الإجابات';
   }
 }
 try{
   firebase.initializeApp(FB_CONFIG);
   db=firebase.firestore();
-  try{db.settings({experimentalAutoDetectLongPolling:true,useFetchStreams:false})}catch(_){}
   nameStage();
-}catch(e){console.error(e);stage.innerHTML='<div class="card state"><div class="ic">⚠️</div><h2>تعذّر الاتصال</h2><p>حاول مرة أخرى لاحقًا.</p></div>'}
+}catch(e){
+  console.error(e);
+  // تبقى صفحة الاستبيان قابلة للفتح؛ الإرسال الأساسي يستخدم REST مباشرة.
+  nameStage();
+}
 </script>
 </body>
 </html>

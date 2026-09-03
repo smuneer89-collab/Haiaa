@@ -4,7 +4,7 @@
    • طلبات Firebase والخطوط: تمر مباشرة بلا تخزين ← لا تتعطّل المزامنة
    • بلا إنترنت: يرجع لآخر نسخة مخزّنة تلقائياً
 */
-const CACHE = 'husain-v38-cultural-survey-delete-fix';
+const CACHE = 'husain-v39-stable-cultural-survey-link';
 
 const APP_SHELL = [
   './',
@@ -50,6 +50,12 @@ self.addEventListener('fetch', e => {
 
   /* طلبات خارجية (Firebase / خطوط Google) — لا نتدخّل إطلاقاً */
   if (url.origin !== self.location.origin) return;
+
+  /* رابط الاستبيان العام ثابت: الشبكة فقط لمنع أي نسخة قديمة من الصفحة. */
+  if (url.pathname.endsWith('/culture-survey-20.html')) {
+    e.respondWith(fetch(req, {cache:'no-store'}));
+    return;
+  }
 
   /* الصور والأيقونات والخطوط — الذاكرة أولاً */
   if (STATIC_RE.test(url.pathname)) {
