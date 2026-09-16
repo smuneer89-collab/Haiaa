@@ -114,6 +114,11 @@ service cloud.firestore {
       allow read, update, delete: if allowed();
     }
 
+    // ═══ المصروفات غير المتعلقة بالإحياء: الإدارة فقط ═══
+    match /nonRevivalExpenses/{expenseId} {
+      allow read, create, update, delete: if allowed();
+    }
+
     // ═══ باقي بيانات الهيئة: الإدارة فقط ═══
     match /{document=**} {
       allow read, write: if allowed();

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مصروفات غير متعلقة بالإحياء</title>
+<style>
+:root{--accent:#173d33;--gold:#9a7b42;--bg:#f5f6f4;--surface:#fff;--line:#dde1de;--muted:#68736f;--ink:#18201e;--danger:#a23a3a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif;line-height:1.7}
+.wrap{max-width:860px;margin:auto;padding:18px 12px 50px}.head{background:var(--accent);color:#fff;border-radius:16px;padding:20px;margin-bottom:14px}
+.head small{opacity:.8}.head h1{margin:3px 0;font-size:23px}.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 2px 10px #00000008}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.full{grid-column:1/-1}label{display:block;font-weight:750;margin-bottom:6px}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;background:#fff}textarea{min-height:150px;resize:vertical}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.btn{border:0;border-radius:10px;padding:11px 16px;font:750 15px inherit;cursor:pointer;background:var(--accent);color:#fff}
+.btn.alt{background:#fff;color:var(--accent);border:1px solid var(--line)}.btn:disabled{opacity:.55}.msg{margin-top:12px;color:var(--muted)}
+@media(max-width:620px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.actions .btn{flex:1}.head h1{font-size:20px}}
+</style>
+</head><body>
+<div class="wrap"><div class="head"><small>هيئة محبي الحسين (ع) · اللجنة المالية</small><h1 id="title">مصروفات غير متعلقة بالإحياء</h1></div>
+<div class="card" id="card"><div class="msg">جارٍ التحميل…</div></div></div>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore-compat.js"></script>
+<script>
+const FB_CONFIG={apiKey:"AIzaSyBlAxijaUz0OHwCsq5NnvQ90OVOCsr1vKY",authDomain:"haiaa-banijamrah.firebaseapp.com",projectId:"haiaa-banijamrah",storageBucket:"haiaa-banijamrah.firebasestorage.app",messagingSenderId:"499603171369",appId:"1:499603171369:web:19c71e92ca2690cfe61438"};
+firebase.initializeApp(FB_CONFIG); const auth=firebase.auth(),db=firebase.firestore();
+const qs=new URLSearchParams(location.search), id=qs.get('id'), mode=qs.get('mode');
+const card=document.getElementById('card'),title=document.getElementById('title');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>new Intl.NumberFormat('ar-BH',{minimumFractionDigits:3,maximumFractionDigits:3}).format(Number(n)||0)+' د.ب';
+let current=null;
+
+function formHTML(x={}){
+ return `<div class="grid">
+ <div><label>اسم النشاط *</label><input id="activityName" maxlength="180" value="${esc(x.activityName||'')}"></div>
+ <div><label>التاريخ *</label><input id="activityDate" type="date" value="${esc(x.activityDate||'')}"></div>
+ <div class="full"><label>الوصف</label><textarea id="description" placeholder="اكتب وصف النشاط بالتفصيل…">${esc(x.description||'')}</textarea></div>
+ <div><label>المبلغ الكلي لتكلفة النشاط *</label><input id="totalAmount" type="number" min="0" step="0.001" inputmode="decimal" value="${x.totalAmount??''}"></div>
+ <div><label>مساهمة الهيئة *</label><input id="haiaaContribution" type="number" min="0" step="0.001" inputmode="decimal" value="${x.haiaaContribution??''}"></div>
+ </div><div class="actions">
+ <button class="btn" id="saveBtn" onclick="save()">حفظ</button>
+ ${id?'<button class="btn alt" onclick="printContribution()">طباعة مساهمة PDF</button>':''}
+ <button class="btn alt" onclick="goList()">عودة</button>
+ <button class="btn alt" onclick="goHome()">الرئيسية</button>
+ </div><div class="msg" id="msg">${x.updatedAt?'آخر تعديل: '+esc(new Date(x.updatedAt).toLocaleString('ar-BH')):''}</div>`;
+}
+function goHome(){location.href='index.html'}
+function goList(){location.href='index.html#finance-nonrevival'}
+function payload(){
+ return {activityName:document.getElementById('activityName').value.trim(),activityDate:document.getElementById('activityDate').value,
+ description:document.getElementById('description').value.trim(),totalAmount:Number(document.getElementById('totalAmount').value),
+ haiaaContribution:Number(document.getElementById('haiaaContribution').value)};
+}
+async function save(){
+ const p=payload(), b=document.getElementById('saveBtn'),m=document.getElementById('msg');
+ if(!p.activityName||!p.activityDate||!document.getElementById('totalAmount').value||!document.getElementById('haiaaContribution').value){alert('يرجى تعبئة اسم النشاط والتاريخ والمبلغ الكلي ومساهمة الهيئة.');return}
+ if(p.totalAmount<0||p.haiaaContribution<0){alert('المبالغ يجب أن تكون صفرًا أو أكبر.');return}
+ b.disabled=true;b.textContent='جارٍ الحفظ…';
+ try{
+   const now=new Date().toISOString(), data={...p,updatedAt:now};
+   let savedId=id;
+   if(id){await db.collection('nonRevivalExpenses').doc(id).set(data,{merge:true})}
+   else{data.createdAt=now;const ref=await db.collection('nonRevivalExpenses').add(data);savedId=ref.id}
+   m.textContent='تم الحفظ بنجاح.'; b.textContent='تم الحفظ';
+   setTimeout(()=>location.replace('finance-nonrevival.html?id='+encodeURIComponent(savedId)),350);
+ }catch(e){console.error(e);b.disabled=false;b.textContent='حفظ';alert('تعذّر الحفظ في Firebase. تأكد من تسجيل دخول الإدارة واتصال الإنترنت.')}
+}
+function printContribution(){
+ const p=payload();
+ if(!p.activityName||!p.activityDate){alert('احفظ البيانات أولًا.');return}
+ const w=window.open('','_blank');
+ const listUrl=new URL('index.html#finance-nonrevival',location.href).href, homeUrl=new URL('index.html',location.href).href;
+ w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>مساهمة الهيئة — ${esc(p.activityName)}</title>
+ <style>@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;color:#18201e;direction:rtl;margin:0}.top{background:#173d33;color:#fff;padding:18px 20px;border-radius:12px}.top h1{margin:3px 0;font-size:22px}.sub{opacity:.82}.box{margin-top:16px;border:1px solid #dde1de;border-radius:12px;overflow:hidden}.row{display:grid;grid-template-columns:165px 1fr;border-bottom:1px solid #e6e9e7}.row:last-child{border:0}.k{background:#f5f6f4;padding:11px;font-weight:700}.v{padding:11px}.desc{white-space:pre-wrap}.contrib{margin-top:18px;padding:16px;border:2px solid #9a7b42;border-radius:12px;text-align:center}.contrib .n{font-size:28px;font-weight:800;color:#173d33}.nav{display:flex;gap:8px;margin:16px 0}.nav a,.print{padding:8px 13px;border-radius:8px;text-decoration:none;border:1px solid #dde1de;color:#173d33;background:#fff;font-weight:700}.print{cursor:pointer}.foot{margin-top:26px;text-align:center;color:#68736f;font-size:12px}@media print{.print{display:none}}</style></head><body>
+ <div class="nav"><a href="${listUrl}">عودة</a><a href="${homeUrl}">الرئيسية</a><button class="print" onclick="window.print()">طباعة / حفظ PDF</button></div>
+ <div class="top"><div class="sub">هيئة محبي الحسين (ع) · اللجنة المالية</div><h1>توثيق مساهمة الهيئة</h1></div>
+ <div class="box"><div class="row"><div class="k">اسم النشاط</div><div class="v">${esc(p.activityName)}</div></div>
+ <div class="row"><div class="k">التاريخ</div><div class="v">${esc(p.activityDate)}</div></div>
+ <div class="row"><div class="k">الوصف</div><div class="v desc">${esc(p.description||'—')}</div></div>
+ <div class="row"><div class="k">المبلغ الكلي</div><div class="v">${money(p.totalAmount)}</div></div></div>
+ <div class="contrib"><div>مساهمة الهيئة</div><div class="n">${money(p.haiaaContribution)}</div></div>
+ <div class="foot">هيئة محبي الحسين (ع) — اللجنة المالية</div></body></html>`);w.document.close();
+}
+auth.onAuthStateChanged(async user=>{
+ if(!user){card.innerHTML='<div class="msg">يلزم تسجيل الدخول إلى الإدارة من الصفحة الرئيسية أولًا.</div><div class="actions"><button class="btn" onclick="goHome()">الرئيسية</button></div>';return}
+ if(mode==='add'||!id){title.textContent='إضافة مصروف غير متعلق بالإحياء';card.innerHTML=formHTML();return}
+ try{const d=await db.collection('nonRevivalExpenses').doc(id).get();if(!d.exists)throw new Error('not-found');current={_id:d.id,...d.data()};title.textContent=current.activityName||'تفاصيل المصروف';card.innerHTML=formHTML(current)}
+ catch(e){console.error(e);card.innerHTML='<div class="msg">تعذّر تحميل سجل المصروف.</div><div class="actions"><button class="btn alt" onclick="goList()">عودة</button></div>'}
+});
+</script></body></html>

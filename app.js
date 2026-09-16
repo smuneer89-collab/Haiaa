@@ -7385,7 +7385,7 @@ async function enterFinance(){
   openFinancePage('home');
 }
 /* ═══════════ اللجنة المالية ═══════════ */
-const FIN_PAGES=['home','merge','compare','statement','revenue','revMiqat','revEntry','memberMiqatRevenue','memberMiqatRevenueDetail','expenses','expMiqat','expMood','expHzn','expEntry','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
+const FIN_PAGES=['home','merge','compare','statement','revenue','revMiqat','revEntry','memberMiqatRevenue','memberMiqatRevenueDetail','expenses','expMiqat','expMood','expHzn','expEntry','nonRevivalExpenses','reports','projects','projectAdd','tathwib','tathwibMiqat','tathwibMiqatDetail','tathwibPaid','tathwibReports','soon'];
 let finNav=[];   // مكدّس التنقّل للرجوع
 function openFinancePage(page, opts, push=true){
   // أخفِ كل تبويبات البرنامج وأظهر صفحة المالية
@@ -7420,6 +7420,7 @@ function renderFinancePage(page, opts){
   else if(page==='memberMiqatRevenueDetail') host.innerHTML=finMemberMiqatRevenueDetailHTML(opts);
   else if(page==='expenses') host.innerHTML=finExpensesHTML();
   else if(page==='expMiqat') host.innerHTML=finExpMiqatHTML();
+  else if(page==='nonRevivalExpenses'){ host.innerHTML=finNonRevivalExpensesHTML(); loadNonRevivalExpenses(); }
   else if(page==='expMood') host.innerHTML=finExpMoodHTML(opts);
   else if(page==='expHzn') host.innerHTML=finExpHznHTML(opts);
   else if(page==='projects'){ host.innerHTML=finProjectsHTML(); loadIncomingProjects(); }
@@ -8368,7 +8369,7 @@ function finExpensesHTML(){
   return `
   <div class="fin-grid one">
     <button class="fin-cell big" onclick="openFinancePage('expMiqat')">مصروفات المواقيت</button>
-    <button class="fin-cell big" onclick="openFinancePage('soon',{title:'مصروفات غير متعلقة بالإحياء'})">مصروفات غير متعلقة بالإحياء</button>
+    <button class="fin-cell big" onclick="openFinancePage('nonRevivalExpenses')">مصروفات غير متعلقة بالإحياء</button>
     <button class="fin-cell big" onclick="openFinancePage('projects')">مشاريع</button>
   </div>`;
 }
@@ -8396,6 +8397,42 @@ function miqatNearLabel(mq){
   if(d===1) return 'غداً';
   if(d>0) return `بعد ${d} يوماً`;
   return `مضى ${Math.abs(d)} يوماً`;
+}
+
+
+/* ═══ مصروفات غير متعلقة بالإحياء ═══ */
+let nonRevivalExpensesCache=[];
+function finNonRevivalExpensesHTML(){
+  return `<div class="fin-ctx">المصروفات — مصروفات غير متعلقة بالإحياء</div>
+  <div style="display:flex;justify-content:flex-end;margin:12px 0 16px">
+    <button class="btn btn-primary" onclick="window.open('finance-nonrevival.html?mode=add','_blank','noopener')">+ إضافة مصروف</button>
+  </div>
+  <div id="nonRevivalExpensesList"><div class="empty"><div class="txt">جارٍ تحميل المصروفات…</div></div></div>`;
+}
+function nonRevivalDateText(v){
+  if(!v) return '—';
+  try{ return new Intl.DateTimeFormat('ar-BH',{year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v+'T12:00:00')); }
+  catch(_){ return v; }
+}
+async function loadNonRevivalExpenses(){
+  const el=$('#nonRevivalExpensesList'); if(!el)return;
+  try{
+    if(!window.CloudSync||!CloudSync.isReady) throw new Error('cloud-not-ready');
+    nonRevivalExpensesCache=await CloudSync.fetchNonRevivalExpenses();
+    if(!nonRevivalExpensesCache.length){
+      el.innerHTML=`<div class="empty"><div class="txt">لا توجد مصروفات غير متعلقة بالإحياء مسجّلة بعد.</div></div>`; return;
+    }
+    el.innerHTML=nonRevivalExpensesCache.map(x=>`<div class="miqat-card" data-row-id="${escapeHtml(x._id||x.id||'')}">
+      <div class="mc-row" onclick="window.open('finance-nonrevival.html?id=${encodeURIComponent(x._id||x.id)}','_blank','noopener')">
+        <span class="mc-name">${escapeHtml(x.activityName||'—')}</span>
+        <span class="mc-right"><span class="mc-status">${escapeHtml(nonRevivalDateText(x.activityDate))}</span><span class="mc-chev">‹</span></span>
+      </div>
+    </div>`).join('');
+  }catch(e){
+    console.error(e);
+    el.innerHTML=`<div class="empty"><div class="txt">تعذّر تحميل القائمة. تأكد من اتصال Firebase ثم حاول مرة أخرى.</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="loadNonRevivalExpenses()">إعادة المحاولة</button></div>`;
+  }
 }
 
 /* مصروفات المواقيت → فرح / حزن */
@@ -11593,3 +11630,13 @@ async function requestSecretariatAccess(){
   fillAnnualYears();
   window.scrollTo({top:0,behavior:'smooth'});
 }
+
+
+/* رابط مباشر لقائمة المصروفات غير المتعلقة بالإحياء */
+function openFinanceNonRevivalFromHash(){
+  if(location.hash==='#finance-nonrevival'){
+    setTimeout(()=>{ try{ openFinancePage('nonRevivalExpenses'); }catch(e){ console.error(e); } },350);
+  }
+}
+window.addEventListener('hashchange',openFinanceNonRevivalFromHash);
+window.addEventListener('load',openFinanceNonRevivalFromHash);

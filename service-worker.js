@@ -4,7 +4,7 @@
    • طلبات Firebase والخطوط: تمر مباشرة بلا تخزين ← لا تتعطّل المزامنة
    • بلا إنترنت: يرجع لآخر نسخة مخزّنة تلقائياً
 */
-const CACHE = 'husain-v42-sync-delete-guard';
+const CACHE = 'husain-v43-nonrevival-expenses';
 
 const APP_SHELL = [
   './',
@@ -12,6 +12,7 @@ const APP_SHELL = [
   './register.html',
   './registration-admin.html',
   './season-evaluation.html',
+  './finance-nonrevival.html',
   './app.js',
   './assets.js',
   './cloud.js',

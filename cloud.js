@@ -644,6 +644,43 @@ const CloudSync = (() => {
   }
 
 
+  // ═══ المصروفات غير المتعلقة بالإحياء — اللجنة المالية ═══
+  async function fetchNonRevivalExpenses(){
+    if(!db) throw new Error('cloud not ready');
+    if(!auth||!auth.currentUser) throw new Error('not authenticated');
+    const snap=await db.collection('nonRevivalExpenses').get();
+    const arr=snap.docs.map(d=>Object.assign({_id:d.id},d.data()));
+    arr.sort((a,b)=>String(b.activityDate||'').localeCompare(String(a.activityDate||'')) || String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    return arr;
+  }
+  async function fetchNonRevivalExpense(id){
+    if(!db) throw new Error('cloud not ready');
+    if(!auth||!auth.currentUser) throw new Error('not authenticated');
+    const d=await db.collection('nonRevivalExpenses').doc(String(id)).get();
+    return d.exists?Object.assign({_id:d.id},d.data()):null;
+  }
+  async function saveNonRevivalExpense(payload,id){
+    if(!db) throw new Error('cloud not ready');
+    if(!auth||!auth.currentUser) throw new Error('not authenticated');
+    const now=new Date().toISOString();
+    const clean={
+      activityName:String(payload.activityName||'').trim(),
+      activityDate:String(payload.activityDate||''),
+      description:String(payload.description||'').trim(),
+      totalAmount:Number(payload.totalAmount)||0,
+      haiaaContribution:Number(payload.haiaaContribution)||0,
+      updatedAt:now
+    };
+    if(id){
+      await db.collection('nonRevivalExpenses').doc(String(id)).set(clean,{merge:true});
+      return String(id);
+    }
+    clean.createdAt=now;
+    const ref=await db.collection('nonRevivalExpenses').add(clean);
+    return ref.id;
+  }
+
+
   // ═══ وصول استلام المبالغ — أمانة السر ═══
   async function createMoneyReceipt(payload){
     if(!db) throw new Error('cloud not ready');
@@ -743,6 +780,7 @@ const CloudSync = (() => {
            createSurveySession, fetchPublicSurveys, setSurveySessionClosed, fetchSurveySessions, deleteSurveySession,
            createSeasonEvalSession, fetchSeasonEvalSessions, fetchSeasonEvalResponses, setSeasonEvalSessionClosed, deleteSeasonEvalSession,
            fetchCulture20Responses, deleteCulture20Response,
+           fetchNonRevivalExpenses, fetchNonRevivalExpense, saveNonRevivalExpense,
            createMoneyReceipt, fetchMoneyReceipts,
            submitPublicProject, fetchPublicProjects, deletePublicProject,
            setRegistrationOpen, fetchRegistrationOpen, fetchRegistrationRequests, updateRegistrationRequest, deleteRegistrationRequest,
