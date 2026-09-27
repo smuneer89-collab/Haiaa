@@ -44,6 +44,29 @@ service cloud.firestore {
         && d.source == 'public-registration';
     }
 
+    // طلب مشروع عبر الرابط: إنشاء طلب جديد فقط مع التحقق من الحقول.
+    function isValidPublicProject() {
+      let d = request.resource.data;
+      return d.keys().hasAll([
+          'at', 'submitter', 'committee', 'title', 'date', 'description',
+          'goal', 'cost', 'source', 'donorName'
+        ])
+        && d.keys().hasOnly([
+          'at', 'submitter', 'committee', 'title', 'date', 'description',
+          'goal', 'cost', 'source', 'donorName'
+        ])
+        && d.at is string && d.at.size() <= 40
+        && d.submitter is string && d.submitter.size() > 0 && d.submitter.size() <= 120
+        && d.committee is string && d.committee.size() <= 120
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 200
+        && d.date is string && d.date.size() <= 20
+        && d.description is string && d.description.size() <= 10000
+        && d.goal is string && d.goal.size() <= 10000
+        && d.cost is number && d.cost >= 0 && d.cost <= 100000000
+        && d.source is string && d.source in ['', 'donor', 'budget']
+        && d.donorName is string && d.donorName.size() <= 120;
+    }
+
     // ═══ التقييم العام عبر الرابط (معزول) ═══
 
     // جلسات التقييم: العامة تقرأ فقط (لعرض اسم الرادود والمناسبة)،
@@ -117,6 +140,12 @@ service cloud.firestore {
     // ═══ المصروفات غير المتعلقة بالإحياء: الإدارة فقط ═══
     match /nonRevivalExpenses/{expenseId} {
       allow read, create, update, delete: if allowed();
+    }
+
+    // استلام مشاريع الأعضاء عبر الرابط؛ الاطلاع والإدارة للحسابات المصرح بها.
+    match /publicProjects/{projectId} {
+      allow create: if isValidPublicProject();
+      allow read, update, delete: if allowed();
     }
 
     // ═══ باقي بيانات الهيئة: الإدارة فقط ═══
